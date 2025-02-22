@@ -36,3 +36,8 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+node_modules/
+.expo/
+.DS_Store
+android/app/build/
+ios/Pods/
