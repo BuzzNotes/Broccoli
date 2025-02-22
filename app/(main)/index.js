@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import LottieAnimation from '../../src/components/LottieAnimation';
+import { colors } from '../styles/colors';
 
 const MainScreen = () => {
   // Timer State
@@ -85,60 +86,103 @@ const MainScreen = () => {
 
   return (
     <View style={styles.container}>
-      <LottieAnimation />
-
-      {/* Timer */}
-      <Text style={styles.timer}>
-        {`${timeElapsed.hours}hr ${timeElapsed.minutes}m`}
-      </Text>
-      <Text style={styles.seconds}>{timeElapsed.seconds}s</Text>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => handleButtonPress('pledged')}
-        >
-          <Ionicons name="hand-left" size={24} color="white" />
-          <Text style={styles.buttonText}>Pledged</Text>
-        </Pressable>
-        <Pressable
-          style={styles.actionButton}
-          onPress={handleReset}
-        >
-          <Ionicons name="refresh" size={24} color="white" />
-          <Text style={styles.buttonText}>Reset</Text>
-        </Pressable>
-      </View>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <Text style={styles.progressTitle}>Brain Rewiring</Text>
-        <View style={styles.progressBar}>
-          <View 
-            style={[styles.progressFill, { width: `${brainProgress}%` }]} 
-          />
-        </View>
-        <Text style={styles.progressText}>{brainProgress}%</Text>
-      </View>
-
-      {/* Notifications Section */}
-      <Pressable 
-        style={styles.settingRow}
-        onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
       >
-        <View style={styles.settingContent}>
-          <Text style={styles.settingTitle}>Enable Notifications</Text>
-          <Text style={styles.settingSubtitle}>
-            Get daily notifications that inspire you to stay strong.
-          </Text>
+        {/* Logo and Broccoli Text */}
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../assets/images/broccoli-logo.png')}
+            style={styles.logo}
+          />
+          <Text style={styles.broccoliText}>BROCCOLI</Text>
         </View>
-        <Ionicons 
-          name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-          size={24} 
-          color="white" 
-        />
-      </Pressable>
+
+        {/* Animated Ball and Timer */}
+        <View style={styles.headerSection}>
+          <LottieAnimation />
+          <Text style={styles.timerLabel}>You've been porn-free for:</Text>
+          <Text style={styles.timer}>
+            {`${timeElapsed.hours}hr ${timeElapsed.minutes}m`}
+          </Text>
+          <View style={styles.secondsContainer}>
+            <Text style={styles.seconds}>{timeElapsed.seconds}s</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonContainer}>
+          <Pressable style={styles.circleButton} onPress={() => handleButtonPress('pledged')}>
+            <Ionicons name="hand-left" size={24} color="white" />
+            <Text style={styles.buttonText}>Pledged</Text>
+          </Pressable>
+          <Pressable style={styles.circleButton} onPress={() => handleButtonPress('meditate')}>
+            <Ionicons name="leaf" size={24} color="white" />
+            <Text style={styles.buttonText}>Meditate</Text>
+          </Pressable>
+          <Pressable style={styles.circleButton} onPress={handleReset}>
+            <Ionicons name="refresh" size={24} color="white" />
+            <Text style={styles.buttonText}>Reset</Text>
+          </Pressable>
+          <Pressable style={styles.circleButton} onPress={() => handleButtonPress('more')}>
+            <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+            <Text style={styles.buttonText}>More</Text>
+          </Pressable>
+        </View>
+
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressTitle}>Brain Rewiring</Text>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${brainProgress}%` }]} />
+          </View>
+          <Text style={styles.progressText}>{brainProgress}%</Text>
+        </View>
+
+        {/* Interactive Cards */}
+        <Pressable style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Enable Notifications</Text>
+            <Text style={styles.cardSubtitle}>
+              Get daily notifications that inspire you to stay strong.
+            </Text>
+          </View>
+          <Ionicons name="notifications-outline" size={24} color="white" />
+        </Pressable>
+
+        <Pressable style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Join Community</Text>
+            <Text style={styles.cardSubtitle}>
+              We have an exclusive chat for members on Telegram.
+            </Text>
+          </View>
+          <Ionicons name="chatbubbles-outline" size={24} color="white" />
+        </Pressable>
+
+        {/* Tracking Stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>You're on track to quit by</Text>
+            <Text style={styles.statValue}>May 19, 2025</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Tempted to Relapse</Text>
+            <Text style={styles.statValue}>False</Text>
+          </View>
+        </View>
+
+        {/* Quitting Reason */}
+        <Pressable style={styles.reasonCard}>
+          <Text style={styles.reasonPrompt}>
+            Click here to add a reason why you're quitting
+          </Text>
+          <Text style={styles.bestStreak}>🏆 Best 17hr 8m</Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 };
@@ -146,83 +190,134 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A1A',
+    backgroundColor: colors.background.dark,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 61,
+    paddingBottom: 40,
+  },
+  logoContainer: {
     alignItems: 'center',
-    padding: 20,
+    marginBottom: 5,
+  },
+  logo: {
+    flex: 1,
+    aspectRatio: 3,
+    resizeMode: 'contain',
+    height: 24,
+    width: 24,
+  },
+  broccoliText: {
+    fontSize: 32,
+    fontFamily: 'PlusJakartaSans-Bold',
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  headerSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  timerLabel: {
+    fontSize: 16,
+    color: colors.text.secondary,
+    marginBottom: 8,
   },
   timer: {
     fontSize: 48,
     fontFamily: 'PlusJakartaSans-Bold',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     marginBottom: 8,
   },
+  secondsContainer: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
   seconds: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    opacity: 0.7,
-    marginBottom: 40,
+    fontSize: 16,
+    color: colors.text.primary,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 40,
+    justifyContent: 'space-between',
+    marginBottom: 30,
   },
-  actionButton: {
+  circleButton: {
     alignItems: 'center',
-    padding: 12,
+    justifyContent: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
+    fontSize: 12,
     marginTop: 8,
-    fontSize: 14,
   },
   progressContainer: {
-    width: '100%',
     marginBottom: 24,
   },
-  progressTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#333333',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4FA65B',
-  },
-  progressText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  settingRow: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: colors.background.card,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
-    width: '100%',
   },
-  settingContent: {
+  cardContent: {
     flex: 1,
   },
-  settingTitle: {
-    color: '#FFFFFF',
+  cardTitle: {
     fontSize: 16,
+    color: colors.text.primary,
     marginBottom: 4,
   },
-  settingSubtitle: {
-    color: '#FFFFFF',
-    opacity: 0.7,
+  cardSubtitle: {
     fontSize: 14,
+    color: colors.text.secondary,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.background.card,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    color: colors.text.primary,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  reasonCard: {
+    backgroundColor: colors.background.card,
+    padding: 16,
+    borderRadius: 16,
+  },
+  reasonPrompt: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 8,
+  },
+  bestStreak: {
+    fontSize: 14,
+    color: colors.text.primary,
   },
 });
 

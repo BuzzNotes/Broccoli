@@ -29,6 +29,4 @@ export const typography = {
     normal: 0,
     wide: 2,
   }
-};
-
-export default typography; 
+}; 

@@ -22,6 +22,4 @@ export const BackgroundVector = () => {
       </Svg>
     </View>
   );
-};
-
-export default BackgroundVector; 
+}; 

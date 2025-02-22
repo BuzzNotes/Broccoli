@@ -141,6 +141,4 @@ export const authStyles = StyleSheet.create({
     height: 360, // Adjust as needed
     zIndex: 0,
   },
-});
-
-export default authStyles; 
+}); 

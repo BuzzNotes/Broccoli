@@ -40,6 +40,4 @@ export const standaloneStyles = StyleSheet.create({
       marginBottom: 16,
     },
   },
-});
-
-export default standaloneStyles; 
+}); 
