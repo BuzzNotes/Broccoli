@@ -102,6 +102,8 @@ export default function Layout() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen name="(main)/index" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(main)/recovery" options={{ animation: 'slide_from_right' }} />
 
         {/* Standalone Screens (outside tab navigation) */}
         <Stack.Screen 

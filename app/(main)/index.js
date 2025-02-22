@@ -104,31 +104,34 @@ const MainScreen = () => {
         {/* Animated Ball and Timer */}
         <View style={styles.headerSection}>
           <LottieAnimation />
-          <Text style={styles.timerLabel}>You've been porn-free for:</Text>
-          <Text style={styles.timer}>
-            {`${timeElapsed.hours}hr ${timeElapsed.minutes}m`}
-          </Text>
-          <View style={styles.secondsContainer}>
-            <Text style={styles.seconds}>{timeElapsed.seconds}s</Text>
+          <Text style={styles.timerLabel}>You've been cannabis-free for:</Text>
+          <View style={styles.timerContainer}>
+            <Text style={styles.timer}>
+              {timeElapsed.hours > 0 ? `${timeElapsed.hours}hr ` : ''}
+              {(timeElapsed.hours > 0 || timeElapsed.minutes > 0) ? `${timeElapsed.minutes}m ` : ''}
+            </Text>
+            <View style={[styles.secondsContainer, { alignSelf: 'center', marginLeft: 8 }]}>
+              <Text style={styles.seconds}>{timeElapsed.seconds}s</Text>
+            </View>
           </View>
         </View>
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Pressable style={styles.circleButton} onPress={() => handleButtonPress('pledged')}>
-            <Ionicons name="hand-left" size={24} color="white" />
-            <Text style={styles.buttonText}>Pledged</Text>
+            <Ionicons name="hand-left" size={20} color="white" />
+            <Text style={styles.buttonText}>Pledge</Text>
           </Pressable>
           <Pressable style={styles.circleButton} onPress={() => handleButtonPress('meditate')}>
-            <Ionicons name="leaf" size={24} color="white" />
+            <Ionicons name="leaf" size={20} color="white" />
             <Text style={styles.buttonText}>Meditate</Text>
           </Pressable>
           <Pressable style={styles.circleButton} onPress={handleReset}>
-            <Ionicons name="refresh" size={24} color="white" />
+            <Ionicons name="refresh" size={20} color="white" />
             <Text style={styles.buttonText}>Reset</Text>
           </Pressable>
           <Pressable style={styles.circleButton} onPress={() => handleButtonPress('more')}>
-            <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+            <Ionicons name="ellipsis-horizontal" size={20} color="white" />
             <Text style={styles.buttonText}>More</Text>
           </Pressable>
         </View>
@@ -143,21 +146,24 @@ const MainScreen = () => {
         </View>
 
         {/* Interactive Cards */}
-        <Pressable style={styles.card}>
+        <Pressable 
+          style={styles.card}
+          onPress={() => router.push('/(main)/recovery')}
+        >
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>Enable Notifications</Text>
+            <Text style={styles.cardTitle}>Recovery Progress</Text>
             <Text style={styles.cardSubtitle}>
-              Get daily notifications that inspire you to stay strong.
+              Track your lung health and recovery milestones
             </Text>
           </View>
-          <Ionicons name="notifications-outline" size={24} color="white" />
+          <Ionicons name="fitness-outline" size={24} color="white" />
         </Pressable>
 
         <Pressable style={styles.card}>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Join Community</Text>
             <Text style={styles.cardSubtitle}>
-              We have an exclusive chat for members on Telegram.
+              Connect with others on their cannabis-free journey
             </Text>
           </View>
           <Ionicons name="chatbubbles-outline" size={24} color="white" />
@@ -166,19 +172,19 @@ const MainScreen = () => {
         {/* Tracking Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>You're on track to quit by</Text>
-            <Text style={styles.statValue}>May 19, 2025</Text>
+            <Text style={styles.statLabel}>Estimated lung recovery</Text>
+            <Text style={styles.statValue}>35%</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Tempted to Relapse</Text>
-            <Text style={styles.statValue}>False</Text>
+            <Text style={styles.statLabel}>Money Saved</Text>
+            <Text style={styles.statValue}>$420</Text>
           </View>
         </View>
 
         {/* Quitting Reason */}
         <Pressable style={styles.reasonCard}>
           <Text style={styles.reasonPrompt}>
-            Click here to add a reason why you're quitting
+            Click here to add a reason why you're quitting cannabis
           </Text>
           <Text style={styles.bestStreak}>🏆 Best 17hr 8m</Text>
         </Pressable>
@@ -226,11 +232,15 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginBottom: 8,
   },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   timer: {
     fontSize: 48,
     fontFamily: 'PlusJakartaSans-Bold',
     color: colors.text.primary,
-    marginBottom: 8,
   },
   secondsContainer: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -245,20 +255,23 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   circleButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
     backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 8,
   },
   buttonText: {
     color: colors.text.primary,
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'center',
   },
   progressContainer: {
     marginBottom: 24,

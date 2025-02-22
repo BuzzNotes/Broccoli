@@ -7,6 +7,7 @@ import { useFonts, PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakar
 import { authStyles } from './styles';
 import { colors } from '../styles/colors';
 import { BackgroundVector } from '../components/BackgroundVector';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Use require for static assets
 const appleIcon = require('../../assets/icons/apple.png');
@@ -24,6 +25,14 @@ const LoginScreen = () => {
 
   const handleSkip = () => {
     router.push('/(onboarding)/good-news');
+  };
+
+  const handleSkipToTimer = async () => {
+    // Set initial streak time
+    const startTime = new Date().getTime();
+    await AsyncStorage.setItem('streakStartTime', startTime.toString());
+    // Go directly to timer
+    router.replace('/(main)');
   };
 
   return (
@@ -51,7 +60,6 @@ const LoginScreen = () => {
         {/* Logo Section */}
         <View style={authStyles.logoContainer}>
           <Text style={authStyles.logo}>QUIT WITH BROCCOLI</Text>
-          
         </View>
 
         {/* Auth Buttons */}
@@ -84,6 +92,15 @@ const LoginScreen = () => {
             </Pressable>
           </View>
         </View>
+
+        {/* Temporary Skip to Timer Button */}
+        <Pressable 
+          style={[authStyles.button, { backgroundColor: '#FF4B4B', marginTop: 20 }]} 
+          onPress={handleSkipToTimer}
+        >
+          <Ionicons name="timer-outline" size={24} color="white" style={authStyles.buttonIcon} />
+          <Text style={[authStyles.buttonText, { color: 'white' }]}>Skip to Timer (Dev)</Text>
+        </Pressable>
       </SafeAreaView>
     </View>
   );

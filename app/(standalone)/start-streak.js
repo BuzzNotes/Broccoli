@@ -52,8 +52,8 @@ const StartStreakScreen = () => {
         </View>
 
         <View style={globalStyles.center}>
-          <Text style={globalStyles.title}>Welcome to your{'\n'}Porn-Free Journey</Text>
-          <Text style={globalStyles.subtitle}>#1 Science based porn quitting app</Text>
+          <Text style={globalStyles.title}>Welcome to your{'\n'}Cannabis-Free Journey</Text>
+          <Text style={globalStyles.subtitle}>#1 Science based marijuana quitting app</Text>
           
           <View style={styles.ratingContainer}>
             <View style={styles.laurelLeft}>
