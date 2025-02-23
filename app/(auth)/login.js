@@ -44,6 +44,7 @@ const LoginScreen = () => {
       setLoading(true);
       setError('');
       await signInWithGoogle();
+      router.push('/(onboarding)/good-news');
     } catch (error) {
       setError('Failed to sign in with Google. Please try again.');
       console.error(error);
@@ -57,6 +58,7 @@ const LoginScreen = () => {
       setLoading(true);
       setError('');
       await signInWithApple();
+      router.push('/(onboarding)/good-news');
     } catch (error) {
       setError('Failed to sign in with Apple. Please try again.');
       console.error(error);
@@ -87,13 +89,21 @@ const LoginScreen = () => {
       <BackgroundVector />
 
       <SafeAreaView style={authStyles.contentContainer}>
+        {/* Skip to Timer Button */}
+        <Pressable 
+          style={authStyles.skipToTimerButton} 
+          onPress={handleSkipToTimer}
+        >
+          <Ionicons name="timer-outline" size={28} color="white" />
+        </Pressable>
+
         {/* Logo Section */}
         <View style={authStyles.logoContainer}>
-          <Text style={authStyles.logo}>QUIT WITH BROCCOLI</Text>
+          <Text style={authStyles.logo}>QUIT WITH{'\n'}BROCCOLI</Text>
         </View>
 
         {/* Auth Buttons */}
-        <View style={authStyles.buttonsContainer}>
+        <View style={[authStyles.buttonsContainer, { marginTop: 'auto' }]}>
           {/* Google Login */}
           <Pressable 
             style={[authStyles.authButton, authStyles.googleButton]} 
@@ -134,15 +144,6 @@ const LoginScreen = () => {
             </Pressable>
           </View>
         </View>
-
-        {/* Temporary Skip to Timer Button */}
-        <Pressable 
-          style={[authStyles.button, { backgroundColor: '#FF4B4B', marginTop: 20 }]} 
-          onPress={handleSkipToTimer}
-        >
-          <Ionicons name="timer-outline" size={24} color="white" style={authStyles.buttonIcon} />
-          <Text style={[authStyles.buttonText, { color: 'white' }]}>Skip to Timer (Dev)</Text>
-        </Pressable>
 
         {error ? (
           <Text style={authStyles.errorText}>{error}</Text>

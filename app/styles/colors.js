@@ -39,14 +39,14 @@ export const colors = {
     // Gradients
     gradients: {
       primary: {
-        start: '#045D5C',
-        end: '#045D5C',
-        colors: ['#045D5C', '#045D5C'],
+        start: '#4FA65B',
+        end: '#45E994',
+        colors: ['#4FA65B', '#45E994'],
       },
       overlay: {
-        start: '#D2F5D6',
-        end: '#045D5C',
-        colors: ['#D2F5D6', '#045D5C'],
+        start: 'rgba(255,255,255,0)',
+        end: 'rgba(255,255,255,0.1)',
+        colors: ['rgba(255,255,255,0)', 'rgba(255,255,255,0.1)'],
       }
     },
   };

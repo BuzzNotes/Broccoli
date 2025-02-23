@@ -1,9 +1,91 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
+
+const { width, height } = Dimensions.get('window');
+
+const getRandomInRange = (min, max) => {
+  return Math.random() * (max - min) + min;
+};
+
+const Cloud = ({ startDelay, duration, startY, size = 64 }) => {
+  const position = useRef(new Animated.Value(-150)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const [randomOffset] = useState(() => getRandomInRange(-50, 50));
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const animate = () => {
+      if (!isSubscribed) return;
+
+      position.setValue(-150);
+      opacity.setValue(0);
+      
+      const actualDuration = duration * getRandomInRange(0.8, 1.2);
+      
+      Animated.sequence([
+        Animated.delay(startDelay),
+        Animated.parallel([
+          Animated.timing(position, {
+            toValue: width + 150,
+            duration: actualDuration,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 0.6,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0.6,
+              duration: actualDuration - 2000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      ]).start(() => {
+        if (isSubscribed) {
+          animate();
+        }
+      });
+    };
+
+    animate();
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.cloud,
+        {
+          transform: [{ translateX: position }],
+          opacity,
+          top: startY + randomOffset,
+          zIndex: 5,
+        },
+      ]}
+    >
+      <Ionicons 
+        name="cloud" 
+        size={size} 
+        color="rgba(255, 255, 255, 0.9)" 
+      />
+    </Animated.View>
+  );
+};
 
 const meditationQuotes = [
   "Let your thoughts drift away",
@@ -20,6 +102,35 @@ const meditationQuotes = [
 
 const INITIAL_TEXT = "Clear your mind...\nGet comfortable..\nBegin when you're ready";
 
+const CloudBackground = React.memo(() => {
+  const cloudConfigs = React.useMemo(() => {
+    const configs = [];
+    for (let i = 0; i < 8; i++) {
+      configs.push({
+        y: getRandomInRange(0.1, 0.9),
+        delay: i * 800,
+        duration: getRandomInRange(20000, 30000),
+        size: getRandomInRange(40, 120),
+      });
+    }
+    return configs;
+  }, []);
+
+  return (
+    <View style={[StyleSheet.absoluteFill, { zIndex: 1 }]}>
+      {cloudConfigs.map((config, index) => (
+        <Cloud
+          key={index}
+          startDelay={config.delay}
+          duration={config.duration}
+          startY={height * config.y}
+          size={config.size}
+        />
+      ))}
+    </View>
+  );
+});
+
 const MeditateScreen = () => {
   const [meditationType, setMeditationType] = useState(null);
   const [currentQuote, setCurrentQuote] = useState(0);
@@ -30,6 +141,7 @@ const MeditateScreen = () => {
   const quoteAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [timerInterval, setTimerInterval] = useState(null);
 
   // Video fade in animation
   useEffect(() => {
@@ -94,13 +206,21 @@ const MeditateScreen = () => {
 
   // Timer effect
   useEffect(() => {
-    let interval;
     if (isTimerRunning) {
-      interval = setInterval(() => {
+      const interval = setInterval(() => {
         setTimer(prev => prev + 1);
       }, 1000);
+      setTimerInterval(interval);
+    } else {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
   }, [isTimerRunning]);
 
   const formatTime = (seconds) => {
@@ -110,10 +230,10 @@ const MeditateScreen = () => {
   };
 
   const handleStartSelf = () => {
+    setIsTimerRunning(prev => !prev);
     if (!isTimerRunning) {
       setTimer(0);
     }
-    setIsTimerRunning(!isTimerRunning);
   };
 
   const handleEndMeditation = () => {
@@ -156,37 +276,49 @@ const MeditateScreen = () => {
         {!isTimerRunning ? (
           <Text style={styles.initialText}>{INITIAL_TEXT}</Text>
         ) : (
-          <View>
-            <Animated.View style={[
-              styles.quoteContainer,
-              {
-                opacity: quoteAnim,
-                transform: [{ translateY: floatAnim }]
-              }
-            ]}>
-              <Text style={styles.quote}>{meditationQuotes[currentQuote]}</Text>
-            </Animated.View>
-            <Text style={styles.timerText}>{formatTime(timer)}</Text>
+          <View style={styles.meditationContent}>
+            <View style={styles.quoteSection}>
+              <Animated.View style={[
+                styles.quoteContainer,
+                {
+                  opacity: quoteAnim,
+                  transform: [{ translateY: floatAnim }]
+                }
+              ]}>
+                <Text style={styles.quote}>{meditationQuotes[currentQuote]}</Text>
+              </Animated.View>
+            </View>
+            <View style={styles.controlsSection}>
+              <Text style={styles.timerText}>{formatTime(timer)}</Text>
+              <View style={styles.buttonRow}>
+                <Pressable 
+                  style={[styles.meditationButton, styles.activeButton]}
+                  onPress={handleStartSelf}
+                >
+                  <Text style={[styles.buttonText, styles.activeButtonText]}>
+                    Pause
+                  </Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.meditationButton, styles.endButton]}
+                  onPress={handleEndMeditation}
+                >
+                  <Text style={[styles.buttonText, styles.endButtonText]}>End</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
         )}
-        <View style={styles.buttonRow}>
-          <Pressable 
-            style={[styles.meditationButton, isTimerRunning && styles.activeButton]}
-            onPress={handleStartSelf}
-          >
-            <Text style={[styles.buttonText, isTimerRunning && styles.activeButtonText]}>
-              {isTimerRunning ? 'Pause' : 'Begin'}
-            </Text>
-          </Pressable>
-          {isTimerRunning && (
+        {!isTimerRunning && (
+          <View style={styles.buttonRow}>
             <Pressable 
-              style={[styles.meditationButton, styles.endButton]}
-              onPress={handleEndMeditation}
+              style={styles.meditationButton}
+              onPress={handleStartSelf}
             >
-              <Text style={[styles.buttonText, styles.endButtonText]}>End</Text>
+              <Text style={styles.buttonText}>Begin</Text>
             </Pressable>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -207,66 +339,72 @@ const MeditateScreen = () => {
         />
       </Animated.View>
 
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <Pressable onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#000000" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Meditation</Text>
-      </View>
+      {/* Floating Clouds Layer */}
+      <CloudBackground />
 
-      {!meditationType ? (
-        // Selection Screen
-        <View style={styles.selectionContainer}>
-          <Pressable 
-            style={styles.optionButton}
-            onPress={() => setMeditationType('self')}
-          >
-            <Ionicons name="leaf-outline" size={32} color="#000000" />
-            <Text style={styles.optionTitle}>Self-Guided</Text>
-            <Text style={styles.optionSubtitle}>Meditate at your own pace</Text>
+      {/* Content Layer */}
+      <View style={[styles.contentLayer, { zIndex: 2 }]}>
+        {/* Header with Back Button */}
+        <View style={styles.header}>
+          <Pressable onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#000000" />
           </Pressable>
-
-          <Pressable 
-            style={styles.optionButton}
-            onPress={() => setMeditationType('guided')}
-          >
-            <Ionicons name="headset-outline" size={32} color="#000000" />
-            <Text style={styles.optionTitle}>Guided</Text>
-            <Text style={styles.optionSubtitle}>Follow along with guidance</Text>
-          </Pressable>
+          <Text style={styles.headerTitle}>Meditation</Text>
         </View>
-      ) : meditationType === 'self' ? (
-        renderSelfGuided()
-      ) : (
-        // Guided Screen
-        <View style={styles.meditationContainer}>
-          {!isTimerRunning ? (
-            <View style={styles.durationButtons}>
-              <Text style={styles.durationTitle}>Choose Duration</Text>
-              {[5, 10, 15].map(duration => (
-                <Pressable
-                  key={duration}
-                  style={styles.durationButton}
-                  onPress={() => handleStartGuided(duration)}
+
+        {!meditationType ? (
+          // Selection Screen
+          <View style={styles.selectionContainer}>
+            <Pressable 
+              style={styles.optionButton}
+              onPress={() => setMeditationType('self')}
+            >
+              <Ionicons name="leaf-outline" size={32} color="#000000" />
+              <Text style={styles.optionTitle}>Self-Guided</Text>
+              <Text style={styles.optionSubtitle}>Meditate at your own pace</Text>
+            </Pressable>
+
+            <Pressable 
+              style={styles.optionButton}
+              onPress={() => setMeditationType('guided')}
+            >
+              <Ionicons name="headset-outline" size={32} color="#000000" />
+              <Text style={styles.optionTitle}>Guided</Text>
+              <Text style={styles.optionSubtitle}>Follow along with guidance</Text>
+            </Pressable>
+          </View>
+        ) : meditationType === 'self' ? (
+          renderSelfGuided()
+        ) : (
+          // Guided Screen
+          <View style={styles.meditationContainer}>
+            {!isTimerRunning ? (
+              <View style={styles.durationButtons}>
+                <Text style={styles.durationTitle}>Choose Duration</Text>
+                {[5, 10, 15].map(duration => (
+                  <Pressable
+                    key={duration}
+                    style={styles.durationButton}
+                    onPress={() => handleStartGuided(duration)}
+                  >
+                    <Text style={styles.durationButtonText}>{duration} Minutes</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.timerContainer}>
+                <Text style={styles.timerText}>{formatTime(timer)}</Text>
+                <Pressable 
+                  style={styles.stopButton}
+                  onPress={() => setIsTimerRunning(false)}
                 >
-                  <Text style={styles.durationButtonText}>{duration} Minutes</Text>
+                  <Text style={styles.stopButtonText}>Stop</Text>
                 </Pressable>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.timerContainer}>
-              <Text style={styles.timerText}>{formatTime(timer)}</Text>
-              <Pressable 
-                style={styles.stopButton}
-                onPress={() => setIsTimerRunning(false)}
-              >
-                <Text style={styles.stopButtonText}>Stop</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -316,39 +454,54 @@ const styles = StyleSheet.create({
   meditationContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    width: '100%',
   },
-  initialText: {
-    fontSize: 28,
-    color: 'rgba(0,0,0,0.7)',
-    textAlign: 'center',
-    fontFamily: 'PlusJakartaSans-Bold',
-    lineHeight: 40,
-    marginBottom: 40,
+  meditationContent: {
+    flex: 1,
+    width: '100%',
+  },
+  quoteSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  controlsSection: {
+    width: '100%',
+    paddingBottom: 40,
+    alignItems: 'center',
   },
   quoteContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   quote: {
     fontSize: 32,
-    color: 'rgba(0,0,0,0.7)',
+    color: 'rgba(0,0,0,0.4)',
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 20,
   },
   timerText: {
     fontSize: 24,
-    color: 'rgba(0,0,0,0.6)',
+    color: 'rgba(0,0,0,0.3)',
     fontFamily: 'PlusJakartaSans-Bold',
     textAlign: 'center',
-    marginTop: 20,
+    marginBottom: 20,
   },
   buttonRow: {
     flexDirection: 'row',
     gap: 20,
-    marginTop: 40,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  initialText: {
+    fontSize: 28,
+    color: 'rgba(0,0,0,0.4)',
+    textAlign: 'center',
+    fontFamily: 'PlusJakartaSans-Bold',
+    lineHeight: 40,
+    marginBottom: 40,
   },
   meditationButton: {
     backgroundColor: 'rgba(0,0,0,0.05)',
@@ -398,14 +551,14 @@ const styles = StyleSheet.create({
   },
   congratsTitle: {
     fontSize: 32,
-    color: 'rgba(0,0,0,0.7)',
+    color: 'rgba(0,0,0,0.4)',
     fontFamily: 'PlusJakartaSans-Bold',
     marginBottom: 20,
     textAlign: 'center',
   },
   congratsText: {
     fontSize: 18,
-    color: 'rgba(0,0,0,0.6)',
+    color: 'rgba(0,0,0,0.4)',
     textAlign: 'center',
     lineHeight: 28,
     marginBottom: 40,
@@ -459,6 +612,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFFFFF',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  cloud: {
+    position: 'absolute',
+    zIndex: 5,
+  },
+  contentLayer: {
+    flex: 1,
   },
 });
 

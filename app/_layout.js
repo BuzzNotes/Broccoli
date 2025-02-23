@@ -32,79 +32,66 @@ export default function Layout() {
             presentation: 'card'
           }}
         >
-          {/* Onboarding and Auth Screens */}
-          <Stack.Screen name="index" options={{ animation: 'none' }} />
-          <Stack.Screen name="(auth)/login" options={{ animation: 'fade' }} />
-          <Stack.Screen name="(onboarding)/good-news" options={{ animation: 'fade' }} />
+          {/* Intro Screens */}
           <Stack.Screen 
-            name="(onboarding)/quiz/Question1"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(intro)/breathe" 
+            options={{ animation: 'fade' }} 
           />
           <Stack.Screen 
-            name="(onboarding)/quiz/Question2"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(intro)/welcome" 
+            options={{ animation: 'fade' }} 
+          />
+
+          {/* Auth Screen */}
+          <Stack.Screen 
+            name="(auth)/login" 
+            options={{ animation: 'fade' }} 
+          />
+
+          {/* New Onboarding Screens */}
+          <Stack.Screen 
+            name="(onboarding)/good-news"
+            options={{ animation: 'fade' }}
           />
           <Stack.Screen 
-            name="(onboarding)/quiz/Question3"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/personal/age"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen 
-            name="(onboarding)/name-input"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/personal/height"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen 
-            name="(onboarding)/calculating"
-            options={{
-              animation: 'fade',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/personal/weight"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen 
-            name="(onboarding)/symptoms"
-            options={{
-              animation: 'fade',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/personal/activity"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen 
-            name="(onboarding)/info/InfoScreen1"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(onboarding)/analysis/personal"
+            options={{ animation: 'fade' }}
           />
           <Stack.Screen 
-            name="(onboarding)/info/InfoScreen2"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/usage/frequency"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen 
-            name="(onboarding)/info/InfoScreen3"
-            options={{
-              animation: 'slide_from_right',
-              presentation: 'card'
-            }}
+            name="(onboarding)/analysis/usage"
+            options={{ animation: 'fade' }}
           />
           <Stack.Screen 
-            name="(onboarding)/autoTransition"
-            options={{
-              animation: 'fade',
-              presentation: 'card'
-            }}
+            name="(onboarding)/questions/usage/amount"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/questions/usage/method"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/analysis/final"
+            options={{ animation: 'fade' }}
           />
 
           {/* Main App Screens */}
@@ -141,7 +128,7 @@ export default function Layout() {
             }} 
           />
 
-          {/* Standalone Screens (outside tab navigation) */}
+          {/* Standalone Screens */}
           <Stack.Screen 
             name="(standalone)/start-streak"
             options={{

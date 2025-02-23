@@ -35,15 +35,14 @@ export const authStyles = StyleSheet.create({
   // Logo Section
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 100,
+    marginTop: 80,
   },
   logo: {
-    fontSize: typography.sizes.xxxl,
+    fontSize: 40,
     color: colors.text.primary,
-    fontFamily: typography.fonts.bold,
-    letterSpacing: typography.letterSpacing.wide,
+    fontFamily: 'PlusJakartaSans-Bold',
     textAlign: 'center',
-    marginBottom: 0,
+    lineHeight: 48,
   },
   tagline: {
     fontSize: typography.sizes.lg,
@@ -55,63 +54,53 @@ export const authStyles = StyleSheet.create({
   // Auth Buttons
   buttonsContainer: {
     width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 16,
-    marginBottom: 20,
-    zIndex: 1,
+    paddingHorizontal: 24,
+    gap: 20,
   },
   authButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background.overlay,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 30,
-    width: 353,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   appleButton: {
-    backgroundColor: colors.text.primary,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   googleButton: {
-    backgroundColor: colors.text.primary,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   emailButton: {
-    backgroundColor: colors.text.primary,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   buttonIcon: {
-    marginRight: 12,
     width: 24,
     height: 24,
+    marginRight: 12,
   },
   buttonText: {
-    fontSize: typography.sizes.md,
-    color: colors.text.font,
-    fontFamily: typography.fonts.bold,
+    fontSize: 16,
+    color: colors.text.primary,
+    fontFamily: 'PlusJakartaSans-Bold',
   },
   
   // Skip Button
   skipContainer: {
-    width: '100%',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    marginTop: 8,
   },
   skipButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4FF47',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    width: 353,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   skipText: {
-    fontSize: typography.sizes.md,
-    color: colors.text.font,
-    fontFamily: typography.fonts.bold,
-    textAlign: 'center',
+    fontSize: 16,
+    color: colors.text.secondary,
+    fontFamily: 'PlusJakartaSans-Bold',
   },
 
   // Divider
@@ -143,14 +132,24 @@ export const authStyles = StyleSheet.create({
   },
 
   errorText: {
-    color: '#FF4B4B',
+    color: colors.error,
     textAlign: 'center',
-    marginBottom: 16,
+    marginTop: 16,
   },
   loader: {
+    marginTop: 24,
+  },
+
+  skipToTimerButton: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -20 }, { translateY: -20 }],
+    top: 16,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
 }); 

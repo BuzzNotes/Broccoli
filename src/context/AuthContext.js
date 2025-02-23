@@ -34,11 +34,10 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         // Store user data in AsyncStorage
         AsyncStorage.setItem('user', JSON.stringify(user));
-        router.replace('/(main)');
       }
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -52,6 +51,7 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       await promptAsync();
+      router.push('/(onboarding)/good-news');
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       throw error;
@@ -76,6 +76,7 @@ export const AuthProvider = ({ children }) => {
 
       // Sign in with Firebase
       await signInWithCredential(auth, oAuthCredential);
+      router.push('/(onboarding)/good-news');
     } catch (error) {
       console.error('Apple Sign-In Error:', error);
       throw error;

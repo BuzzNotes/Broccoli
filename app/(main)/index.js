@@ -292,6 +292,16 @@ const styles = StyleSheet.create({
     borderRadius: 32.5,
     backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   buttonText: {
     color: colors.text.primary,
