@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../src/config/firebase';
+import { AuthProvider } from '../src/context/AuthContext';
 
 export default function Layout() {
   useEffect(() => {
@@ -15,117 +16,119 @@ export default function Layout() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      {/* Persistent background gradient */}
-      <LinearGradient
-        colors={['#0A0A1A', '#1A1A2E']}
-        style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
-      />
-      
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
-          animation: Platform.OS === 'ios' ? 'default' : 'fade',
-        }}
-      >
-        {/* Onboarding and Auth Screens */}
-        <Stack.Screen name="index" options={{ animationEnabled: false }} />
-        <Stack.Screen name="(auth)/login" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(onboarding)/good-news" options={{ animation: 'fade' }} />
-        <Stack.Screen 
-          name="(onboarding)/quiz/Question1"
-          options={{
-            animation: 'slide_from_right',
-          }}
+    <AuthProvider>
+      <View style={styles.container}>
+        {/* Persistent background gradient */}
+        <LinearGradient
+          colors={['#0A0A1A', '#1A1A2E']}
+          style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
         />
-        <Stack.Screen 
-          name="(onboarding)/quiz/Question2"
-          options={{
-            animation: 'slide_from_right',
+        
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: 'transparent' },
+            animation: Platform.OS === 'ios' ? 'default' : 'fade',
           }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/quiz/Question3"
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/name-input"
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/calculating"
-          options={{
-            animation: 'fade',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/symptoms"
-          options={{
-            animation: 'fade',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/info/InfoScreen1"
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/info/InfoScreen2"
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/info/InfoScreen3"
-          options={{
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen 
-          name="(onboarding)/autoTransition"
-          options={{
-            animation: 'fade',
-          }}
-        />
+        >
+          {/* Onboarding and Auth Screens */}
+          <Stack.Screen name="index" options={{ animationEnabled: false }} />
+          <Stack.Screen name="(auth)/login" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(onboarding)/good-news" options={{ animation: 'fade' }} />
+          <Stack.Screen 
+            name="(onboarding)/quiz/Question1"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/quiz/Question2"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/quiz/Question3"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/name-input"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/calculating"
+            options={{
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/symptoms"
+            options={{
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/info/InfoScreen1"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/info/InfoScreen2"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/info/InfoScreen3"
+            options={{
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="(onboarding)/autoTransition"
+            options={{
+              animation: 'fade',
+            }}
+          />
 
-        {/* Main App Screens */}
-        <Stack.Screen 
-          name="(main)"
-          options={{
-            animation: 'fade',
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen name="(main)/index" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(main)/recovery" options={{ animation: 'slide_from_right' }} />
+          {/* Main App Screens */}
+          <Stack.Screen 
+            name="(main)"
+            options={{
+              animation: 'fade',
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen name="(main)/index" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(main)/recovery" options={{ animation: 'slide_from_right' }} />
 
-        {/* Standalone Screens (outside tab navigation) */}
-        <Stack.Screen 
-          name="(standalone)/start-streak"
-          options={{
-            animation: 'slide_from_bottom',
-            gestureEnabled: true,
-            gestureDirection: 'vertical',
-            presentation: 'fullScreenModal',
-          }}
-        />
-        <Stack.Screen 
-          name="(standalone)/relapse"
-          options={{
-            animation: 'slide_from_bottom',
-            gestureEnabled: true,
-            gestureDirection: 'vertical',
-            presentation: 'fullScreenModal',
-          }}
-        />
-      </Stack>
-    </View>
+          {/* Standalone Screens (outside tab navigation) */}
+          <Stack.Screen 
+            name="(standalone)/start-streak"
+            options={{
+              animation: 'slide_from_bottom',
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
+              presentation: 'fullScreenModal',
+            }}
+          />
+          <Stack.Screen 
+            name="(standalone)/relapse"
+            options={{
+              animation: 'slide_from_bottom',
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
+              presentation: 'fullScreenModal',
+            }}
+          />
+        </Stack>
+      </View>
+    </AuthProvider>
   );
 }
 

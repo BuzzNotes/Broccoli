@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, SafeAreaView, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, SafeAreaView, Image, ActivityIndicator, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { authStyles } from './styles';
 import { colors } from '../styles/colors';
 import { BackgroundVector } from '../components/BackgroundVector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../src/context/AuthContext';
 
 // Use require for static assets
 const appleIcon = require('../../assets/icons/apple.png');
@@ -15,6 +16,9 @@ const googleIcon = require('../../assets/icons/google.png');
 const emailIcon = require('../../assets/icons/email.png');
 
 const LoginScreen = () => {
+  const { signInWithGoogle, signInWithApple } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
   });
@@ -33,6 +37,32 @@ const LoginScreen = () => {
     await AsyncStorage.setItem('streakStartTime', startTime.toString());
     // Go directly to timer
     router.replace('/(main)');
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await signInWithGoogle();
+    } catch (error) {
+      setError('Failed to sign in with Google. Please try again.');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await signInWithApple();
+    } catch (error) {
+      setError('Failed to sign in with Apple. Please try again.');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -64,17 +94,29 @@ const LoginScreen = () => {
 
         {/* Auth Buttons */}
         <View style={authStyles.buttonsContainer}>
-          {/* Apple Login */}
-          <Pressable style={[authStyles.authButton, authStyles.appleButton]}>
-            <Image source={appleIcon} style={authStyles.buttonIcon} />
-            <Text style={authStyles.buttonText}>Continue with Apple</Text>
+          {/* Google Login */}
+          <Pressable 
+            style={[authStyles.authButton, authStyles.googleButton]} 
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <Ionicons name="logo-google" size={24} color="white" style={authStyles.buttonIcon} />
+            <Text style={authStyles.buttonText}>
+              {loading ? 'Signing in...' : 'Continue with Google'}
+            </Text>
           </Pressable>
 
-          {/* Google Login */}
-          <Pressable style={[authStyles.authButton, authStyles.googleButton]}>
-            <Image source={googleIcon} style={authStyles.buttonIcon} />
-            <Text style={authStyles.buttonText}>Continue with Google</Text>
-          </Pressable>
+          {/* Apple Login */}
+          {Platform.OS === 'ios' && (
+            <Pressable 
+              style={[authStyles.authButton, authStyles.appleButton]} 
+              onPress={handleAppleSignIn}
+              disabled={loading}
+            >
+              <Ionicons name="logo-apple" size={24} color="white" style={authStyles.buttonIcon} />
+              <Text style={authStyles.buttonText}>Continue with Apple</Text>
+            </Pressable>
+          )}
 
           {/* Email Login */}
           <Pressable style={[authStyles.authButton, authStyles.emailButton]}>
@@ -101,6 +143,18 @@ const LoginScreen = () => {
           <Ionicons name="timer-outline" size={24} color="white" style={authStyles.buttonIcon} />
           <Text style={[authStyles.buttonText, { color: 'white' }]}>Skip to Timer (Dev)</Text>
         </Pressable>
+
+        {error ? (
+          <Text style={authStyles.errorText}>{error}</Text>
+        ) : null}
+
+        {loading && (
+          <ActivityIndicator 
+            size="large" 
+            color={colors.primary} 
+            style={authStyles.loader} 
+          />
+        )}
       </SafeAreaView>
     </View>
   );

@@ -141,4 +141,16 @@ export const authStyles = StyleSheet.create({
     height: 360, // Adjust as needed
     zIndex: 0,
   },
+
+  errorText: {
+    color: '#FF4B4B',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  loader: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -20 }, { translateY: -20 }],
+  },
 }); 
