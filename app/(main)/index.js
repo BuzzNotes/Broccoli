@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import LottieAnimation from '../../src/components/LottieAnimation';
 import { colors } from '../styles/colors';
 
 const MainScreen = () => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [isVideoReady, setIsVideoReady] = useState(false);
+
   // Timer State
   const [timeElapsed, setTimeElapsed] = useState({
     hours: 0,
@@ -17,7 +22,6 @@ const MainScreen = () => {
 
   // UI State
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [brainProgress] = useState(0);
 
   // Update Timer
   useEffect(() => {
@@ -84,10 +88,35 @@ const MainScreen = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  // Fade in animation when video is ready
+  useEffect(() => {
+    if (isVideoReady) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isVideoReady]);
+
   return (
     <View style={styles.container}>
+      {/* Background Video */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
+        <Video
+          source={require('../../app/Backgrounds/UpdatedBackground.mp4')}
+          style={StyleSheet.absoluteFill}
+          shouldPlay
+          isLooping
+          isMuted
+          rate={0.5}
+          resizeMode="cover"
+          onReadyForDisplay={() => setIsVideoReady(true)}
+        />
+      </Animated.View>
+      
       <ScrollView 
-        style={styles.scrollContainer}
+        style={[styles.scrollContainer, { backgroundColor: 'transparent' }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
@@ -122,7 +151,13 @@ const MainScreen = () => {
             <Ionicons name="hand-left" size={20} color="white" />
             <Text style={styles.buttonText}>Pledge</Text>
           </Pressable>
-          <Pressable style={styles.circleButton} onPress={() => handleButtonPress('meditate')}>
+          <Pressable 
+            style={styles.circleButton} 
+            onPress={() => {
+              handleButtonPress('meditate');
+              router.push('/(standalone)/meditate');
+            }}
+          >
             <Ionicons name="leaf" size={20} color="white" />
             <Text style={styles.buttonText}>Meditate</Text>
           </Pressable>
@@ -134,15 +169,6 @@ const MainScreen = () => {
             <Ionicons name="ellipsis-horizontal" size={20} color="white" />
             <Text style={styles.buttonText}>More</Text>
           </Pressable>
-        </View>
-
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressTitle}>Brain Rewiring</Text>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${brainProgress}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{brainProgress}%</Text>
         </View>
 
         {/* Interactive Cards */}

@@ -27,7 +27,7 @@ export default function MainLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontFamily: 'PlusJakartaSans-Bold',
-        },
+        }
       }}
     >
       <Tabs.Screen
@@ -40,7 +40,7 @@ export default function MainLayout() {
               size={24}
               color={color}
             />
-          ),
+          )
         }}
         listeners={{
           tabPress: handleTabPress,
@@ -56,7 +56,7 @@ export default function MainLayout() {
               size={24}
               color={color}
             />
-          ),
+          )
         }}
         listeners={{
           tabPress: handleTabPress,
@@ -72,7 +72,7 @@ export default function MainLayout() {
               size={24}
               color={color}
             />
-          ),
+          )
         }}
         listeners={{
           tabPress: handleTabPress,
