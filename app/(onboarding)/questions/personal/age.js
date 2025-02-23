@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import QuestionScreen from '../../components/QuestionScreen';
 import { useOnboarding } from '../../context/OnboardingContext';
 
 const AgeQuestion = () => {
-  const { saveAnswer } = useOnboarding();
+  const { saveAnswer, clearAnswer } = useOnboarding();
+
+  // Clear the answer when the component mounts
+  useEffect(() => {
+    clearAnswer('age');
+  }, []);
 
   const handleAnswer = (answer) => {
     saveAnswer('age', answer);

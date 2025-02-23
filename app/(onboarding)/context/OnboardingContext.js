@@ -20,8 +20,25 @@ export const OnboardingProvider = ({ children }) => {
     }));
   };
 
+  const clearAnswer = (questionId) => {
+    setAnswers(prev => {
+      const newAnswers = { ...prev };
+      delete newAnswers[questionId];
+      return newAnswers;
+    });
+  };
+
+  const getAnswer = (questionId) => {
+    return answers[questionId];
+  };
+
   return (
-    <OnboardingContext.Provider value={{ answers, saveAnswer }}>
+    <OnboardingContext.Provider value={{ 
+      answers, 
+      saveAnswer, 
+      clearAnswer,
+      getAnswer
+    }}>
       {children}
     </OnboardingContext.Provider>
   );

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,30 +14,102 @@ const QuestionScreen = ({
   totalSteps,
   nextRoute 
 }) => {
-  const handleOptionSelect = (option) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (onAnswer) {
-      onAnswer(option);
+  // Animation values for options
+  const fadeAnims = useRef(options.map(() => new Animated.Value(0))).current;
+  const scaleAnims = useRef(options.map(() => new Animated.Value(0.95))).current;
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Reset navigation state and run entrance animations when component mounts
+  useEffect(() => {
+    setIsNavigating(false);
+
+    // Animate options entrance
+    options.forEach((_, index) => {
+      fadeAnims[index].setValue(0);
+      scaleAnims[index].setValue(0.95);
+      
+      Animated.sequence([
+        Animated.delay(index * 100),
+        Animated.parallel([
+          Animated.spring(scaleAnims[index], {
+            toValue: 1,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeAnims[index], {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+
+    // Cleanup function to reset state when unmounting
+    return () => {
+      setIsNavigating(false);
+    };
+  }, [options]); // Add options as dependency to re-run when questions change
+
+  const handleOptionSelect = async (option, index) => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    
+    // Simple press animation
+    Animated.sequence([
+      Animated.spring(scaleAnims[index], {
+        toValue: 0.95,
+        tension: 200,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnims[index], {
+        toValue: 1,
+        tension: 200,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Haptic feedback
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      // Handle answer and navigation
+      if (onAnswer) {
+        await onAnswer(option);
+      }
+      router.push(nextRoute);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      setIsNavigating(false);
     }
-    router.push(nextRoute);
   };
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsNavigating(false); // Reset navigation state before going back
     router.back();
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#4FA65B', '#45E994']}
+        colors={[colors.gradients.primary.start, colors.gradients.primary.end]}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
       />
 
       {/* Back Button */}
       <Pressable onPress={handleBack} style={styles.backButton}>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
         <Ionicons name="chevron-back" size={28} color="white" />
       </Pressable>
 
@@ -47,11 +119,20 @@ const QuestionScreen = ({
           Question {currentStep} of {totalSteps}
         </Text>
         <View style={styles.progressBar}>
-          <View 
+          <LinearGradient
+            colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+            style={[styles.progressBackground]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
+          <LinearGradient
+            colors={['#FFFFFF', 'rgba(255,255,255,0.8)']}
             style={[
-              styles.progressFill, 
+              styles.progressFill,
               { width: `${(currentStep / totalSteps) * 100}%` }
-            ]} 
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           />
         </View>
       </View>
@@ -64,27 +145,42 @@ const QuestionScreen = ({
       {/* Options */}
       <View style={styles.optionsContainer}>
         {options.map((option, index) => (
-          <Pressable
+          <Animated.View
             key={index}
-            style={({ pressed }) => [
-              styles.optionButton,
-              pressed && styles.optionButtonPressed
-            ]}
-            onPress={() => handleOptionSelect(option)}
+            style={{
+              opacity: fadeAnims[index],
+              transform: [{ scale: scaleAnims[index] }],
+            }}
           >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-            <Text style={styles.optionText}>{option}</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionButton,
+                pressed && styles.optionButtonPressed,
+                isNavigating && styles.optionButtonDisabled
+              ]}
+              onPress={() => handleOptionSelect(option, index)}
+              disabled={isNavigating}
+            >
+              <LinearGradient
+                colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+                style={[StyleSheet.absoluteFill, styles.optionGradient]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              />
+              <Text style={styles.optionText}>{option}</Text>
+              <View style={styles.optionIcon}>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+              </View>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
 
-      {/* Zen Element */}
-      <View style={styles.zenElement}>
+      {/* Zen Elements */}
+      <View style={styles.zenElementLeft}>
+        <Ionicons name="leaf-outline" size={24} color="rgba(255,255,255,0.3)" />
+      </View>
+      <View style={styles.zenElementRight}>
         <Ionicons name="leaf-outline" size={24} color="rgba(255,255,255,0.3)" />
       </View>
     </SafeAreaView>
@@ -104,9 +200,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   progressContainer: {
     padding: 20,
@@ -118,16 +216,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans-Bold',
+    opacity: 0.8,
   },
   progressBar: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 4,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  progressBackground: {
+    ...StyleSheet.absoluteFillObject,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: 'white',
     borderRadius: 4,
   },
   questionContainer: {
@@ -143,6 +244,9 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Bold',
     marginBottom: 40,
     lineHeight: 42,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   optionsContainer: {
     padding: 20,
@@ -150,28 +254,47 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   optionButton: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 20,
     borderRadius: 16,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
   },
   optionButtonPressed: {
     transform: [{ scale: 0.98 }],
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  optionButtonDisabled: {
+    opacity: 0.7,
+  },
+  optionGradient: {
+    borderRadius: 16,
   },
   optionText: {
+    flex: 1,
     fontSize: 18,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
   },
-  zenElement: {
+  optionIcon: {
+    width: 24,
+    alignItems: 'center',
+  },
+  zenElementLeft: {
     position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
+    bottom: 40,
+    left: 40,
     opacity: 0.5,
+    transform: [{ rotate: '-30deg' }],
+  },
+  zenElementRight: {
+    position: 'absolute',
+    bottom: 40,
+    right: 40,
+    opacity: 0.5,
+    transform: [{ rotate: '30deg' }],
   },
 });
 

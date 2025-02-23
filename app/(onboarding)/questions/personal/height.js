@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import QuestionScreen from '../../components/QuestionScreen';
 import { useOnboarding } from '../../context/OnboardingContext';
 
 const HeightQuestion = () => {
-  const { saveAnswer } = useOnboarding();
+  const { saveAnswer, clearAnswer } = useOnboarding();
+
+  useEffect(() => {
+    clearAnswer('height');
+  }, []);
 
   const handleAnswer = (answer) => {
     saveAnswer('height', answer);

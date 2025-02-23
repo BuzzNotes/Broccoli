@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useOnboarding } from '../context/OnboardingContext';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CircularProgress = ({ percentage }) => {
   const size = 160;
@@ -16,7 +15,7 @@ const CircularProgress = ({ percentage }) => {
   const progressOffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
+    <View style={[{ width: size, height: size, position: 'relative' }, styles.progressShadow]}>
       <Svg width={size} height={size}>
         <Defs>
           <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
@@ -52,11 +51,33 @@ const CircularProgress = ({ percentage }) => {
   );
 };
 
+const BarChart = ({ userScore, averageScore }) => {
+  const barHeight = 200;
+  const userBarHeight = (userScore / 100) * barHeight;
+  const avgBarHeight = (averageScore / 100) * barHeight;
+
+  return (
+    <View style={styles.chartContainer}>
+      <View style={styles.barContainer}>
+        <View style={[styles.bar, { height: userBarHeight, backgroundColor: '#FF4B4B' }]} />
+        <Text style={styles.barLabel}>Your Score</Text>
+        <Text style={styles.barValue}>{userScore}%</Text>
+      </View>
+      <View style={styles.barContainer}>
+        <View style={[styles.bar, { height: avgBarHeight, backgroundColor: '#4FA65B' }]} />
+        <Text style={styles.barLabel}>Average</Text>
+        <Text style={styles.barValue}>{averageScore}%</Text>
+      </View>
+    </View>
+  );
+};
+
 const FinalAnalysis = () => {
   const { answers } = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const lastHapticProgress = useRef(0);
 
   useEffect(() => {
     if (loading) {
@@ -69,9 +90,31 @@ const FinalAnalysis = () => {
 
       const timer = setInterval(() => {
         currentProgress += increment;
+        
+        // Create a drumroll effect with haptic feedback
+        const currentTwo = Math.floor(currentProgress / 2);
+        const lastTwo = Math.floor(lastHapticProgress.current / 2);
+        
+        if (currentTwo > lastTwo) {
+          // Increase intensity in the last 20%
+          if (currentProgress > 80) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } else if (currentProgress > 60) {
+            // Alternate between light and medium for middle section
+            Haptics.impactAsync(currentTwo % 2 === 0 ? 
+              Haptics.ImpactFeedbackStyle.Light : 
+              Haptics.ImpactFeedbackStyle.Medium);
+          } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }
+        lastHapticProgress.current = currentProgress;
+
         if (currentProgress >= 100) {
           clearInterval(timer);
           setLoading(false);
+          // Final strong haptic feedback
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           // Fade in the analysis content
           Animated.timing(fadeAnim, {
             toValue: 1,
@@ -86,26 +129,24 @@ const FinalAnalysis = () => {
     }
   }, [loading]);
 
-  const handleGetStarted = async () => {
+  const handleContinue = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      // Set initial streak time
-      const startTime = new Date().getTime();
-      await AsyncStorage.setItem('streakStartTime', startTime.toString());
-      
-      // Navigate to main screen
-      router.replace('/(main)');
+      router.push('/(onboarding)/symptoms');
     } catch (error) {
-      console.error('Error starting streak:', error);
+      console.error('Error:', error);
     }
   };
+
+  const userScore = 52;
+  const averageScore = 13;
+  const difference = userScore - averageScore;
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['rgba(79, 196, 191, 0.4)', '#4FA65B']}
+          colors={['#0A0A1A', '#1A1A2E']}
           style={StyleSheet.absoluteFill}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
@@ -122,36 +163,42 @@ const FinalAnalysis = () => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['rgba(79, 196, 191, 0.4)', '#4FA65B']}
+        colors={['#0A0A1A', '#1A1A2E']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
       />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        <View style={styles.iconContainer}>
-          <LinearGradient
-            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <Ionicons name="checkmark-circle" size={48} color="white" />
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Analysis Complete</Text>
+          <Ionicons name="sparkles" size={24} color="white" style={styles.twinkle} />
         </View>
 
-        <Text style={styles.title}>Analysis Complete</Text>
-        <Text style={styles.message}>
-          Based on your profile and usage patterns, we've created a personalized recovery journey for you. We'll help you track your progress, celebrate milestones, and provide support when you need it most.
+        <Text style={styles.subtitle}>We've got some news to break to you...</Text>
+
+        <Text style={styles.resultText}>
+          Your responses indicate a clear{'\n'}dependence on cannabis*
+        </Text>
+
+        <BarChart userScore={userScore} averageScore={averageScore} />
+
+        <Text style={styles.comparisonText}>
+          {difference}% higher dependence on cannabis
+        </Text>
+
+        <Text style={styles.disclaimer}>
+          * This result is an indication only, not a medical diagnosis. For a definitive assessment, please contact your healthcare provider.
         </Text>
 
         <Pressable 
           style={({ pressed }) => [
-            styles.startButton,
-            pressed && styles.startButtonPressed
+            styles.continueButton,
+            pressed && styles.continueButtonPressed
           ]}
-          onPress={handleGetStarted}
+          onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Get Started</Text>
+          <Text style={styles.buttonText}>Check your symptoms</Text>
           <Ionicons name="arrow-forward" size={20} color="white" />
         </Pressable>
       </Animated.View>
@@ -162,6 +209,7 @@ const FinalAnalysis = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0A0A1A',
   },
   loadingContainer: {
     flex: 1,
@@ -169,15 +217,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   calculatingText: {
-    fontSize: 24,
+    fontSize: 32,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
-    marginTop: 24,
+    marginTop: 32,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   understandingText: {
-    fontSize: 16,
+    fontSize: 20,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: 8,
+    marginTop: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  progressShadow: {
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   percentageContainer: {
     position: 'absolute',
@@ -189,44 +253,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   percentageText: {
-    fontSize: 32,
+    fontSize: 42,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 60,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 40,
+    marginBottom: 8,
+    position: 'relative',
   },
   title: {
     fontSize: 32,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 16,
-    textAlign: 'center',
   },
-  message: {
+  twinkle: {
+    position: 'absolute',
+    right: -28,
+    top: -4,
+    opacity: 0.9,
+  },
+  subtitle: {
     fontSize: 18,
     color: 'rgba(255,255,255,0.8)',
+    marginBottom: 40,
+  },
+  resultText: {
+    fontSize: 24,
+    color: 'white',
     textAlign: 'center',
-    lineHeight: 28,
+    marginBottom: 40,
+    lineHeight: 32,
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    height: 240,
+    width: '100%',
+    gap: 40,
+    marginBottom: 20,
+  },
+  barContainer: {
+    alignItems: 'center',
+    width: 60,
+  },
+  bar: {
+    width: '100%',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  barLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  barValue: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  comparisonText: {
+    fontSize: 20,
+    color: '#FF4B4B',
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 40,
+  },
+  disclaimer: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
     marginBottom: 40,
     paddingHorizontal: 20,
   },
-  startButton: {
+  continueButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -237,7 +347,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  startButtonPressed: {
+  continueButtonPressed: {
     transform: [{ scale: 0.98 }],
     backgroundColor: 'rgba(255,255,255,0.15)',
   },

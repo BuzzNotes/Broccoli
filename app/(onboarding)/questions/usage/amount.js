@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import QuestionScreen from '../../components/QuestionScreen';
 import { useOnboarding } from '../../context/OnboardingContext';
 
 const AmountQuestion = () => {
-  const { saveAnswer } = useOnboarding();
+  const { saveAnswer, clearAnswer } = useOnboarding();
+
+  useEffect(() => {
+    clearAnswer('usage_amount');
+  }, []);
 
   const handleAnswer = (answer) => {
     saveAnswer('usage_amount', answer);

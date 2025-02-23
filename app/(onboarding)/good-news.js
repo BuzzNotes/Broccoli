@@ -70,11 +70,9 @@ export default function GoodNewsScreen() {
           >
             {/* Card Header */}
             <View style={styles.cardHeader}>
-              <View style={styles.qtrContainer}>
-                <Text style={styles.qtrLabel}>QTR</Text>
-              </View>
-              <View style={styles.iconContainer}>
-                <Ionicons name="leaf-outline" size={20} color="white" />
+              <View style={styles.userContainer}>
+                <Ionicons name="leaf" size={20} color="white" style={styles.userIcon} />
+                <Text style={styles.userName}>Rob Greenwood</Text>
               </View>
             </View>
 
@@ -203,28 +201,25 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     marginBottom: 40,
   },
-  qtrContainer: {
+  userContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
-  qtrLabel: {
+  userIcon: {
+    marginRight: 8,
+  },
+  userName: {
     fontFamily: 'PlusJakartaSans-Bold',
     color: '#FFFFFF',
     fontSize: 18,
-  },
-  iconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   streakLabel: {
     fontSize: 16,
@@ -277,5 +272,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  iconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 

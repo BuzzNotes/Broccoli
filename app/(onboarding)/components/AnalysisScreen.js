@@ -4,13 +4,17 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useOnboarding } from '../context/OnboardingContext';
 
 const AnalysisScreen = ({ 
   title,
   message,
   nextRoute,
+  previousQuestionId,
   gradientColors = ['rgba(79, 196, 191, 0.4)', '#4FA65B']  // Default gradient colors
 }) => {
+  const { clearAnswer } = useOnboarding();
+
   const handleContinue = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(nextRoute);
@@ -18,6 +22,9 @@ const AnalysisScreen = ({
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (previousQuestionId) {
+      clearAnswer(previousQuestionId);
+    }
     router.back();
   };
 

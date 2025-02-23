@@ -93,7 +93,7 @@ const RelapseScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background.dark,
+    backgroundColor: 'rgb(200,62,59)',
   },
   header: {
     flexDirection: 'row',

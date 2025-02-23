@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import QuestionScreen from '../../components/QuestionScreen';
 import { useOnboarding } from '../../context/OnboardingContext';
 
 const FrequencyQuestion = () => {
-  const { saveAnswer } = useOnboarding();
+  const { saveAnswer, clearAnswer } = useOnboarding();
+
+  useEffect(() => {
+    clearAnswer('usage_frequency');
+  }, []);
 
   const handleAnswer = (answer) => {
     saveAnswer('usage_frequency', answer);
