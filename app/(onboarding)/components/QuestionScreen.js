@@ -14,22 +14,38 @@ const QuestionScreen = ({
   totalSteps,
   nextRoute 
 }) => {
-  // Animation values for options
+  // Animation values for options and question
   const fadeAnims = useRef(options.map(() => new Animated.Value(0))).current;
   const scaleAnims = useRef(options.map(() => new Animated.Value(0.95))).current;
+  const progressAnim = useRef(new Animated.Value((currentStep - 1) / totalSteps)).current;
+  const questionFadeAnim = useRef(new Animated.Value(0)).current;
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Reset navigation state and run entrance animations when component mounts
   useEffect(() => {
     setIsNavigating(false);
 
-    // Animate options entrance
+    // Animate progress bar
+    Animated.timing(progressAnim, {
+      toValue: currentStep / totalSteps,
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+
+    // Animate question entrance
+    Animated.timing(questionFadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+
+    // Animate options entrance with stagger
     options.forEach((_, index) => {
       fadeAnims[index].setValue(0);
       scaleAnims[index].setValue(0.95);
       
       Animated.sequence([
-        Animated.delay(index * 100),
+        Animated.delay(index * 100 + 200), // Add 200ms delay to let question fade in first
         Animated.parallel([
           Animated.spring(scaleAnims[index], {
             toValue: 1,
@@ -46,11 +62,10 @@ const QuestionScreen = ({
       ]).start();
     });
 
-    // Cleanup function to reset state when unmounting
     return () => {
       setIsNavigating(false);
     };
-  }, [options]); // Add options as dependency to re-run when questions change
+  }, [options, currentStep]);
 
   const handleOptionSelect = async (option, index) => {
     if (isNavigating) return;
@@ -80,7 +95,24 @@ const QuestionScreen = ({
       if (onAnswer) {
         await onAnswer(option);
       }
-      router.push(nextRoute);
+      
+      // Fade out question and options
+      Animated.parallel([
+        Animated.timing(questionFadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        ...fadeAnims.map(anim =>
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          })
+        )
+      ]).start(() => {
+        router.push(nextRoute);
+      });
     } catch (error) {
       console.error('Navigation error:', error);
       setIsNavigating(false);
@@ -89,7 +121,7 @@ const QuestionScreen = ({
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsNavigating(false); // Reset navigation state before going back
+    setIsNavigating(false);
     router.back();
   };
 
@@ -125,22 +157,29 @@ const QuestionScreen = ({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           />
-          <LinearGradient
-            colors={['#FFFFFF', 'rgba(255,255,255,0.8)']}
-            style={[
-              styles.progressFill,
-              { width: `${(currentStep / totalSteps) * 100}%` }
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
+          <Animated.View style={[
+            styles.progressFill,
+            {
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%']
+              })
+            }
+          ]}>
+            <LinearGradient
+              colors={['#FFFFFF', 'rgba(255,255,255,0.8)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            />
+          </Animated.View>
         </View>
       </View>
 
       {/* Question */}
-      <View style={styles.questionContainer}>
+      <Animated.View style={[styles.questionContainer, { opacity: questionFadeAnim }]}>
         <Text style={styles.questionText}>{question}</Text>
-      </View>
+      </Animated.View>
 
       {/* Options */}
       <View style={styles.optionsContainer}>

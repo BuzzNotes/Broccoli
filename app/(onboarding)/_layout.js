@@ -4,23 +4,22 @@ import { OnboardingProvider } from './context/OnboardingContext';
 export default function OnboardingLayout() {
   return (
     <OnboardingProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ 
+        headerShown: false,
+        animation: 'none'
+      }}>
         {/* Personal Information Section */}
         <Stack.Screen 
           name="questions/personal/age"
-          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen 
           name="questions/personal/height"
-          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen 
           name="questions/personal/weight"
-          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen 
           name="questions/personal/activity"
-          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen 
           name="analysis/personal"
@@ -30,9 +29,21 @@ export default function OnboardingLayout() {
         {/* Usage Patterns Section */}
         <Stack.Screen 
           name="questions/usage/frequency"
-          options={{ animation: 'slide_from_right' }}
         />
-        {/* Add more screens here as we create them */}
+        <Stack.Screen 
+          name="questions/usage/amount"
+        />
+        <Stack.Screen 
+          name="questions/usage/method"
+        />
+        <Stack.Screen 
+          name="analysis/usage"
+          options={{ animation: 'fade' }}
+        />
+        <Stack.Screen 
+          name="analysis/final"
+          options={{ animation: 'fade' }}
+        />
       </Stack>
     </OnboardingProvider>
   );

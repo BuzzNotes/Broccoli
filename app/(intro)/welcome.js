@@ -166,7 +166,7 @@ const WelcomeScreen = () => {
       <LeafBackground />
 
       <View style={styles.content}>
-        <View style={styles.welcomeContainer}>
+        <View style={styles.header}>
           <View style={styles.iconContainer}>
             <LinearGradient
               colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
@@ -174,13 +174,13 @@ const WelcomeScreen = () => {
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
             />
-            <Ionicons name="leaf" size={48} color="white" />
+            <Ionicons name="leaf" size={32} color="white" />
           </View>
-          <Text style={styles.title}>Welcome!</Text>
+          <Text style={styles.title}>Take Control{'\n'}of Your Life</Text>
+          <Text style={styles.subtitle}>
+            Join thousands who have successfully quit cannabis with science-backed methods
+          </Text>
         </View>
-        <Text style={styles.message}>
-          Let's start out by finding out if you have a problem with Cannabis
-        </Text>
 
         <Pressable 
           style={({ pressed }) => [
@@ -189,14 +189,15 @@ const WelcomeScreen = () => {
           ]}
           onPress={handleStart}
         >
-          <Text style={styles.buttonText}>Start Quiz</Text>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+          <Text style={styles.buttonText}>Begin Assessment</Text>
           <Ionicons name="arrow-forward" size={20} color="white" />
         </Pressable>
-      </View>
-
-      {/* Static Zen Element - only keeping the bottom left one */}
-      <View style={styles.zenElementLeft}>
-        <Ionicons name="leaf-outline" size={24} color="rgba(255,255,255,0.3)" />
       </View>
     </SafeAreaView>
   );
@@ -208,19 +209,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    padding: 24,
+    paddingBottom: 40,
     zIndex: 2,
   },
-  welcomeContainer: {
+  header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginTop: 60,
   },
   iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -230,55 +231,46 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   title: {
-    fontSize: 48,
+    fontSize: 40,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    marginBottom: 16,
+    lineHeight: 48,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  message: {
-    fontSize: 24,
-    color: 'rgba(255,255,255,0.8)',
+  subtitle: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.9)',
     textAlign: 'center',
-    lineHeight: 34,
-    marginBottom: 40,
-    paddingHorizontal: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    lineHeight: 28,
+    maxWidth: '90%',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 16,
     gap: 12,
-    position: 'absolute',
-    bottom: 40,
-    right: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
   },
   startButtonPressed: {
     transform: [{ scale: 0.98 }],
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    opacity: 0.9,
   },
   buttonText: {
     fontSize: 18,
     color: 'white',
     fontFamily: 'PlusJakartaSans-Bold',
-  },
-  zenElementLeft: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    opacity: 0.5,
-    transform: [{ rotate: '-30deg' }],
-    zIndex: 2,
   },
   leaf: {
     position: 'absolute',

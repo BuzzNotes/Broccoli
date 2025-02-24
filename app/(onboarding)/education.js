@@ -157,24 +157,16 @@ const EducationScreen = () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       if (isLastSlide) {
-        // Set new streak start time
-        const startTime = new Date().getTime();
-        await AsyncStorage.setItem('streakStartTime', startTime.toString());
-        router.replace('/(main)');
+        router.replace('/(onboarding)/benefits');
         return;
       }
 
       setIsTransitioning(true);
       const nextSlideIndex = currentSlide + 1;
 
-      // 1. Fade out all current content
+      // 1. Fade out current content
       await new Promise(resolve => {
         Animated.parallel([
-          Animated.timing(contentOpacity, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
           Animated.timing(titleOpacity, {
             toValue: 0,
             duration: 200,
@@ -190,15 +182,10 @@ const EducationScreen = () => {
             duration: 200,
             useNativeDriver: true,
           }),
-          Animated.timing(buttonOpacity, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
           // Animate background color transition
           Animated.timing(slideProgress, {
             toValue: nextSlideIndex,
-            duration: 400, // Slightly longer duration for smoother color transition
+            duration: 400,
             useNativeDriver: false,
           }),
         ]).start(resolve);
@@ -216,13 +203,7 @@ const EducationScreen = () => {
       // 5. Fade in elements in sequence
       await new Promise(resolve => {
         Animated.sequence([
-          // First fade in the content container
-          Animated.timing(contentOpacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          // Then fade in text
+          // Fade in text
           Animated.parallel([
             Animated.timing(titleOpacity, {
               toValue: 1,
@@ -239,12 +220,6 @@ const EducationScreen = () => {
           Animated.timing(slideOpacities[nextSlideIndex], {
             toValue: 1,
             duration: 300,
-            useNativeDriver: true,
-          }),
-          // Finally fade in button
-          Animated.timing(buttonOpacity, {
-            toValue: 1,
-            duration: 200,
             useNativeDriver: true,
           }),
         ]).start(resolve);
@@ -265,7 +240,7 @@ const EducationScreen = () => {
       }
     ]}>
       <SafeAreaView style={styles.safeArea}>
-        <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
+        <View style={styles.content}>
           <Pressable 
             style={({ pressed }) => [
               styles.backButton,
@@ -315,7 +290,7 @@ const EducationScreen = () => {
             </Animated.View>
           </View>
 
-          <Animated.View style={[styles.bottomSection, { opacity: buttonOpacity }]}>
+          <View style={styles.bottomSection}>
             <View style={styles.dotsContainer}>
               {slides.map((_, index) => (
                 <View
@@ -338,12 +313,12 @@ const EducationScreen = () => {
               disabled={isTransitioning}
             >
               <Text style={styles.buttonText}>
-                {isLastSlide ? 'Let\'s get started' : 'Next'}
+                {isLastSlide ? 'See my plan' : 'Next'}
               </Text>
               <Ionicons name="arrow-forward" size={20} color="black" />
             </Pressable>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
       </SafeAreaView>
     </Animated.View>
   );
