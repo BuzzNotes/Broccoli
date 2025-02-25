@@ -160,10 +160,13 @@ const QuestionScreen = ({
           <Animated.View style={[
             styles.progressFill,
             {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%']
-              })
+              transform: [{
+                scaleX: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1]
+                })
+              }],
+              transformOrigin: 'left'
             }
           ]}>
             <LinearGradient
@@ -267,7 +270,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   progressFill: {
-    height: '100%',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '100%',
     borderRadius: 4,
   },
   questionContainer: {

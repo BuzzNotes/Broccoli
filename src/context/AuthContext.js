@@ -9,13 +9,19 @@ import {
   signInWithCredential, 
   OAuthProvider,
   onAuthStateChanged,
-  signOut
+  signOut,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
+import { 
+  setDoc,
+  doc 
+} from 'firebase/firestore';
 import { auth } from '../config/firebase';
+import { db } from '../config/firebase';
 
 const AuthContext = createContext({});
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -94,18 +100,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  async function emailSignUp({ email, password, firstName, lastName, birthdate }) {
+    try {
+      // Create the user account
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create/update user profile in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        birthdate: birthdate,
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+      });
+
+      return userCredential.user;
+    } catch (error) {
+      console.error("Error in email signup:", error);
+      throw error;
+    }
+  }
+
+  const value = {
+    user,
+    loading,
+    signInWithGoogle,
+    signInWithApple,
+    logout,
+    emailSignUp
+  };
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      signInWithGoogle,
-      signInWithApple,
-      logout,
-    }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

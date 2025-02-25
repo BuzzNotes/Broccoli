@@ -1,10 +1,12 @@
+
 import { initializeApp } from 'firebase/app';
 import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Your web app's Firebase configuration
+// Make sure these values exactly match what's in your Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyByvbQtlvX5-RFKIVdLP_3Zp0kQx7XF_sg",
   authDomain: "broccoli-5d02e.firebaseapp.com",
@@ -16,14 +18,29 @@ const firebaseConfig = {
   measurementId: "G-NJL2BKSZ5C"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with a custom name for Expo Go
+let app;
+try {
+  if (Constants.appOwnership === 'expo') {
+    // For Expo Go
+    app = initializeApp(firebaseConfig, 'Expo Go');
+  } else {
+    // For production build
+    app = initializeApp(firebaseConfig);
+  }
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+  throw error;
+}
 
-// Initialize Auth
+// Initialize Auth with AsyncStorage persistence for React Native
 const auth = Platform.OS === 'web' 
   ? getAuth(app)
   : initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
 
-export { auth }; 
+// Initialize Firestore
+const db = getFirestore(app);
+
+export { auth, db }; 

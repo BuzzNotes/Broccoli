@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, SafeAreaView, Image, ActivityIndicator, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts, PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans";
@@ -67,6 +67,10 @@ const LoginScreen = () => {
     }
   };
 
+  const handleEmailSignUp = () => {
+    router.push('/(auth)/signup');
+  };
+
   return (
     <View style={authStyles.container}>
       {/* Main Background Gradient */}
@@ -129,8 +133,17 @@ const LoginScreen = () => {
           )}
 
           {/* Email Login */}
-          <Pressable style={[authStyles.authButton, authStyles.emailButton]}>
-            <Image source={emailIcon} style={authStyles.buttonIcon} />
+          <Pressable 
+            style={[authStyles.authButton, authStyles.emailButton]}
+            onPress={handleEmailSignUp}
+            disabled={loading}
+          >
+            <Ionicons 
+              name="mail-outline" 
+              size={24} 
+              color="white" 
+              style={authStyles.buttonIcon} 
+            />
             <Text style={authStyles.buttonText}>Continue with Email</Text>
           </Pressable>
 

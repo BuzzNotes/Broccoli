@@ -5,9 +5,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../app/styles/colors';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function GoodNewsScreen() {
   const bounceAnim = useRef(new Animated.Value(1)).current;
+  const { currentUser } = useAuth();
+
+  // Get user's full name or use "Anonymous User"
+  const getUserName = () => {
+    if (!currentUser) return "Anonymous User";
+    
+    if (currentUser.profile) {
+      // Check for email signup format (firstName + lastName)
+      const { firstName, lastName, name } = currentUser.profile;
+      if (firstName && lastName) {
+        return `${firstName} ${lastName}`;
+      }
+      // Check for Google/Apple sign in format (name field)
+      if (name) {
+        return name;
+      }
+    }
+    
+    return "Anonymous User";
+  };
 
   useEffect(() => {
     const bounceAnimation = Animated.sequence([
@@ -72,7 +93,7 @@ export default function GoodNewsScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.userContainer}>
                 <Ionicons name="leaf" size={20} color="white" style={styles.userIcon} />
-                <Text style={styles.userName}>Rob Greenwood</Text>
+                <Text style={styles.userName}>{getUserName()}</Text>
               </View>
             </View>
 
