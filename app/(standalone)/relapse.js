@@ -1,176 +1,216 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Platform, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  TextInput,
+  StatusBar,
+  Alert
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logRelapse } from '../../src/utils/relapseTracker';
 import { colors } from '../styles/colors';
-import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../styles/typography';
 
 const RelapseScreen = () => {
-  const [isResetting, setIsResetting] = useState(false);
-
-  const handleReset = async () => {
+  const insets = useSafeAreaInsets();
+  const [reason, setReason] = useState('');
+  
+  const handleClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+  
+  const handleResetCounter = async () => {
     try {
-      if (isResetting) return;
-      setIsResetting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       
-      // Trigger haptic feedback
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      // Log the relapse with reason
+      await logRelapse(reason);
       
-      // Reset the streak start time
-      const startTime = new Date().getTime();
-      await AsyncStorage.setItem('streakStartTime', startTime.toString());
+      // Reset the streak counter
+      const currentTime = new Date().getTime();
+      await AsyncStorage.setItem('streakStartTime', currentTime.toString());
       
       // Navigate back to main screen
       router.replace('/(main)');
+      
+      // Show confirmation
+      Alert.alert(
+        "Counter Reset",
+        "Your counter has been reset. Don't give up - every new start is a step forward.",
+        [{ text: "OK" }]
+      );
     } catch (error) {
-      console.error('Error in reset handler:', error);
-      setIsResetting(false);
+      console.error('Error resetting counter:', error);
+      Alert.alert("Error", "There was a problem resetting your counter. Please try again.");
     }
   };
-
-  const handleCancel = () => {
-    router.back();
-  };
-
+  
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Header with Cancel Button */}
-      <View style={styles.header}>
-        <Pressable onPress={handleCancel} style={styles.cancelButton}>
-          <Ionicons name="close" size={24} color={colors.text.secondary} />
-        </Pressable>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity 
+          style={styles.closeButton} 
+          onPress={handleClose}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+        
+        <Text style={styles.headerTitle}>Reset Counter</Text>
       </View>
-
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Relapsed</Text>
-        <Text style={styles.message}>
-          You let yourself down, again.
-        </Text>
-        <Text style={styles.info}>
-          Relapsing can be tough and make you feel awful, but it's crucial not to be too hard on yourself. 
-          Doing so can create a vicious cycle, as explained below.
+      
+      {/* Main Content */}
+      <View style={styles.content}>
+        <Text style={styles.title}>Are you sure?</Text>
+        <Text style={styles.subtitle}>
+          Resetting your counter will track this as a relapse in your progress.
         </Text>
         
-        {/* Relapsing Cycle Section */}
-        <View style={styles.cycleContainer}>
-          <Text style={styles.cycleTitle}>The Relapse Cycle</Text>
-          <View style={styles.cycleItem}>
-            <Text style={styles.cycleItemTitle}>Using Cannabis</Text>
-            <Text style={styles.cycleItemText}>
-              In the moment, you feel relaxed and temporarily escape your problems.
-            </Text>
-          </View>
-          <View style={styles.cycleItem}>
-            <Text style={styles.cycleItemTitle}>Post-High Clarity</Text>
-            <Text style={styles.cycleItemText}>
-              As the high wears off, feelings of guilt, anxiety, and disappointment set in.
-            </Text>
-          </View>
-          <View style={styles.cycleItem}>
-            <Text style={styles.cycleItemTitle}>Compensation Cycle</Text>
-            <Text style={styles.cycleItemText}>
-              You smoke again to numb these negative feelings, creating a cycle that becomes harder to break with each use.
-            </Text>
-          </View>
+        <View style={styles.reasonContainer}>
+          <Text style={styles.reasonLabel}>What triggered your relapse? (optional)</Text>
+          <TextInput
+            style={styles.reasonInput}
+            placeholder="e.g., stress, social pressure, boredom..."
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
+            value={reason}
+            onChangeText={setReason}
+            multiline
+            maxLength={200}
+          />
         </View>
-      </ScrollView>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <Pressable 
-          style={[styles.resetButton, isResetting && styles.resetButtonDisabled]}
-          onPress={handleReset}
-          disabled={isResetting}
+        
+        <TouchableOpacity 
+          style={styles.resetButton}
+          activeOpacity={0.8}
+          onPress={handleResetCounter}
         >
+          <LinearGradient
+            colors={['#FF3B30', '#CC2D25']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.buttonIcon} />
           <Text style={styles.resetButtonText}>Reset Counter</Text>
-        </Pressable>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.cancelButton}
+          activeOpacity={0.7}
+          onPress={handleClose}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgb(200,62,59)',
+    backgroundColor: '#0F1A15',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    position: 'relative',
   },
-  cancelButton: {
-    padding: 8,
+  closeButton: {
+    position: 'absolute',
+    left: 20,
+    zIndex: 10,
   },
-  scrollContainer: {
+  headerTitle: {
+    fontSize: 18,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.bold,
+  },
+  content: {
     flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
   title: {
-    fontSize: 36,
-    color: '#FF4B4B',
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 16,
-  },
-  message: {
-    fontSize: 32,
-    color: colors.text.primary,
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 16,
-  },
-  info: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  cycleContainer: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
-  },
-  cycleTitle: {
     fontSize: 24,
     color: colors.text.primary,
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 20,
+    fontFamily: typography.fonts.bold,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  cycleItem: {
-    marginBottom: 20,
-  },
-  cycleItemTitle: {
-    fontSize: 18,
-    color: colors.text.primary,
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 8,
-  },
-  cycleItemText: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 16,
     color: colors.text.secondary,
-    lineHeight: 20,
+    fontFamily: typography.fonts.regular,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
   },
-  buttonContainer: {
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  reasonContainer: {
+    marginBottom: 32,
+  },
+  reasonLabel: {
+    fontSize: 16,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.medium,
+    marginBottom: 12,
+  },
+  reasonInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.regular,
+    fontSize: 16,
+    minHeight: 120,
+    textAlignVertical: 'top',
   },
   resetButton: {
-    backgroundColor: '#FF4B4B',
-    paddingVertical: 16,
-    borderRadius: 12,
+    height: 56,
+    borderRadius: 28,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  resetButtonDisabled: {
-    opacity: 0.5,
+  buttonIcon: {
+    marginRight: 8,
   },
   resetButtonText: {
-    color: colors.text.primary,
-    fontSize: 18,
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
+  },
+  cancelButton: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: colors.text.secondary,
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
   },
 });
 

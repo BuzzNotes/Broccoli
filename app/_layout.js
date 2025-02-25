@@ -1,19 +1,65 @@
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, StyleSheet, Platform, Text, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { auth } from '../src/config/firebase';
+import { auth, reinitializeFirebase } from '../src/config/firebase';
 import { AuthProvider } from '../src/context/AuthContext';
+import { logFirebaseStatus, isFirebaseInitialized } from '../src/utils/firebaseCheck';
+import LoadingScreen from '../src/components/LoadingScreen';
 
 export default function Layout() {
+  const [firebaseReady, setFirebaseReady] = useState(false);
+  const [initAttempts, setInitAttempts] = useState(0);
+  
   useEffect(() => {
-    // Using auth here, so it's not "unused"
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      console.log('Auth State Changed:', user ? 'User Logged In' : 'No User');
-    });
+    // Check Firebase initialization status
+    const checkFirebase = async () => {
+      try {
+        // Log Firebase status and get initialization result
+        const isInitialized = logFirebaseStatus();
+        
+        if (!isInitialized && initAttempts < 2) {
+          // Try to reinitialize Firebase if it's not initialized
+          console.log(`Attempt ${initAttempts + 1} to initialize Firebase...`);
+          const success = reinitializeFirebase();
+          
+          if (success) {
+            console.log('Firebase reinitialization successful');
+          } else {
+            console.warn('Firebase reinitialization failed');
+          }
+          
+          setInitAttempts(prev => prev + 1);
+          
+          // We'll continue even if Firebase isn't ready, but with limited functionality
+          setTimeout(() => {
+            setFirebaseReady(true);
+          }, 1000);
+        } else {
+          // We'll continue even if Firebase isn't ready, but with limited functionality
+          setFirebaseReady(true);
+        }
+        
+        // Set up auth state listener
+        if (auth) {
+          const unsubscribe = auth.onAuthStateChanged((user) => {
+            console.log('Auth State Changed:', user ? 'User Logged In' : 'No User');
+          });
+          
+          return () => unsubscribe();  // Proper cleanup
+        }
+      } catch (error) {
+        console.error('Error in Firebase initialization check:', error);
+        setFirebaseReady(true); // Continue anyway with limited functionality
+      }
+    };
+    
+    checkFirebase();
+  }, [initAttempts]);
 
-    return () => unsubscribe();  // Proper cleanup
-  }, []);
+  if (!firebaseReady) {
+    return <LoadingScreen />;
+  }
 
   return (
     <AuthProvider>
@@ -127,6 +173,15 @@ export default function Layout() {
               gestureDirection: 'horizontal',
             }} 
           />
+          <Stack.Screen 
+            name="(main)/community" 
+            options={{ 
+              animation: 'slide_from_right',
+              presentation: 'card',
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
+            }} 
+          />
 
           {/* Standalone Screens */}
           <Stack.Screen 
@@ -148,6 +203,34 @@ export default function Layout() {
             options={{
               animation: 'slide_from_bottom',
               presentation: 'modal'
+            }}
+          />
+          <Stack.Screen 
+            name="(standalone)/panic"
+            options={{
+              animation: 'slide_from_bottom',
+              presentation: 'modal'
+            }}
+          />
+          <Stack.Screen 
+            name="(standalone)/edit-profile"
+            options={{
+              animation: 'slide_from_bottom',
+              presentation: 'modal'
+            }}
+          />
+          <Stack.Screen 
+            name="(standalone)/create-post"
+            options={{
+              animation: 'slide_from_bottom',
+              presentation: 'modal'
+            }}
+          />
+          <Stack.Screen 
+            name="(standalone)/post-detail"
+            options={{
+              animation: 'slide_from_right',
+              presentation: 'card'
             }}
           />
         </Stack>
