@@ -7,12 +7,17 @@
     "icon": "./assets/images/icon.png",
     "scheme": "broccoli",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sixfortylabs.broccoli",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "com.googleusercontent.apps.1079081190424-bo66njc6lellu79jdgnmeog14p3c904s"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +25,10 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.sixfortylabs.broccoli",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,11 +46,21 @@
       ],
       "expo-router",
       "expo-font",
-      "expo-video"
+      "expo-video",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
-      "typedRoutes": true,
+      "typedRoutes": false,
       "tsconfigPaths": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "de979687-ff43-4b3b-89b0-d02b144c9141"
+      }
+    },
+    "owner": "austincotter"
   }
 }

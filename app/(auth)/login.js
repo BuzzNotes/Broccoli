@@ -44,7 +44,6 @@ const LoginScreen = () => {
       setLoading(true);
       setError('');
       await signInWithGoogle();
-      router.push('/(onboarding)/good-news');
     } catch (error) {
       setError('Failed to sign in with Google. Please try again.');
       console.error(error);
@@ -58,7 +57,6 @@ const LoginScreen = () => {
       setLoading(true);
       setError('');
       await signInWithApple();
-      router.push('/(onboarding)/good-news');
     } catch (error) {
       setError('Failed to sign in with Apple. Please try again.');
       console.error(error);
@@ -69,6 +67,10 @@ const LoginScreen = () => {
 
   const handleEmailSignUp = () => {
     router.push('/(auth)/signup');
+  };
+
+  const handleEmailSignIn = () => {
+    router.push('/(auth)/signin');
   };
 
   return (
@@ -114,9 +116,13 @@ const LoginScreen = () => {
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Ionicons name="logo-google" size={24} color="white" style={authStyles.buttonIcon} />
+            {loading ? (
+              <ActivityIndicator color="white" size="small" style={authStyles.buttonIcon} />
+            ) : (
+              <Ionicons name="logo-google" size={24} color="white" style={authStyles.buttonIcon} />
+            )}
             <Text style={authStyles.buttonText}>
-              {loading ? 'Signing in...' : 'Continue with Google'}
+              Continue with Google
             </Text>
           </Pressable>
 
@@ -127,24 +133,28 @@ const LoginScreen = () => {
               onPress={handleAppleSignIn}
               disabled={loading}
             >
-              <Ionicons name="logo-apple" size={24} color="white" style={authStyles.buttonIcon} />
+              {loading ? (
+                <ActivityIndicator color="white" size="small" style={authStyles.buttonIcon} />
+              ) : (
+                <Ionicons name="logo-apple" size={24} color="white" style={authStyles.buttonIcon} />
+              )}
               <Text style={authStyles.buttonText}>Continue with Apple</Text>
             </Pressable>
           )}
 
-          {/* Email Login */}
+          {/* Email Sign Up */}
           <Pressable 
             style={[authStyles.authButton, authStyles.emailButton]}
             onPress={handleEmailSignUp}
             disabled={loading}
           >
             <Ionicons 
-              name="mail-outline" 
+              name="person-add-outline" 
               size={24} 
               color="white" 
               style={authStyles.buttonIcon} 
             />
-            <Text style={authStyles.buttonText}>Continue with Email</Text>
+            <Text style={authStyles.buttonText}>Sign Up with Email</Text>
           </Pressable>
 
           {/* Skip Button */}
@@ -161,14 +171,6 @@ const LoginScreen = () => {
         {error ? (
           <Text style={authStyles.errorText}>{error}</Text>
         ) : null}
-
-        {loading && (
-          <ActivityIndicator 
-            size="large" 
-            color={colors.primary} 
-            style={authStyles.loader} 
-          />
-        )}
       </SafeAreaView>
     </View>
   );

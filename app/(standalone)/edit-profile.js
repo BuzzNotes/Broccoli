@@ -21,22 +21,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
-import { getUserProfile, saveUserProfile } from '../../src/utils/userProfile';
+import { getUserProfile, updateUserProfile, getUserFullName } from '../../src/utils/userProfile';
 import { IMAGES } from '../../src/constants/assets';
+import { useAuth } from '../../src/context/AuthContext';
 
 const EditProfileScreen = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   
   // State for user profile data
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
+  const [photoURL, setPhotoURL] = useState(null);
   
   // UI state
   const [isLoading, setIsLoading] = useState(false);
-  const [nameError, setNameError] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
   const [ageError, setAgeError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isApplePrivateEmail, setIsApplePrivateEmail] = useState(false);
+  const [showImageOptions, setShowImageOptions] = useState(false);
   
   // Load user data on component mount
   useEffect(() => {
@@ -50,10 +59,27 @@ const EditProfileScreen = () => {
       // Load user data using the utility function
       const profileData = await getUserProfile();
       
-      setName(profileData.name);
-      setAge(profileData.age);
-      setGender(profileData.gender);
-      setProfileImage(profileData.profileImage);
+      setFirstName(profileData.firstName || '');
+      setLastName(profileData.lastName || '');
+      setDisplayName(profileData.displayName || '');
+      
+      // Check if user has an Apple private relay email
+      const userEmail = profileData.email || (user ? user.email : '');
+      const isPrivateRelay = userEmail.includes('privaterelay.appleid.com');
+      
+      setIsApplePrivateEmail(isPrivateRelay);
+      
+      // If it's a private relay email and there's no stored email in the profile,
+      // set the email field to empty to encourage the user to add their real email
+      if (isPrivateRelay && !profileData.email) {
+        setEmail('');
+      } else {
+        setEmail(userEmail);
+      }
+      
+      setAge(profileData.age || '');
+      setGender(profileData.gender || '');
+      setPhotoURL(profileData.photoURL || null);
       
       setIsLoading(false);
     } catch (error) {
@@ -71,23 +97,35 @@ const EditProfileScreen = () => {
   const validateInputs = () => {
     let isValid = true;
     
-    // Validate name
-    if (!name.trim()) {
-      setNameError('Name is required');
+    // Validate first name or last name
+    if (!firstName.trim() && !lastName.trim()) {
+      setFirstNameError('First name or last name is required');
+      setLastNameError('First name or last name is required');
       isValid = false;
     } else {
-      setNameError('');
+      setFirstNameError('');
+      setLastNameError('');
     }
     
     // Validate age
-    if (!age.trim()) {
-      setAgeError('Age is required');
-      isValid = false;
-    } else if (isNaN(age) || parseInt(age) < 13) {
+    if (age && (isNaN(age) || parseInt(age) < 13)) {
       setAgeError('Age must be at least 13');
       isValid = false;
     } else {
       setAgeError('');
+    }
+    
+    // Validate email if user is using Apple Sign In with private relay
+    if (isApplePrivateEmail) {
+      if (!email.trim()) {
+        setEmailError('Please provide an email address');
+        isValid = false;
+      } else if (!/\S+@\S+\.\S+/.test(email)) {
+        setEmailError('Please enter a valid email address');
+        isValid = false;
+      } else {
+        setEmailError('');
+      }
     }
     
     return isValid;
@@ -104,13 +142,29 @@ const EditProfileScreen = () => {
       
       setIsLoading(true);
       
-      // Save user data using the utility function
-      await saveUserProfile({
-        name,
+      // Create display name from first and last name if both are provided
+      let updatedDisplayName = displayName;
+      if (firstName && lastName) {
+        updatedDisplayName = `${firstName} ${lastName}`;
+      }
+      
+      // Create profile update object
+      const profileUpdate = {
+        firstName,
+        lastName,
+        displayName: updatedDisplayName,
         age,
         gender,
-        profileImage
-      });
+        photoURL
+      };
+      
+      // Include email in the update if user is using Apple Sign In with private relay
+      if (isApplePrivateEmail) {
+        profileUpdate.email = email;
+      }
+      
+      // Save user data using the utility function
+      await updateUserProfile(profileUpdate);
       
       setIsLoading(false);
       
@@ -159,6 +213,7 @@ const EditProfileScreen = () => {
   const handleTakePhoto = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setShowImageOptions(false);
       
       // Request camera permission
       const hasPermission = await requestCameraPermission();
@@ -173,7 +228,7 @@ const EditProfileScreen = () => {
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        setPhotoURL(result.assets[0].uri);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -184,6 +239,7 @@ const EditProfileScreen = () => {
   const handleChoosePhoto = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setShowImageOptions(false);
       
       // Request media library permission
       const hasPermission = await requestMediaLibraryPermission();
@@ -198,12 +254,17 @@ const EditProfileScreen = () => {
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        setPhotoURL(result.assets[0].uri);
       }
     } catch (error) {
       console.error('Error choosing photo:', error);
       Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
+  };
+  
+  const toggleImageOptions = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowImageOptions(!showImageOptions);
   };
   
   const handleSelectGender = (selectedGender) => {
@@ -236,6 +297,52 @@ const EditProfileScreen = () => {
     );
   };
   
+  // Image Options Popup Component
+  const ImageOptionsPopup = () => {
+    if (!showImageOptions) return null;
+    
+    return (
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalBackground}
+          activeOpacity={1}
+          onPress={() => setShowImageOptions(false)}
+        />
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Change Profile Photo</Text>
+            
+            <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={handleTakePhoto}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="camera" size={24} color="#4FA65B" style={styles.modalOptionIcon} />
+              <Text style={styles.modalOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={handleChoosePhoto}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="images" size={24} color="#4FA65B" style={styles.modalOptionIcon} />
+              <Text style={styles.modalOptionText}>Choose from Library</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.modalOption, styles.cancelOption]}
+              onPress={() => setShowImageOptions(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+  
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -248,163 +355,148 @@ const EditProfileScreen = () => {
         <TouchableOpacity 
           style={styles.closeButton} 
           onPress={handleClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
         >
-          <Ionicons name="close" size={28} color="#FFFFFF" />
+          <Ionicons name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        
         <Text style={styles.headerTitle}>Edit Profile</Text>
-        
         <TouchableOpacity 
           style={styles.saveButton} 
           onPress={handleSaveChanges}
+          activeOpacity={0.7}
           disabled={isLoading}
         >
-          <Text style={styles.saveButtonText}>Save</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save</Text>
+          )}
         </TouchableOpacity>
       </View>
       
-      {/* Main Content */}
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4FA65B" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Profile Image Section */}
-            <View style={styles.profileImageSection}>
-              <View style={styles.profileImageContainer}>
-                {profileImage ? (
-                  <Image 
-                    source={{ uri: profileImage }} 
-                    style={styles.profileImage}
-                  />
-                ) : (
-                  <View style={styles.profileImagePlaceholder}>
-                    <Ionicons name="person" size={60} color="rgba(255, 255, 255, 0.3)" />
-                  </View>
-                )}
-              </View>
-              
-              <View style={styles.imageButtonsContainer}>
-                <TouchableOpacity 
-                  style={styles.imageButton}
-                  activeOpacity={0.8}
-                  onPress={handleTakePhoto}
-                >
-                  <LinearGradient
-                    colors={['rgba(79, 166, 91, 0.8)', 'rgba(79, 166, 91, 0.6)']}
-                    style={StyleSheet.absoluteFill}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                  <Ionicons name="camera" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.imageButtonText}>Camera</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.imageButton}
-                  activeOpacity={0.8}
-                  onPress={handleChoosePhoto}
-                >
-                  <LinearGradient
-                    colors={['rgba(79, 166, 91, 0.8)', 'rgba(79, 166, 91, 0.6)']}
-                    style={StyleSheet.absoluteFill}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                  <Ionicons name="images" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.imageButtonText}>Gallery</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            {/* Personal Details Section */}
-            <View style={styles.detailsSection}>
-              <Text style={styles.sectionTitle}>Personal Details</Text>
-              
-              {/* Name Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Name</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your name"
-                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-                {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
-              </View>
-              
-              {/* Age Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Age</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your age"
-                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                  value={age}
-                  onChangeText={setAge}
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-                {ageError ? <Text style={styles.errorText}>{ageError}</Text> : null}
-              </View>
-              
-              {/* Gender Selection */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Gender</Text>
-                <View style={styles.genderButtonsContainer}>
-                  {renderGenderButton('male', 'Male')}
-                  {renderGenderButton('female', 'Female')}
-                  {renderGenderButton('non-binary', 'Non-binary')}
-                  {renderGenderButton('other', 'Other')}
-                </View>
-              </View>
-            </View>
-            
-            {/* Save Button (Bottom) */}
+        {/* Profile Image */}
+        <View style={styles.profileImageSection}>
+          <View style={styles.profileImageContainer}>
+            <Image 
+              source={photoURL ? { uri: photoURL } : IMAGES.DEFAULT_AVATAR} 
+              style={styles.profileImage}
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']}
+              style={styles.imageGradient}
+            />
             <TouchableOpacity 
-              style={styles.saveChangesButton}
+              style={styles.editImageButton}
+              onPress={toggleImageOptions}
               activeOpacity={0.8}
-              onPress={handleSaveChanges}
-              disabled={isLoading}
             >
-              <LinearGradient
-                colors={['#4FA65B', '#3D8549']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              />
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="save" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.saveChangesButtonText}>Save Changes</Text>
-                </>
-              )}
+              <Ionicons name="camera" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            
-            {/* Cancel Button */}
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              activeOpacity={0.7}
-              onPress={handleClose}
-              disabled={isLoading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </>
-        )}
+          </View>
+          <Text style={styles.changePhotoText}>Tap to change photo</Text>
+        </View>
+        
+        {/* Form Fields */}
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          
+          {/* First Name */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>First Name</Text>
+            <TextInput
+              style={[styles.input, firstNameError && styles.inputError]}
+              placeholder="Enter your first name"
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+            />
+            {firstNameError ? (
+              <Text style={styles.errorText}>{firstNameError}</Text>
+            ) : null}
+          </View>
+          
+          {/* Last Name */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Last Name</Text>
+            <TextInput
+              style={[styles.input, lastNameError && styles.inputError]}
+              placeholder="Enter your last name"
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+            />
+            {lastNameError ? (
+              <Text style={styles.errorText}>{lastNameError}</Text>
+            ) : null}
+          </View>
+          
+          {/* Email (editable if Apple private relay) */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={[
+                styles.input, 
+                emailError && styles.inputError,
+                !isApplePrivateEmail && { opacity: 0.7 }
+              ]}
+              placeholder={isApplePrivateEmail ? "Enter your email address" : ""}
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={email}
+              onChangeText={setEmail}
+              editable={isApplePrivateEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : isApplePrivateEmail ? (
+              <Text style={styles.helperText}>
+                Please provide your email address as you're using Apple Sign In with private email relay
+              </Text>
+            ) : (
+              <Text style={styles.helperText}>Email cannot be changed</Text>
+            )}
+          </View>
+          
+          {/* Age */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Age</Text>
+            <TextInput
+              style={[styles.input, ageError && styles.inputError]}
+              placeholder="Enter your age"
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={age}
+              onChangeText={setAge}
+              keyboardType="number-pad"
+              maxLength={3}
+            />
+            {ageError ? (
+              <Text style={styles.errorText}>{ageError}</Text>
+            ) : null}
+          </View>
+          
+          {/* Gender */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Gender</Text>
+            <View style={styles.genderButtonsContainer}>
+              {renderGenderButton('male', 'Male')}
+              {renderGenderButton('female', 'Female')}
+              {renderGenderButton('other', 'Other')}
+              {renderGenderButton('', 'Prefer not to say')}
+            </View>
+          </View>
+        </View>
       </ScrollView>
+      
+      {/* Image Options Popup */}
+      <ImageOptionsPopup />
     </KeyboardAvoidingView>
   );
 };
@@ -447,22 +539,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  content: {
+  scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.text.secondary,
-    fontFamily: typography.fonts.medium,
   },
   profileImageSection: {
     alignItems: 'center',
@@ -472,46 +552,40 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    marginBottom: 20,
+    marginBottom: 8,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#4FA65B',
+    position: 'relative',
   },
   profileImage: {
     width: '100%',
     height: '100%',
   },
-  profileImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  imageGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  editImageButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imageButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  imageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginHorizontal: 8,
-    overflow: 'hidden',
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  imageButtonText: {
-    color: '#FFFFFF',
+  changePhotoText: {
     fontSize: 14,
+    color: '#4FA65B',
     fontFamily: typography.fonts.medium,
+    marginTop: 4,
   },
-  detailsSection: {
+  formSection: {
     marginBottom: 32,
   },
   sectionTitle: {
@@ -529,7 +603,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.medium,
     marginBottom: 8,
   },
-  textInput: {
+  input: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     padding: 16,
@@ -537,11 +611,20 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.regular,
     fontSize: 16,
   },
+  inputError: {
+    borderColor: '#FF3B30',
+    borderWidth: 1,
+  },
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
     fontFamily: typography.fonts.regular,
     marginTop: 4,
+  },
+  helperText: {
+    color: colors.text.secondary,
+    fontSize: 12,
+    fontFamily: typography.fonts.medium,
   },
   genderButtonsContainer: {
     flexDirection: 'row',
@@ -570,35 +653,71 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
   },
-  saveChangesButton: {
-    height: 56,
-    borderRadius: 28,
+  
+  // Modal styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+    zIndex: 1000,
+  },
+  modalBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    backgroundColor: 'transparent',
+    marginHorizontal: 16,
+    marginBottom: 30,
+  },
+  modalContent: {
+    backgroundColor: '#1A2721',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.bold,
+    textAlign: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#4FA65B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  saveChangesButtonText: {
-    color: '#FFFFFF',
+  modalOptionIcon: {
+    marginRight: 16,
+  },
+  modalOptionText: {
     fontSize: 16,
-    fontFamily: typography.fonts.bold,
-  },
-  cancelButton: {
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    color: colors.text.secondary,
-    fontSize: 16,
+    color: colors.text.primary,
     fontFamily: typography.fonts.medium,
+  },
+  cancelOption: {
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  cancelText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontFamily: typography.fonts.medium,
+    textAlign: 'center',
   },
 });
 

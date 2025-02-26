@@ -6,25 +6,31 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../app/styles/colors';
 import { useAuth } from '../../src/context/AuthContext';
+import { getUserFullName } from '../../src/utils/userProfile';
 
 export default function GoodNewsScreen() {
   const bounceAnim = useRef(new Animated.Value(1)).current;
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
+
+  // Debug user profile
+  useEffect(() => {
+    console.log("User in GoodNewsScreen:", user);
+    if (user && user.profile) {
+      console.log("User profile:", user.profile);
+      console.log("User full name:", getUserFullName(user.profile));
+    } else {
+      console.log("No user profile found");
+    }
+  }, [user]);
 
   // Get user's full name or use "Anonymous User"
   const getUserName = () => {
-    if (!currentUser) return "Anonymous User";
+    if (!user) return "Anonymous User";
     
-    if (currentUser.profile) {
-      // Check for email signup format (firstName + lastName)
-      const { firstName, lastName, name } = currentUser.profile;
-      if (firstName && lastName) {
-        return `${firstName} ${lastName}`;
-      }
-      // Check for Google/Apple sign in format (name field)
-      if (name) {
-        return name;
-      }
+    if (user.profile) {
+      const fullName = getUserFullName(user.profile);
+      console.log("Full name from profile:", fullName);
+      return fullName || "Anonymous User";
     }
     
     return "Anonymous User";
@@ -284,10 +290,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   nextButtonPressed: {
     transform: [{ scale: 0.98 }],
     backgroundColor: 'rgba(255,255,255,0.15)',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   buttonText: {
     fontSize: 18,

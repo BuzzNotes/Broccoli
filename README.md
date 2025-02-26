@@ -48,3 +48,66 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Firebase Setup
+
+This project uses Firebase for authentication and Firestore for data storage. To set up the Firebase environment:
+
+1. Install Firebase CLI globally (if not already installed)
+
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. Login to Firebase
+
+   ```bash
+   firebase login
+   ```
+
+3. Initialize Firebase in your project (if not already done)
+
+   ```bash
+   firebase init
+   ```
+
+4. Deploy Firestore security rules
+
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+
+## User Profile System
+
+The app includes a user profile system that stores user information in Firebase Firestore. When users sign up or log in (via email, Google, or Apple), their profile information is stored in the `users` collection with the following structure:
+
+```javascript
+{
+  uid: "user-id-from-firebase-auth",
+  email: "user@example.com",
+  firstName: "John",
+  lastName: "Doe",
+  displayName: "John Doe",
+  photoURL: "https://example.com/profile.jpg", // Optional
+  signUpDate: Timestamp,
+  lastLogin: Timestamp,
+  lastUpdated: Timestamp
+}
+```
+
+The user profile system provides the following functionality:
+
+- Automatic profile creation upon sign-up/login
+- Storage of user data in Firestore with proper security rules
+- Local caching for offline access
+- Utilities for updating and retrieving user profiles
+
+### User Profile Utilities
+
+The project includes several utility functions in `src/utils/userProfile.js`:
+
+- `createUserProfile()`: Creates a new user profile in Firestore
+- `getUserProfile()`: Retrieves a user's profile data
+- `updateUserProfile()`: Updates specific user profile fields
+- `isProfileComplete()`: Checks if a user has completed their profile
+- `getUserFullName()`: Gets a formatted full name from the profile

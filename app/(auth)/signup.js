@@ -22,6 +22,12 @@ export default function SignUpScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const signupTimeout = useRef(null);
   
+  // Add refs for each input field
+  const lastNameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const birthdateRef = useRef(null);
+  
   const { emailSignUp } = useAuth();
 
   useEffect(() => {
@@ -240,12 +246,16 @@ export default function SignUpScreen() {
                       setErrors({...errors, firstName: null});
                     }
                   }}
+                  returnKeyType="next"
+                  onSubmitEditing={() => lastNameRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
                 {renderError('firstName')}
               </View>
 
               <View style={[styles.inputGroup, styles.halfWidth]}>
                 <TextInput
+                  ref={lastNameRef}
                   style={[styles.input, errors.lastName && styles.inputError]}
                   placeholder="Last Name"
                   placeholderTextColor="rgba(255, 255, 255, 0.6)"
@@ -256,6 +266,9 @@ export default function SignUpScreen() {
                       setErrors({...errors, lastName: null});
                     }
                   }}
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
                 {renderError('lastName')}
               </View>
@@ -263,6 +276,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <TextInput
+                ref={emailRef}
                 style={[styles.input, errors.email && styles.inputError]}
                 placeholder="Email"
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
@@ -275,12 +289,16 @@ export default function SignUpScreen() {
                 }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
               />
               {renderError('email')}
             </View>
 
             <View style={styles.inputGroup}>
               <TextInput
+                ref={passwordRef}
                 style={[styles.input, errors.password && styles.inputError]}
                 placeholder="Password (minimum 6 characters)"
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
@@ -292,12 +310,16 @@ export default function SignUpScreen() {
                   }
                 }}
                 secureTextEntry
+                returnKeyType="next"
+                onSubmitEditing={() => birthdateRef.current?.focus()}
+                blurOnSubmit={false}
               />
               {renderError('password')}
             </View>
 
             <View style={styles.inputGroup}>
               <TextInput
+                ref={birthdateRef}
                 style={[styles.input, errors.birthdate && styles.inputError]}
                 placeholder="Birthdate (MM/DD/YYYY)"
                 placeholderTextColor="rgba(255, 255, 255, 0.6)"
@@ -308,12 +330,15 @@ export default function SignUpScreen() {
                     setErrors({...errors, birthdate: null});
                   }
                 }}
+                returnKeyType="done"
+                onSubmitEditing={handleSignUp}
+                keyboardType="numbers-and-punctuation"
               />
               {renderError('birthdate')}
             </View>
           </View>
 
-          <View style={styles.buttonContainer}>
+          <View style={styles.bottomButtonContainer}>
             <Pressable 
               style={({ pressed }) => [
                 styles.button,
@@ -328,6 +353,13 @@ export default function SignUpScreen() {
               </Text>
               {!loading && <Ionicons name="arrow-forward" size={20} color="white" style={styles.buttonIcon} />}
             </Pressable>
+            
+            <View style={styles.signInContainer}>
+              <Text style={styles.signInText}>Already have an account? </Text>
+              <Pressable onPress={() => router.push('/(auth)/signin')}>
+                <Text style={styles.signInLink}>Sign In</Text>
+              </Pressable>
+            </View>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -355,6 +387,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 40,
     paddingHorizontal: 16,
+    justifyContent: 'space-between',
   },
   headerContainer: {
     alignItems: 'center',
@@ -407,9 +440,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: 'PlusJakartaSans-Regular',
   },
-  buttonContainer: {
-    marginTop: 32,
+  bottomButtonContainer: {
+    marginTop: 'auto',
     paddingHorizontal: 8,
+    paddingBottom: 20,
   },
   button: {
     height: 56,
@@ -465,5 +499,22 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 1,
     padding: 8,
+  },
+  signInContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  signInText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  signInLink: {
+    color: '#4FA65B',
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginLeft: 4,
   },
 }); 

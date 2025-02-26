@@ -77,6 +77,10 @@ export const authStyles = StyleSheet.create({
   emailButton: {
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
+  emailSignInButton: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(79, 166, 91, 0.4)', // Light green border to distinguish it
+  },
   buttonIcon: {
     width: 24,
     height: 24,

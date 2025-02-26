@@ -30,11 +30,13 @@ import {
 } from '../../src/utils/relapseTracker';
 import { getUserProfile } from '../../src/utils/userProfile';
 import { IMAGES } from '../../src/constants/assets';
+import { useAuth } from '../../src/context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [reminders, setReminders] = useState(true);
@@ -47,6 +49,7 @@ const ProfileScreen = () => {
   const [userName, setUserName] = useState('User');
   const [userProfileImage, setUserProfileImage] = useState(null);
   const [userAge, setUserAge] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const mockData = {
     today: [
       { label: 'Morning', count: 0 },
@@ -88,10 +91,15 @@ const ProfileScreen = () => {
     setReminders(prev => !prev);
   };
 
-  const handleLogout = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Handle logout logic
-    router.replace('/(auth)/login');
+  const handleLogout = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await logout();
+      // The router.replace is handled inside the logout function in AuthContext
+    } catch (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
   
   const handleEditProfile = () => {
@@ -143,12 +151,12 @@ const ProfileScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator color="#4FA65B" size="large" />
           <Text style={styles.loadingText}>Loading data...</Text>
-        </View>
-      );
+      </View>
+  );
     }
-    
+
     if (chartData.length === 0) {
-      return (
+  return (
         <View style={styles.emptyChartContainer}>
           <Ionicons name="analytics-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
           <Text style={styles.emptyChartText}>No data for this period</Text>
@@ -325,9 +333,19 @@ const ProfileScreen = () => {
       // Load user profile data using the utility function
       const profileData = await getUserProfile();
       
-      setUserName(profileData.name || 'User');
-      setUserProfileImage(profileData.profileImage);
-      setUserAge(profileData.age);
+      // Get user's name using the getUserFullName utility function
+      const { getUserFullName } = require('../../src/utils/userProfile');
+      const fullName = getUserFullName(profileData);
+      setUserName(fullName || 'User');
+      
+      // Set profile image from Firestore data
+      setUserProfileImage(profileData.photoURL || null);
+      
+      // Set user age from Firestore data
+      setUserAge(profileData.age || '');
+      
+      // Set user email from Firestore data
+      setUserEmail(profileData.email || '');
     } catch (error) {
       console.error('Error loading user stats:', error);
     }
@@ -376,7 +394,8 @@ const ProfileScreen = () => {
             
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{userName}</Text>
-              <Text style={styles.userEmail}>{userAge ? `${userAge} years old` : 'Age not set'}</Text>
+              <Text style={styles.userEmail}>{userEmail || 'Email not set'}</Text>
+              <Text style={styles.userAge}>{userAge ? `${userAge} years old` : 'Age not set'}</Text>
               <TouchableOpacity 
                 style={styles.editProfileButton}
                 activeOpacity={0.8}
@@ -494,8 +513,8 @@ const ProfileScreen = () => {
           >
             <Text style={styles.revertText}>Revert</Text>
           </TouchableOpacity>
-        </View>
-        
+      </View>
+
         {/* Settings Section */}
         <View style={styles.settingsCard}>
           <LinearGradient
@@ -517,9 +536,9 @@ const ProfileScreen = () => {
               trackColor={{ false: '#3e3e3e', true: 'rgba(79, 166, 91, 0.5)' }}
               thumbColor={notifications ? '#4FA65B' : '#f4f3f4'}
               ios_backgroundColor="#3e3e3e"
-            />
-          </View>
-          
+        />
+      </View>
+
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
               <Ionicons name="moon" size={24} color="#4FA65B" />
@@ -547,9 +566,9 @@ const ProfileScreen = () => {
               ios_backgroundColor="#3e3e3e"
             />
           </View>
-        </View>
-        
-        {/* Support Section */}
+      </View>
+
+      {/* Support Section */}
         <View style={styles.supportCard}>
           <LinearGradient
             colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
@@ -576,9 +595,9 @@ const ProfileScreen = () => {
             <Text style={styles.supportText}>Rate the App</Text>
             <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
           </TouchableOpacity>
-        </View>
-        
-        {/* Logout Button */}
+      </View>
+
+      {/* Logout Button */}
         <TouchableOpacity 
           style={styles.logoutButton}
           activeOpacity={0.8}
@@ -595,7 +614,7 @@ const ProfileScreen = () => {
         </TouchableOpacity>
         
         <Text style={styles.versionText}>Version 1.0.0</Text>
-      </ScrollView>
+    </ScrollView>
     </View>
   );
 };
@@ -670,6 +689,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   userEmail: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontFamily: typography.fonts.regular,
+    marginBottom: 4,
+  },
+  userAge: {
     fontSize: 14,
     color: colors.text.secondary,
     fontFamily: typography.fonts.regular,

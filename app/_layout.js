@@ -8,7 +8,7 @@ import { logFirebaseStatus, isFirebaseInitialized } from '../src/utils/firebaseC
 import LoadingScreen from '../src/components/LoadingScreen';
 
 export default function Layout() {
-  const [firebaseReady, setFirebaseReady] = useState(false);
+  const [firebaseReady, setFirebaseReady] = useState(true); // Start with true to avoid blocking navigation
   const [initAttempts, setInitAttempts] = useState(0);
   
   useEffect(() => {
@@ -30,14 +30,6 @@ export default function Layout() {
           }
           
           setInitAttempts(prev => prev + 1);
-          
-          // We'll continue even if Firebase isn't ready, but with limited functionality
-          setTimeout(() => {
-            setFirebaseReady(true);
-          }, 1000);
-        } else {
-          // We'll continue even if Firebase isn't ready, but with limited functionality
-          setFirebaseReady(true);
         }
         
         // Set up auth state listener
@@ -56,10 +48,6 @@ export default function Layout() {
     
     checkFirebase();
   }, [initAttempts]);
-
-  if (!firebaseReady) {
-    return <LoadingScreen />;
-  }
 
   return (
     <AuthProvider>
