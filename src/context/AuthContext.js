@@ -49,12 +49,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Google Auth Configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-  });
+  const [request, response, promptAsync] = Google.useAuthRequest(
+    {
+      expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      useProxy: true,
+      // For mobile development, we need to use the Expo proxy
+      redirectUri: 'https://auth.expo.io/@austincotter/Broccoli',
+      scopes: ['profile', 'email'],
+    }
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -93,10 +99,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (response?.type === 'success') {
+      console.log("Google auth response success:", response);
       const { id_token } = response.params;
+      console.log("Got id_token, creating credential");
+      
       const credential = GoogleAuthProvider.credential(id_token);
       signInWithCredential(auth, credential)
         .then(async result => {
+          console.log("Successfully signed in with credential");
           // Extract name from Google profile
           const user = result.user;
           const displayName = user.displayName || '';
@@ -125,6 +135,8 @@ export function AuthProvider({ children }) {
         .catch(error => {
           console.error('Google Sign-In Credential Error:', error);
         });
+    } else if (response) {
+      console.log("Google auth response not success:", response);
     }
   }, [response]);
 
@@ -133,8 +145,34 @@ export function AuthProvider({ children }) {
       // Clear any previous user data
       await clearPreviousUserData();
       
-      await promptAsync();
-      router.push('/(onboarding)/good-news');
+      console.log("Starting Google sign-in process...");
+      console.log("Platform:", Platform.OS);
+      console.log("Using client IDs:", {
+        ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+        android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+        web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        expo: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID
+      });
+      
+      // Log the redirect URI
+      console.log("Using redirect URI: https://auth.expo.io/@austincotter/Broccoli");
+      
+      // Check if request is ready
+      if (!request) {
+        console.log("Auth request is not ready yet");
+        throw new Error("Authentication request is not ready. Please try again.");
+      }
+      
+      const result = await promptAsync();
+      console.log("Google sign-in result:", result);
+      
+      if (result.type !== 'success') {
+        console.log("Google sign-in was not successful:", result.type);
+        throw new Error(`Google sign-in failed: ${result.type}`);
+      }
+      
+      // Don't navigate here - let the response handler in useEffect do it
+      // router.push('/(onboarding)/good-news');
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       throw error;

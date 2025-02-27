@@ -17,7 +17,8 @@ const emailIcon = require('../../assets/icons/email.png');
 
 const LoginScreen = () => {
   const { signInWithGoogle, signInWithApple } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState('');
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
@@ -41,27 +42,27 @@ const LoginScreen = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true);
+      setGoogleLoading(true);
       setError('');
       await signInWithGoogle();
     } catch (error) {
       setError('Failed to sign in with Google. Please try again.');
       console.error(error);
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
     try {
-      setLoading(true);
+      setAppleLoading(true);
       setError('');
       await signInWithApple();
     } catch (error) {
       setError('Failed to sign in with Apple. Please try again.');
       console.error(error);
     } finally {
-      setLoading(false);
+      setAppleLoading(false);
     }
   };
 
@@ -114,9 +115,9 @@ const LoginScreen = () => {
           <Pressable 
             style={[authStyles.authButton, authStyles.googleButton]} 
             onPress={handleGoogleSignIn}
-            disabled={loading}
+            disabled={googleLoading}
           >
-            {loading ? (
+            {googleLoading ? (
               <ActivityIndicator color="white" size="small" style={authStyles.buttonIcon} />
             ) : (
               <Ionicons name="logo-google" size={24} color="white" style={authStyles.buttonIcon} />
@@ -131,9 +132,9 @@ const LoginScreen = () => {
             <Pressable 
               style={[authStyles.authButton, authStyles.appleButton]} 
               onPress={handleAppleSignIn}
-              disabled={loading}
+              disabled={appleLoading}
             >
-              {loading ? (
+              {appleLoading ? (
                 <ActivityIndicator color="white" size="small" style={authStyles.buttonIcon} />
               ) : (
                 <Ionicons name="logo-apple" size={24} color="white" style={authStyles.buttonIcon} />
@@ -146,7 +147,7 @@ const LoginScreen = () => {
           <Pressable 
             style={[authStyles.authButton, authStyles.emailButton]}
             onPress={handleEmailSignUp}
-            disabled={loading}
+            disabled={googleLoading || appleLoading}
           >
             <Ionicons 
               name="person-add-outline" 

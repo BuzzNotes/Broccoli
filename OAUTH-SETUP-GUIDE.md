@@ -37,20 +37,17 @@ This guide will help you set up the necessary OAuth credentials for your Broccol
    - `https://broccoli-app.firebaseapp.com` (replace with your Firebase domain)
 6. Add authorized redirect URIs:
    - `https://broccoli-app.firebaseapp.com/__/auth/handler` (replace with your Firebase domain)
+   - `https://auth.expo.io/@austincotter/Broccoli` (for Expo development with proxy)
 7. Click "Create"
 8. Copy the client ID to your `.env` file as `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 
 ### Expo Client ID
 
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth client ID"
-3. Select "Web application"
-4. Name: "Broccoli Expo Client"
-5. Add authorized redirect URIs:
-   - `exp://sszqfz0-austincotter-9091.exp.direct/--/google-auth`
-   - If you're using EAS, also add: `https://auth.expo.io/@austincotter/Broccoli`
-6. Click "Create"
-7. Copy the client ID to your `.env` file as `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID`
+For Expo development, we'll use the web client ID with Expo's authentication proxy:
+
+1. Add the web client ID to your `.env` file as `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID`
+2. In your `AuthContext.js`, make sure to set `useProxy: true` in the Google.useAuthRequest configuration
+3. This allows Expo to handle the OAuth flow through their proxy service, avoiding issues with non-standard redirect URIs
 
 ### Android Client ID
 
@@ -82,6 +79,9 @@ This guide will help you set up the necessary OAuth credentials for your Broccol
 
 ## Troubleshooting
 
-If you see an error like `Error 400:invalid_request` with `redirect_uri=exp://...`, it means the redirect URI is not authorized in your Google Cloud Console. Make sure to add the exact Expo development URL to your Expo Client ID's authorized redirect URIs.
+If you see an error like `Error 400:invalid_request` with `redirect_uri=exp://...`, it means Google is rejecting the Expo development URL because it doesn't end with a standard top-level domain. Use the Expo authentication proxy method described above.
 
-For development, your redirect URI should match the URL shown in the error message, typically in the format: `exp://sszqfz0-austincotter-9091.exp.direct/--/google-auth` 
+For development, make sure:
+1. Your web client ID has `https://auth.expo.io/@austincotter/Broccoli` as an authorized redirect URI
+2. You've set `useProxy: true` in your Google.useAuthRequest configuration
+3. Your `.env` file has the correct client IDs 
