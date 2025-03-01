@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../styles/colors';
 import * as Haptics from 'expo-haptics';
+import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
 
 const QuestionScreen = ({ 
   question, 
@@ -17,20 +18,34 @@ const QuestionScreen = ({
   // Animation values for options and question
   const fadeAnims = useRef(options.map(() => new Animated.Value(0))).current;
   const scaleAnims = useRef(options.map(() => new Animated.Value(0.95))).current;
-  const progressAnim = useRef(new Animated.Value((currentStep - 1) / totalSteps)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
   const questionFadeAnim = useRef(new Animated.Value(0)).current;
   const [isNavigating, setIsNavigating] = useState(false);
-
+  
+  // Get the leaf animation context and set density to normal
+  const { changeDensity } = useLeafAnimation();
+  
+  // Set initial progress value immediately to prevent layout jumps
+  useEffect(() => {
+    // Set initial progress value immediately
+    progressAnim.setValue((currentStep - 1) / totalSteps);
+  }, []);
+  
   // Reset navigation state and run entrance animations when component mounts
   useEffect(() => {
+    // Enable leaf animations with normal density
+    changeDensity('normal');
+    
     setIsNavigating(false);
 
-    // Animate progress bar
-    Animated.timing(progressAnim, {
-      toValue: currentStep / totalSteps,
-      duration: 600,
-      useNativeDriver: false,
-    }).start();
+    // Animate progress bar - with a slight delay to ensure layout is stable
+    setTimeout(() => {
+      Animated.timing(progressAnim, {
+        toValue: currentStep / totalSteps,
+        duration: 600,
+        useNativeDriver: false,
+      }).start();
+    }, 50);
 
     // Animate question entrance
     Animated.timing(questionFadeAnim, {
@@ -127,36 +142,30 @@ const QuestionScreen = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Main Background Gradient */}
       <LinearGradient
-        colors={[colors.gradients.primary.start, colors.gradients.primary.end]}
+        colors={['#0A0A0A', '#1A1A1A']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+      />
+
+      {/* Overlay Gradient */}
+      <LinearGradient
+        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
+        style={styles.overlayGradient}
       />
 
       {/* Back Button */}
       <Pressable onPress={handleBack} style={styles.backButton}>
-        <LinearGradient
-          colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
         <Ionicons name="chevron-back" size={28} color="white" />
       </Pressable>
 
-      {/* Progress Indicator */}
+      {/* Progress Indicator - Now absolutely positioned */}
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>
           Question {currentStep} of {totalSteps}
         </Text>
         <View style={styles.progressBar}>
-          <LinearGradient
-            colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
-            style={[styles.progressBackground]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
+          <View style={styles.progressBackground} />
           <Animated.View style={[
             styles.progressFill,
             {
@@ -170,7 +179,7 @@ const QuestionScreen = ({
             }
           ]}>
             <LinearGradient
-              colors={['#FFFFFF', 'rgba(255,255,255,0.8)']}
+              colors={[colors.gradients.primary.start, colors.gradients.primary.end]}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -179,51 +188,40 @@ const QuestionScreen = ({
         </View>
       </View>
 
-      {/* Question */}
-      <Animated.View style={[styles.questionContainer, { opacity: questionFadeAnim }]}>
-        <Text style={styles.questionText}>{question}</Text>
-      </Animated.View>
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Question */}
+        <Animated.View style={[styles.questionContainer, { opacity: questionFadeAnim }]}>
+          <Text style={styles.questionText}>{question}</Text>
+        </Animated.View>
 
-      {/* Options */}
-      <View style={styles.optionsContainer}>
-        {options.map((option, index) => (
-          <Animated.View
-            key={index}
-            style={{
-              opacity: fadeAnims[index],
-              transform: [{ scale: scaleAnims[index] }],
-            }}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionButton,
-                pressed && styles.optionButtonPressed,
-                isNavigating && styles.optionButtonDisabled
-              ]}
-              onPress={() => handleOptionSelect(option, index)}
-              disabled={isNavigating}
+        {/* Options */}
+        <View style={styles.optionsContainer}>
+          {options.map((option, index) => (
+            <Animated.View
+              key={index}
+              style={{
+                opacity: fadeAnims[index],
+                transform: [{ scale: scaleAnims[index] }],
+              }}
             >
-              <LinearGradient
-                colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-                style={[StyleSheet.absoluteFill, styles.optionGradient]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
-              <Text style={styles.optionText}>{option}</Text>
-              <View style={styles.optionIcon}>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
-              </View>
-            </Pressable>
-          </Animated.View>
-        ))}
-      </View>
-
-      {/* Zen Elements */}
-      <View style={styles.zenElementLeft}>
-        <Ionicons name="leaf-outline" size={24} color="rgba(255,255,255,0.3)" />
-      </View>
-      <View style={styles.zenElementRight}>
-        <Ionicons name="leaf-outline" size={24} color="rgba(255,255,255,0.3)" />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.optionButton,
+                  pressed && styles.optionButtonPressed,
+                  isNavigating && styles.optionButtonDisabled
+                ]}
+                onPress={() => handleOptionSelect(option, index)}
+                disabled={isNavigating}
+              >
+                <Text style={styles.optionText}>{option}</Text>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+                </View>
+              </Pressable>
+            </Animated.View>
+          ))}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -234,26 +232,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.dark,
   },
+  overlayGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '53%',
+    opacity: 0.8,
+    zIndex: 1,
+  },
   backButton: {
     position: 'absolute',
     top: 50,
     left: 20,
-    zIndex: 1,
+    zIndex: 3,
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   progressContainer: {
-    padding: 20,
-    paddingTop: 120,
+    position: 'absolute',
+    top: 120,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    zIndex: 2,
+    height: 50,
   },
   progressText: {
-    color: 'white',
+    color: colors.text.primary,
     fontSize: 16,
     marginBottom: 12,
     textAlign: 'center',
@@ -268,6 +280,8 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
   },
   progressFill: {
     position: 'absolute',
@@ -279,25 +293,23 @@ const styles = StyleSheet.create({
   },
   questionContainer: {
     padding: 20,
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 2,
   },
   questionText: {
     fontSize: 32,
-    color: 'white',
+    color: colors.text.primary,
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans-Bold',
     marginBottom: 40,
     lineHeight: 42,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   optionsContainer: {
     padding: 20,
     paddingBottom: 40,
     gap: 16,
+    zIndex: 2,
   },
   optionButton: {
     flexDirection: 'row',
@@ -305,42 +317,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
   },
   optionButtonPressed: {
     transform: [{ scale: 0.98 }],
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   optionButtonDisabled: {
     opacity: 0.7,
   },
-  optionGradient: {
-    borderRadius: 16,
-  },
   optionText: {
     flex: 1,
     fontSize: 18,
-    color: 'white',
+    color: colors.text.primary,
     fontFamily: 'PlusJakartaSans-Bold',
   },
   optionIcon: {
-    width: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  zenElementLeft: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    opacity: 0.5,
-    transform: [{ rotate: '-30deg' }],
-  },
-  zenElementRight: {
-    position: 'absolute',
-    bottom: 40,
-    right: 40,
-    opacity: 0.5,
-    transform: [{ rotate: '30deg' }],
+  contentContainer: {
+    flex: 1,
+    paddingTop: 180,
+    justifyContent: 'space-between',
   },
 });
 
