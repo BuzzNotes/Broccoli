@@ -25,6 +25,26 @@ This guide will help you set up the necessary OAuth credentials for your Broccol
 7. Add test users if you're in testing mode
 8. Save and continue
 
+## Taking Your App Out of Testing Mode
+
+If your app is currently in "Testing" mode and you want to make it available to all users:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Select your project
+3. Navigate to "APIs & Services" > "OAuth consent screen"
+4. Scroll down to the "Publishing status" section
+5. Click "Publish App" button
+6. Review the information and confirm
+
+Note: Before publishing your app, make sure:
+- Your app complies with Google's API Services User Data Policy
+- You've completed all required fields in the OAuth consent screen
+- You've added all necessary scopes
+- Your app has a privacy policy URL
+- Your app has a terms of service URL
+
+If you're only using non-sensitive scopes (like profile and email), the verification process is simpler. If you're using sensitive scopes, you'll need to go through Google's verification process.
+
 ## Step 2: Create OAuth Credentials
 
 ### Web Client ID (also used for Firebase)
@@ -36,8 +56,8 @@ This guide will help you set up the necessary OAuth credentials for your Broccol
 5. Add authorized JavaScript origins:
    - `https://broccoli-app.firebaseapp.com` (replace with your Firebase domain)
 6. Add authorized redirect URIs:
-   - `https://broccoli-app.firebaseapp.com/__/auth/handler` (replace with your Firebase domain)
-   - `https://auth.expo.io/@austincotter/Broccoli` (for Expo development with proxy)
+   - `https://broccoli-app.firebaseapp.com/__/auth/handler` (for web applications)
+   - `https://auth.expo.io/@austincotter/Broccoli` (for Expo mobile development)
 7. Click "Create"
 8. Copy the client ID to your `.env` file as `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 
@@ -47,7 +67,8 @@ For Expo development, we'll use the web client ID with Expo's authentication pro
 
 1. Add the web client ID to your `.env` file as `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID`
 2. In your `AuthContext.js`, make sure to set `useProxy: true` in the Google.useAuthRequest configuration
-3. This allows Expo to handle the OAuth flow through their proxy service, avoiding issues with non-standard redirect URIs
+3. Set the `redirectUri` to `https://auth.expo.io/@austincotter/Broccoli` in both the Google.useAuthRequest configuration and the promptAsync call
+4. This allows Expo to handle the OAuth flow through their proxy service, which provides a secure HTTPS endpoint
 
 ### Android Client ID
 
@@ -79,7 +100,11 @@ For Expo development, we'll use the web client ID with Expo's authentication pro
 
 ## Troubleshooting
 
-If you see an error like `Error 400:invalid_request` with `redirect_uri=exp://...`, it means Google is rejecting the Expo development URL because it doesn't end with a standard top-level domain. Use the Expo authentication proxy method described above.
+If you see an error like `Error 400: redirect_uri_mismatch`, it means the redirect URI in your code doesn't match what's authorized in Google Cloud Console. Make sure:
+
+1. Your web client ID has `https://auth.expo.io/@austincotter/Broccoli` as an authorized redirect URI in Google Cloud Console
+2. Your code is using exactly the same redirect URI (check for typos, trailing slashes, etc.)
+3. You're using the web client ID for authentication
 
 For development, make sure:
 1. Your web client ID has `https://auth.expo.io/@austincotter/Broccoli` as an authorized redirect URI

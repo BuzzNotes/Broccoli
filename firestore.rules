@@ -1,40 +1,54 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own data
     match /users/{userId} {
-      // Users can read and write their own data
+      // Allow read and write if the user is authenticated and the userId matches their UID
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Admins can read all user data (you can add admin validation later)
-      // allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      // Allow creation of new user documents for authenticated users
+      allow create: if request.auth != null;
       
-      // Validate user data on create
-      allow create: if request.auth != null 
-        && request.auth.uid == userId
-        && request.resource.data.email is string;
+      // Allow admins to read all user data
+      // Uncomment and configure this when you have admin functionality
+      // function isAdmin() {
+      //   return request.auth != null && 
+      //     exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      // }
       
-      // Validate user data on update
-      allow update: if request.auth != null 
-        && request.auth.uid == userId
-        && (
-          // All these fields must be valid types if they exist
-          (!('email' in request.resource.data) || request.resource.data.email is string)
-          && (!('firstName' in request.resource.data) || request.resource.data.firstName is string)
-          && (!('lastName' in request.resource.data) || request.resource.data.lastName is string)
-          && (!('displayName' in request.resource.data) || request.resource.data.displayName is string)
-          && (!('photoURL' in request.resource.data) || request.resource.data.photoURL is string)
-          && (!('signUpDate' in request.resource.data) || request.resource.data.signUpDate is timestamp)
-          && (!('lastLogin' in request.resource.data) || request.resource.data.lastLogin is timestamp)
-          && (!('lastUpdated' in request.resource.data) || request.resource.data.lastUpdated is timestamp)
-        );
-        
-      // Nested collections
-      match /private/{document=**} {
-        // Only the user can access their private data
+      // Validate user data on creation and update
+      match /collections/{document=**} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
     
-    // Future rules for other collections can be added here
+    // Posts collection rules
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Only authenticated users can create posts
+      allow create: if request.auth != null;
+      
+      // Only the author can update or delete their posts
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Comments collection rules
+    match /comments/{commentId} {
+      // Anyone can read comments
+      allow read: if true;
+      
+      // Only authenticated users can create comments
+      allow create: if request.auth != null;
+      
+      // Only the author can update or delete their comments
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Default rule - deny all other access
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
   }
 } 

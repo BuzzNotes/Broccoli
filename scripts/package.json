@@ -1,0 +1,12 @@
+{
+  "name": "broccoli-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for Broccoli app",
+  "main": "init-firestore.js",
+  "scripts": {
+    "init-firestore": "node init-firestore.js"
+  },
+  "dependencies": {
+    "firebase": "^11.4.0"
+  }
+} 

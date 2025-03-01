@@ -96,23 +96,26 @@ export const saveUserProfile = async (profileData) => {
 };
 
 /**
- * Get user profile data from Firestore, falling back to AsyncStorage if offline
+ * Get the current user's profile from Firestore or AsyncStorage
  * @returns {Promise<Object>} User profile data
  */
 export const getUserProfile = async () => {
   try {
     const userId = getCurrentUserId();
     console.log("getUserProfile - Current user ID:", userId);
+    console.log("getUserProfile - Using Firebase project:", db._databaseId.projectId);
     
     // If user is logged in, try to get profile from Firestore
     if (userId) {
       try {
         const userDocRef = doc(db, 'users', userId);
+        console.log("getUserProfile - Attempting to fetch document from path:", `users/${userId}`);
+        
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          console.log("getUserProfile - Firestore data:", userData);
+          console.log("getUserProfile - Firestore data retrieved successfully:", userData);
           
           // Update AsyncStorage with latest data for offline access
           // Include the userId in the stored data to ensure we're getting the right profile
@@ -124,7 +127,9 @@ export const getUserProfile = async () => {
           
           return userData;
         } else {
-          console.log("getUserProfile - User document doesn't exist in Firestore");
+          console.log("getUserProfile - User document doesn't exist in Firestore for user:", userId);
+          console.log("getUserProfile - This may indicate the user exists in Firebase Auth but not in the Firestore database");
+          
           // If the user exists in Firebase Auth but not in Firestore,
           // clear any potentially outdated AsyncStorage data
           await AsyncStorage.removeItem(USER_PROFILE_KEY);
@@ -132,10 +137,12 @@ export const getUserProfile = async () => {
         }
       } catch (firestoreError) {
         console.warn('Error fetching from Firestore, falling back to AsyncStorage:', firestoreError);
+        console.warn('Firestore error details:', JSON.stringify(firestoreError));
       }
     }
     
     // If Firestore fetch failed or user is not logged in, try AsyncStorage
+    console.log("getUserProfile - Attempting to fetch from AsyncStorage");
     const jsonProfile = await AsyncStorage.getItem(USER_PROFILE_KEY);
     if (jsonProfile) {
       const storedProfile = JSON.parse(jsonProfile);
@@ -143,9 +150,11 @@ export const getUserProfile = async () => {
       
       // Only use the stored profile if it belongs to the current user
       if (userId && storedProfile._userId === userId) {
+        console.log("getUserProfile - Using profile from AsyncStorage (matches current user)");
         return storedProfile;
       } else {
         // If the stored profile is for a different user, clear it
+        console.log("getUserProfile - Stored profile is for a different user, clearing");
         await AsyncStorage.removeItem(USER_PROFILE_KEY);
         return {};
       }
@@ -155,6 +164,7 @@ export const getUserProfile = async () => {
     // For backward compatibility, try getting individual fields
     // But only if we have a userId to ensure we're not using data from a previous user
     if (userId) {
+      console.log("getUserProfile - Attempting to retrieve legacy individual fields from AsyncStorage");
       const [name, age, gender, profileImage] = await Promise.all([
         AsyncStorage.getItem(USER_NAME_KEY),
         AsyncStorage.getItem(USER_AGE_KEY),
@@ -162,18 +172,23 @@ export const getUserProfile = async () => {
         AsyncStorage.getItem(USER_PROFILE_IMAGE_KEY),
       ]);
       
-      return {
+      const legacyProfile = {
         firstName: name || '',
         age: age || '',
         gender: gender || '',
         profileImage: profileImage || null,
         _userId: userId
       };
+      
+      console.log("getUserProfile - Retrieved legacy profile:", legacyProfile);
+      return legacyProfile;
     }
     
+    console.log("getUserProfile - No user logged in or no profile data found anywhere");
     return {}; // Return empty object if no user is logged in
   } catch (error) {
     console.error('Error getting user profile:', error);
+    console.error('Error details:', JSON.stringify(error));
     return {}; // Return empty object instead of throwing to prevent app crashes
   }
 };
@@ -230,49 +245,84 @@ export const updateUserProfile = async (profileData) => {
  */
 export const createUserProfile = async (user, additionalData = {}) => {
   if (!user || !user.uid) {
+    console.error('createUserProfile - Invalid user object:', user);
     throw new Error('Invalid user object');
   }
   
   try {
+    console.log("createUserProfile - Creating/updating profile for user:", user.uid);
+    console.log("createUserProfile - Using Firebase project:", db._databaseId.projectId);
+    console.log("createUserProfile - Additional data:", additionalData);
+    
     const userRef = doc(db, 'users', user.uid);
+    console.log("createUserProfile - User document path:", `users/${user.uid}`);
     
     // Check if user already exists
+    console.log("createUserProfile - Checking if user already exists in Firestore");
     const userSnapshot = await getDoc(userRef);
     if (userSnapshot.exists()) {
+      console.log("createUserProfile - User already exists, updating last login time");
+      const existingData = userSnapshot.data();
+      console.log("createUserProfile - Existing user data:", existingData);
+      
       // Just update the last login time
       await updateDoc(userRef, {
         lastLogin: serverTimestamp()
       });
       
-      return userSnapshot.data();
+      console.log("createUserProfile - Last login time updated successfully");
+      return existingData;
     }
+    
+    console.log("createUserProfile - User does not exist, creating new profile");
     
     // Extract name from user object if available
     let firstName = '';
     let lastName = '';
+    let displayName = '';
     
+    // First priority: use additionalData if provided
     if (additionalData.firstName) {
-      firstName = additionalData.firstName;
+      firstName = additionalData.firstName.trim();
+      console.log("createUserProfile - Using firstName from additionalData:", firstName);
     }
     
     if (additionalData.lastName) {
-      lastName = additionalData.lastName;
+      lastName = additionalData.lastName.trim();
+      console.log("createUserProfile - Using lastName from additionalData:", lastName);
     }
     
-    // If no first/last name but we have displayName, extract from there
+    if (additionalData.displayName) {
+      displayName = additionalData.displayName.trim();
+      console.log("createUserProfile - Using displayName from additionalData:", displayName);
+    }
+    
+    // Second priority: if no first/last name but we have user.displayName, extract from there
     if ((!firstName || !lastName) && user.displayName) {
+      console.log("createUserProfile - Extracting name from user.displayName:", user.displayName);
       const nameParts = user.displayName.split(' ');
+      
       if (!firstName && nameParts.length > 0) {
-        firstName = nameParts[0];
+        firstName = nameParts[0].trim();
+        console.log("createUserProfile - Extracted firstName:", firstName);
       }
+      
       if (!lastName && nameParts.length > 1) {
-        lastName = nameParts.slice(1).join(' ');
+        lastName = nameParts.slice(1).join(' ').trim();
+        console.log("createUserProfile - Extracted lastName:", lastName);
+      }
+      
+      // If displayName wasn't provided in additionalData, use user.displayName
+      if (!displayName) {
+        displayName = user.displayName.trim();
+        console.log("createUserProfile - Using displayName from user object:", displayName);
       }
     }
     
     // Check if email is an Apple private relay email
     let email = user.email || additionalData.email || '';
     if (email.includes('privaterelay.appleid.com')) {
+      console.log("createUserProfile - Apple private relay email detected, not saving to database");
       // Don't save Apple private relay emails to the database
       email = '';
     }
@@ -283,7 +333,7 @@ export const createUserProfile = async (user, additionalData = {}) => {
       email: email,
       firstName,
       lastName,
-      displayName: user.displayName || `${firstName} ${lastName}`.trim(),
+      displayName: displayName || `${firstName} ${lastName}`.trim(),
       photoURL: user.photoURL || '',
       signUpDate: serverTimestamp(),
       lastLogin: serverTimestamp(),
@@ -296,21 +346,38 @@ export const createUserProfile = async (user, additionalData = {}) => {
       profileData.email = '';
     }
     
+    console.log("createUserProfile - Final profile data to save:", JSON.stringify(profileData));
+    
     // Save to Firestore
-    await setDoc(userRef, profileData);
+    try {
+      await setDoc(userRef, profileData);
+      console.log("createUserProfile - Profile successfully saved to Firestore");
+    } catch (firestoreError) {
+      console.error("createUserProfile - Error saving to Firestore:", firestoreError);
+      console.error("createUserProfile - Error details:", JSON.stringify(firestoreError));
+      throw firestoreError;
+    }
     
     // Save to AsyncStorage for offline access
     const asyncStorageData = {
       ...profileData,
+      _userId: user.uid, // Add userId as a special field for verification
       signUpDate: new Date().toISOString(),
       lastLogin: new Date().toISOString()
     };
     
-    await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(asyncStorageData));
+    try {
+      await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(asyncStorageData));
+      console.log("createUserProfile - Profile successfully saved to AsyncStorage");
+    } catch (asyncError) {
+      console.error("createUserProfile - Error saving to AsyncStorage:", asyncError);
+      // Don't throw here, as Firestore is the primary storage
+    }
     
     return profileData;
   } catch (error) {
     console.error('Error creating user profile:', error);
+    console.error('Error details:', JSON.stringify(error));
     throw error;
   }
 };
@@ -356,43 +423,75 @@ export const isProfileComplete = (profile = {}) => {
 };
 
 /**
- * Gets the user's full name from their profile
+ * Gets a formatted full name from the profile
  * @param {Object} profile - The user profile object
  * @returns {string} The user's full name
  */
 export const getUserFullName = (profile = {}) => {
-  if (!profile) return '';
+  if (!profile) {
+    console.log("getUserFullName - Profile is null or undefined");
+    return '';
+  }
+  
+  console.log("getUserFullName - Input profile:", JSON.stringify(profile));
   
   // First priority: displayName if available
   if (profile.displayName && profile.displayName.trim() !== '') {
+    console.log("getUserFullName - Using displayName:", profile.displayName);
     return profile.displayName;
   }
   
   // Second priority: firstName + lastName if both are available
   if (profile.firstName && profile.lastName && 
       profile.firstName.trim() !== '' && profile.lastName.trim() !== '') {
-    return `${profile.firstName} ${profile.lastName}`;
+    const fullName = `${profile.firstName} ${profile.lastName}`;
+    console.log("getUserFullName - Using firstName + lastName:", fullName);
+    return fullName;
   }
   
   // Third priority: just firstName if available
   if (profile.firstName && profile.firstName.trim() !== '') {
+    console.log("getUserFullName - Using only firstName:", profile.firstName);
     return profile.firstName;
   }
   
   // Fourth priority: just lastName if available
   if (profile.lastName && profile.lastName.trim() !== '') {
+    console.log("getUserFullName - Using only lastName:", profile.lastName);
     return profile.lastName;
   }
   
-  // Fifth priority: email, but only if it's not an Apple private relay email
+  // Fifth priority: provider-specific handling
+  if (profile.provider === 'apple') {
+    console.log("getUserFullName - Apple user without name, checking for alternative identifiers");
+    
+    // For Apple users, we might have user.uid or a partial email
+    if (profile.uid) {
+      console.log("getUserFullName - Using 'Apple User' with partial UID");
+      return `Apple User (${profile.uid.substring(0, 5)}...)`;
+    }
+  }
+  
+  // Sixth priority: email, but only if it's not an Apple private relay email
   if (profile.email && profile.email.trim() !== '') {
     // Check if it's an Apple private relay email (they contain "privaterelay.appleid.com")
     if (profile.email.includes('privaterelay.appleid.com')) {
-      return ''; // Return empty to fall back to "Anonymous User"
+      console.log("getUserFullName - Found Apple private relay email, not using");
+      return 'Apple User'; // Return a generic name for Apple users
     }
-    return profile.email;
+    
+    // For regular emails, use the part before @ as a name
+    const emailName = profile.email.split('@')[0];
+    // Capitalize and format the email name
+    const formattedName = emailName
+      .split(/[._-]/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+      
+    console.log("getUserFullName - Using formatted email name:", formattedName);
+    return formattedName;
   }
   
-  // Fallback to empty string
+  console.log("getUserFullName - No valid name found, returning empty string");
   return '';
 }; 

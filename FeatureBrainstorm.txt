@@ -1,0 +1,54 @@
+"You deserve to be free from this"
+Give solutions to their current feinding like 
+"Figure out what you need to do with your day while you 
+go for a walk to your car and back."
+
+Have them input reasons they hate the high version of themselves
+Have them create a personality for their high selves. The key to quitting
+is by becoming a person who simply does not enjoy the high version of themselves.
+Give that personality a name and I think people are more likely to reshape their
+personality to fit the new, clean version of themselves.
+
+
+-- GOALS --
+Overview: Create a system where we have preset "goals" that users can choose from.
+
+-- Features --
+- User can select from a list of goals
+- User can create their own goal
+- User can track their progress towards their goal
+- User can see a leaderboard of their friends
+
+Goal examples:
+- Weed free for 1 week
+- 
+
+
+--------------------------------------------TERMS AND CONDITIONS:-----------------------------------------------
+Disclaimer
+Broccoli is designed to support individuals who want to quit or reduce cannabis use by providing motivation, insights, and self-reflection tools. However, this app is not a substitute for professional medical, psychological, or legal advice.
+
+Broccoli does not provide medical treatment, therapy, or diagnosis of any condition.
+If you are struggling with substance dependence, we strongly encourage you to seek help from a licensed healthcare provider or addiction specialist.
+Any suggestions provided by the app are for informational and self-improvement purposes only. Individual results may vary.
+Use of this app is at your own risk. Broccoli and its creators assume no liability for any decisions or actions taken based on the app’s content.
+If you need professional help, consider contacting resources such as:
+
+SAMHSA National Helpline (U.S.): 1-800-662-HELP (4357)
+Local healthcare providers or addiction recovery specialists in your area.
+Terms of Use
+1. Acceptance of Terms
+By downloading and using Broccoli, you agree to these Terms of Use. If you do not agree, please discontinue use of the app.
+
+2. No Medical or Legal Advice
+The content in this app is for general informational and motivational purposes only. It does not constitute medical, legal, or psychological advice. Always consult a qualified professional before making decisions about your health or well-being.
+
+3. User Responsibilities
+You understand that any changes to your habits or lifestyle should be made at your own discretion.
+You will not use the app in a manner that could be harmful to yourself or others.
+If you experience withdrawal symptoms or distress, seek professional assistance.
+4. Limitation of Liability
+Under no circumstances shall Broccoli, its creators, or affiliates be liable for any direct, indirect, incidental, or consequential damages arising from the use of this app.
+
+5. Changes to Terms
+We reserve the right to update these terms at any time. Continued use of the app after modifications constitutes acceptance of the new terms.

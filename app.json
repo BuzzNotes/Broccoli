@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "broccoli",
+    "scheme": "com.sixfortylabs.broccoli",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {

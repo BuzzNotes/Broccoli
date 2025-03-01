@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,35 +6,102 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../app/styles/colors';
 import { useAuth } from '../../src/context/AuthContext';
-import { getUserFullName } from '../../src/utils/userProfile';
+import { getUserFullName, getUserProfile } from '../../src/utils/userProfile';
 
 export default function GoodNewsScreen() {
   const bounceAnim = useRef(new Animated.Value(1)).current;
   const { user } = useAuth();
+  const [userName, setUserName] = useState("Loading...");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Debug user profile
+  // Debug user profile and fetch if needed
   useEffect(() => {
-    console.log("User in GoodNewsScreen:", user);
-    if (user && user.profile) {
-      console.log("User profile:", user.profile);
-      console.log("User full name:", getUserFullName(user.profile));
-    } else {
-      console.log("No user profile found");
-    }
+    const fetchUserData = async () => {
+      setIsLoading(true);
+      console.log("GoodNewsScreen - Starting user data fetch");
+      console.log("GoodNewsScreen - User object:", user ? `UID: ${user.uid}` : "No user");
+      
+      if (user && user.uid) {
+        try {
+          // First try to get the profile from the user object
+          if (user.profile) {
+            console.log("GoodNewsScreen - Found profile in user object:", JSON.stringify(user.profile));
+            const fullName = getUserFullName(user.profile);
+            if (fullName && fullName.trim() !== '') {
+              console.log("GoodNewsScreen - Using name from user.profile:", fullName);
+              setUserName(fullName);
+              setIsLoading(false);
+              return;
+            } else {
+              console.log("GoodNewsScreen - No valid name in user.profile, will try Firestore");
+            }
+          } else {
+            console.log("GoodNewsScreen - No profile in user object, will try Firestore");
+          }
+          
+          // If we don't have a valid name yet, try to fetch from Firestore
+          console.log("GoodNewsScreen - Fetching profile from Firestore");
+          const userProfile = await getUserProfile();
+          
+          if (userProfile && Object.keys(userProfile).length > 0) {
+            console.log("GoodNewsScreen - Got profile from Firestore:", JSON.stringify(userProfile));
+            const fullName = getUserFullName(userProfile);
+            
+            if (fullName && fullName.trim() !== '') {
+              console.log("GoodNewsScreen - Using name from Firestore profile:", fullName);
+              setUserName(fullName);
+              setIsLoading(false);
+              return;
+            } else {
+              console.log("GoodNewsScreen - No valid name in Firestore profile");
+            }
+          } else {
+            console.log("GoodNewsScreen - No profile found in Firestore or empty profile");
+          }
+          
+          // If we still don't have a name, use a provider-specific fallback
+          if (user.providerData && user.providerData.length > 0) {
+            const provider = user.providerData[0].providerId;
+            console.log("GoodNewsScreen - Using provider-specific fallback for:", provider);
+            
+            if (provider === 'apple.com') {
+              setUserName("Apple User");
+            } else if (provider === 'google.com') {
+              setUserName("Google User");
+            } else if (provider === 'password') {
+              // For email users, try to format the email
+              const email = user.email || '';
+              if (email && !email.includes('privaterelay.appleid.com')) {
+                const emailName = email.split('@')[0];
+                const formattedName = emailName
+                  .split(/[._-]/)
+                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(' ');
+                setUserName(formattedName);
+              } else {
+                setUserName("Email User");
+              }
+            } else {
+              setUserName("Broccoli User");
+            }
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          console.error("GoodNewsScreen - Error fetching user profile:", error);
+        }
+      } else {
+        console.log("GoodNewsScreen - No authenticated user found");
+      }
+      
+      // If we get here, we couldn't find a valid name
+      console.log("GoodNewsScreen - Using default 'Anonymous User'");
+      setUserName("Anonymous User");
+      setIsLoading(false);
+    };
+    
+    fetchUserData();
   }, [user]);
-
-  // Get user's full name or use "Anonymous User"
-  const getUserName = () => {
-    if (!user) return "Anonymous User";
-    
-    if (user.profile) {
-      const fullName = getUserFullName(user.profile);
-      console.log("Full name from profile:", fullName);
-      return fullName || "Anonymous User";
-    }
-    
-    return "Anonymous User";
-  };
 
   useEffect(() => {
     const bounceAnimation = Animated.sequence([
@@ -99,7 +166,9 @@ export default function GoodNewsScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.userContainer}>
                 <Ionicons name="leaf" size={20} color="white" style={styles.userIcon} />
-                <Text style={styles.userName}>{getUserName()}</Text>
+                <Text style={styles.userName}>
+                  {isLoading ? "Loading..." : userName}
+                </Text>
               </View>
             </View>
 

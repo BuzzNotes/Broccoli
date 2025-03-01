@@ -6,16 +6,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Make sure these values exactly match what's in your Firebase Console
+// Firebase configuration for project broccoli-452000
 const firebaseConfig = {
-  apiKey: "AIzaSyByvbQtlvX5-RFKIVdLP_3Zp0kQx7XF_sg",
-  authDomain: "broccoli-5d02e.firebaseapp.com",
-  databaseURL: "https://broccoli-5d02e-default-rtdb.firebaseio.com",
-  projectId: "broccoli-5d02e",
-  storageBucket: "broccoli-5d02e.appspot.com",
-  messagingSenderId: "440453285839",
-  appId: "1:440453285839:web:7bbc3fdca7668ae00974ba",
-  measurementId: "G-NJL2BKSZ5C"
+  apiKey: "AIzaSyCC1RNORXgRcT82vA8cQ6axBW047w3BBDA",
+  authDomain: "broccoli-452000.firebaseapp.com",
+  projectId: "broccoli-452000",
+  storageBucket: "broccoli-452000.appspot.com",
+  messagingSenderId: "1079081190424",
+  appId: "1:1079081190424:web:9fee6afd2bdee2dd762f6d",
+  measurementId: "G-DKPEER8WNF"
 };
 
 // Initialize Firebase
@@ -30,6 +29,12 @@ let storage;
  */
 const initializeFirebase = () => {
   try {
+    console.log("Initializing Firebase with config:", JSON.stringify({
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+      messagingSenderId: firebaseConfig.messagingSenderId
+    }));
+    
     // Check if Firebase is already initialized to prevent duplicate apps
     if (getApps().length === 0) {
       app = initializeApp(firebaseConfig);
@@ -43,19 +48,24 @@ const initializeFirebase = () => {
     try {
       if (Platform.OS === 'web') {
         auth = getAuth(app);
+        console.log('Firebase Auth initialized for web');
       } else {
         try {
           auth = getAuth(app);
+          console.log('Firebase Auth initialized for mobile');
         } catch (authError) {
           console.log('Initializing auth with persistence');
           auth = initializeAuth(app, {
             persistence: getReactNativePersistence(AsyncStorage)
           });
+          console.log('Firebase Auth initialized with persistence');
         }
       }
       console.log('Firebase Auth initialized successfully');
     } catch (authError) {
       console.error('Firebase Auth initialization error:', authError);
+      console.error('Error code:', authError.code);
+      console.error('Error message:', authError.message);
     }
 
     // Initialize Firestore
@@ -64,6 +74,8 @@ const initializeFirebase = () => {
       console.log('Firebase Firestore initialized successfully');
     } catch (dbError) {
       console.error('Firebase Firestore initialization error:', dbError);
+      console.error('Error code:', dbError.code);
+      console.error('Error message:', dbError.message);
     }
     
     // Initialize Storage
@@ -72,11 +84,15 @@ const initializeFirebase = () => {
       console.log('Firebase Storage initialized successfully');
     } catch (storageError) {
       console.error('Firebase Storage initialization error:', storageError);
+      console.error('Error code:', storageError.code);
+      console.error('Error message:', storageError.message);
     }
     
     return true;
   } catch (error) {
     console.error("Firebase initialization error:", error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
     console.warn("App will continue with limited functionality");
     return false;
   }
