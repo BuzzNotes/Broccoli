@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../app/styles/colors';
 import { useAuth } from '../../src/context/AuthContext';
+import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 import { getUserFullName, getUserProfile } from '../../src/utils/userProfile';
 
 export default function GoodNewsScreen() {
@@ -13,6 +14,24 @@ export default function GoodNewsScreen() {
   const { user } = useAuth();
   const [userName, setUserName] = useState("Loading...");
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Animation values for fade-in effects
+  const fadeTitleAnim = useRef(new Animated.Value(0)).current;
+  const fadeMessageAnim = useRef(new Animated.Value(0)).current;
+  const fadeCardAnim = useRef(new Animated.Value(0)).current;
+  const fadeSubtitleAnim = useRef(new Animated.Value(0)).current;
+  const fadeButtonAnim = useRef(new Animated.Value(0)).current;
+  
+  // Ref to track if haptic feedback has been triggered
+  const hapticTriggeredRef = useRef(false);
+  
+  // Get the leaf animation context and set density to none
+  const { changeDensity } = useLeafAnimation();
+  
+  useEffect(() => {
+    // Set leaf density to none for this screen to hide all leaves
+    changeDensity('none');
+  }, []);
 
   // Debug user profile and fetch if needed
   useEffect(() => {
@@ -103,9 +122,62 @@ export default function GoodNewsScreen() {
     fetchUserData();
   }, [user]);
 
+  // Start fade-in animations when component mounts
+  useEffect(() => {
+    // Stagger the animations for a smoother effect
+    Animated.stagger(200, [
+      // Fade in the title
+      Animated.timing(fadeTitleAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      // Fade in the message
+      Animated.timing(fadeMessageAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      // Fade in the card
+      Animated.timing(fadeCardAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      // Fade in the subtitle
+      Animated.timing(fadeSubtitleAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      // Fade in the button
+      Animated.timing(fadeButtonAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  // Add listener to trigger haptic feedback when card becomes visible
+  useEffect(() => {
+    const cardAnimListener = fadeCardAnim.addListener(({ value }) => {
+      // Trigger haptic feedback when card is almost fully visible (value > 0.7)
+      // and hasn't been triggered yet
+      if (value > 0.7 && !hapticTriggeredRef.current) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        hapticTriggeredRef.current = true;
+      }
+    });
+    
+    return () => {
+      fadeCardAnim.removeListener(cardAnimListener);
+    };
+  }, []);
+
   useEffect(() => {
     const bounceAnimation = Animated.sequence([
-      Animated.delay(1000),
+      Animated.delay(1500), // Delay bounce until after fade-in animations
       Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, {
@@ -149,14 +221,16 @@ export default function GoodNewsScreen() {
       <View style={styles.content}>
         {/* Header Text */}
         <View style={styles.headerSection}>
-          <Text style={styles.title}>Good News!</Text>
-          <Text style={styles.message}>
+          <Animated.Text style={[styles.title, { opacity: fadeTitleAnim }]}>
+            Good News!
+          </Animated.Text>
+          <Animated.Text style={[styles.message, { opacity: fadeMessageAnim }]}>
             We've built your profile. Your progress will be tracked here.
-          </Text>
+          </Animated.Text>
         </View>
 
         {/* Profile Card */}
-        <View style={styles.cardWrapper}>
+        <Animated.View style={[styles.cardWrapper, { opacity: fadeCardAnim, transform: [{ scale: fadeCardAnim }] }]}>
           <View style={styles.sparkleContainer}>
             <Ionicons name="sparkles" size={32} color="#FFD700" />
           </View>
@@ -191,17 +265,18 @@ export default function GoodNewsScreen() {
               </Text>
             </View>
           </LinearGradient>
-        </View>
+        </Animated.View>
 
         {/* Bottom Section with Next Button */}
         <View style={styles.bottomSection}>
-          <Text style={styles.subtitle}>
+          <Animated.Text style={[styles.subtitle, { opacity: fadeSubtitleAnim }]}>
             Now, let's find out why you're struggling.
-          </Text>
+          </Animated.Text>
 
           {/* Next Button */}
           <Animated.View style={{ 
             width: '100%',
+            opacity: fadeButtonAnim,
             transform: [{ scale: bounceAnim }]
           }}>
             <Pressable 

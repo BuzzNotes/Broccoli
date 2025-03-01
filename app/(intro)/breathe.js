@@ -1,18 +1,25 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
-import LeafBackground from '../components/LeafBackground';
+import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 
 const BreatheScreen = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fadeInText = useRef(new Animated.Value(0)).current;
   const fadeOutText = useRef(new Animated.Value(0)).current;
   const fadeIcon = useRef(new Animated.Value(1)).current;
-
+  const [navigating, setNavigating] = useState(false);
+  
+  // Get the leaf animation context and set density to sparse
+  const { changeDensity } = useLeafAnimation();
+  
   useEffect(() => {
+    // Set leaf density to sparse for this screen
+    changeDensity('sparse');
+    
     // Full breathing animation sequence
     Animated.parallel([
       // Icon scale animation (grow then shrink)
@@ -46,27 +53,44 @@ const BreatheScreen = () => {
         // Second text
         Animated.timing(fadeOutText, {
           toValue: 1,
-          duration: 500, // Start fading in at 2s
+          duration: 500, // Quick fade in
           useNativeDriver: true,
         }),
         Animated.timing(fadeOutText, {
           toValue: 0,
-          duration: 500, // Start fading out at 3.5s
+          duration: 500, // Start fading out at 1.5s
           delay: 1000, // Wait for 1s
           useNativeDriver: true,
+        }),
+        // Icon fade out
+        Animated.timing(fadeIcon, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
         })
-      ]),
-
-      // Icon fade out at the end
-      Animated.timing(fadeIcon, {
-        toValue: 0,
-        duration: 500, // Quick fade out
-        delay: 3500, // Start fading at 3.5s
-        useNativeDriver: true,
-      })
+      ])
     ]).start(() => {
-      router.push('/(intro)/welcome');
+      // When animation completes, navigate to welcome screen
+      // Mark that we're navigating to prevent multiple navigations
+      if (!navigating) {
+        setNavigating(true);
+        
+        // IMPORTANT: Don't change the leaf density here
+        // Let the welcome screen handle changing the density
+        
+        // Use replace instead of push to avoid back navigation
+        router.replace({
+          pathname: '/(intro)/welcome',
+          // Pass a param to indicate we're coming from breathe screen
+          params: { fromBreathe: true }
+        });
+      }
     });
+    
+    // Cleanup function
+    return () => {
+      // Don't change density on unmount - let the welcome screen handle it
+    };
   }, []);
 
   return (
@@ -82,9 +106,6 @@ const BreatheScreen = () => {
         colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
         style={styles.overlayGradient}
       />
-
-      {/* Floating Leaves Layer - sparse density for subtle effect */}
-      <LeafBackground density="sparse" />
 
       <View style={styles.content}>
         <Animated.View

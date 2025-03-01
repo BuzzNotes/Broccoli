@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useOnboarding } from '../context/OnboardingContext';
+import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const CircularProgress = ({ percentage }) => {
@@ -78,8 +79,14 @@ const FinalAnalysis = () => {
   const [progress, setProgress] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const lastHapticProgress = useRef(0);
-
+  
+  // Get the leaf animation context and turn off leaves
+  const { changeDensity } = useLeafAnimation();
+  
   useEffect(() => {
+    // Turn off leaf animations for this page
+    changeDensity('none');
+    
     if (loading) {
       // Animate progress from 0 to 100 over 3 seconds
       const duration = 3000;

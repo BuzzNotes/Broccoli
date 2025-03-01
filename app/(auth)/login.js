@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, Image, ActivityIndicator, Platform, StyleSheet, Dimensions } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, SafeAreaView, Image, ActivityIndicator, Platform, StyleSheet, Dimensions, Animated } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts, PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans";
 import { colors } from '../styles/colors';
 import { useAuth } from '../../src/context/AuthContext';
+import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 import { StatusBar } from 'expo-status-bar';
 import { TouchableOpacity } from 'react-native';
-import LeafBackground from '../components/LeafBackground';
 import * as Haptics from 'expo-haptics';
 
 // Use require for static assets
@@ -24,7 +24,39 @@ const LoginScreen = () => {
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
   });
-
+  
+  // Get the leaf animation context but don't change density to prevent glitches
+  const { density } = useLeafAnimation();
+  
+  // Get route params to check if we should animate in
+  const params = useLocalSearchParams();
+  const shouldAnimateIn = params.animateIn === 'true';
+  
+  // Animation values for fade-in effects
+  const fadeLogoAnim = useRef(new Animated.Value(shouldAnimateIn ? 0 : 1)).current;
+  const fadeButtonsAnim = useRef(new Animated.Value(shouldAnimateIn ? 0 : 1)).current;
+  
+  // Run fade-in animations when the component mounts
+  useEffect(() => {
+    if (shouldAnimateIn) {
+      // Stagger the animations for a smoother effect
+      Animated.stagger(200, [
+        // Fade in the logo section
+        Animated.timing(fadeLogoAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // Fade in the buttons section
+        Animated.timing(fadeButtonsAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [shouldAnimateIn]);
+  
   // Monitor auth loading state to manage the global loading indicator
   useEffect(() => {
     if (authLoading) {
@@ -114,9 +146,6 @@ const LoginScreen = () => {
         style={styles.overlayGradient}
       />
 
-      {/* Floating Leaves Layer */}
-      <LeafBackground density="normal" />
-
       <SafeAreaView style={styles.contentContainer}>
         {/* Skip to Timer Button */}
         <TouchableOpacity 
@@ -128,7 +157,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
 
         {/* Logo Section */}
-        <View style={styles.header}>
+        <Animated.View style={[styles.header, { opacity: fadeLogoAnim }]}>
           <View style={styles.iconContainer}>
             <LinearGradient
               colors={['#5BCD6B', '#025A5C']}
@@ -142,7 +171,7 @@ const LoginScreen = () => {
           <Text style={styles.subtitle}>
             Grow your focus, one session at a time
           </Text>
-        </View>
+        </Animated.View>
 
         {/* Global loading indicator */}
         {isAuthenticating && (
@@ -155,7 +184,7 @@ const LoginScreen = () => {
         )}
 
         {/* Auth Buttons */}
-        <View style={styles.buttonsContainer}>
+        <Animated.View style={[styles.buttonsContainer, { opacity: fadeButtonsAnim }]}>
           {/* Google Login */}
           <TouchableOpacity
             style={styles.authButton}
@@ -181,7 +210,7 @@ const LoginScreen = () => {
             >
               <Image
                 source={appleIcon}
-                style={styles.buttonIcon}
+                style={styles.appleButtonIcon}
               />
               <Text style={styles.buttonText}>
                 {appleLoading ? 'Signing in with Apple...' : 'Continue with Apple'}
@@ -210,7 +239,7 @@ const LoginScreen = () => {
               <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
         {error ? (
           <Text style={styles.errorText}>{error}</Text>
@@ -309,6 +338,11 @@ const styles = StyleSheet.create({
   buttonIcon: {
     width: 24,
     height: 24,
+    marginRight: 12,
+  },
+  appleButtonIcon: {
+    width: 28,
+    height: 28,
     marginRight: 12,
   },
   buttonText: {

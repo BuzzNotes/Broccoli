@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, Dimensions, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../../app/styles/colors';
+import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -149,8 +150,12 @@ const LeafBackground = React.memo(() => {
 
 const PersonalAnalysis = () => {
   const slideAnim = useRef(new Animated.Value(width)).current;
-
+  const { changeDensity } = useLeafAnimation();
+  
   useEffect(() => {
+    // Set leaf density to normal for this screen
+    changeDensity('normal');
+    
     // Slide in from right when component mounts
     Animated.spring(slideAnim, {
       toValue: 0,
@@ -203,13 +208,10 @@ const PersonalAnalysis = () => {
         locations={[0, 0.5, 0.8, 1]}
       />
 
-      <LeafBackground />
-
       <Animated.View style={[
         styles.mainContent,
         { 
-          transform: [{ translateX: slideAnim }],
-          zIndex: 1 
+          transform: [{ translateX: slideAnim }]
         }
       ]}>
         <Pressable onPress={handleBack} style={styles.backButton}>

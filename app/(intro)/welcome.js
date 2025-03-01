@@ -1,18 +1,104 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Dimensions } from 'react-native';
-import { router } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Dimensions, Animated } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import LeafBackground from '../components/LeafBackground';
+import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 
 const { width, height } = Dimensions.get('window');
 
 const WelcomeScreen = () => {
+  // Get the leaf animation context
+  const { changeDensity, startAnimation, density: currentDensity } = useLeafAnimation();
+  // Get route params to check if we're coming from breathe screen
+  const params = useLocalSearchParams();
+  const fromBreathe = params.fromBreathe === 'true';
+  // Track if we're navigating away
+  const [isNavigating, setIsNavigating] = useState(false);
+  // Use a ref to track if we've already set the density
+  const hasSetDensityRef = useRef(false);
+  
+  // Animation values for fade-in effects
+  const fadeIconAnim = useRef(new Animated.Value(0)).current;
+  const fadeTitleAnim = useRef(new Animated.Value(0)).current;
+  const fadeSubtitleAnim = useRef(new Animated.Value(0)).current;
+  const fadeButtonAnim = useRef(new Animated.Value(0)).current;
+  // Animation value for the entire content
+  const fadeContentAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    // Ensure animation is running
+    startAnimation();
+    
+    // Only set the density once when the component mounts
+    // This prevents multiple density changes during transitions
+    if (!hasSetDensityRef.current) {
+      // If coming from breathe screen, keep the sparse density
+      // Otherwise use normal density
+      const targetDensity = fromBreathe ? 'sparse' : 'normal';
+      
+      // Only change density if it's different from current
+      if (currentDensity !== targetDensity) {
+        console.log(`Welcome screen: Setting density to ${targetDensity}`);
+        changeDensity(targetDensity);
+      }
+      
+      hasSetDensityRef.current = true;
+    }
+    
+    // Start fade-in animations with staggered timing for a smoother effect
+    Animated.stagger(150, [
+      // Fade in the icon
+      Animated.timing(fadeIconAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Fade in the title
+      Animated.timing(fadeTitleAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Fade in the subtitle
+      Animated.timing(fadeSubtitleAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Fade in the button
+      Animated.timing(fadeButtonAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    // Cleanup function - don't change density on unmount
+    return () => {};
+  }, []);
+  
   const handleStart = () => {
+    // Prevent multiple navigation attempts
+    if (isNavigating) return;
+    
+    setIsNavigating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(auth)/login');
+    
+    // Fade out all content
+    Animated.timing(fadeContentAnim, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => {
+      // Navigate to login screen after fade out completes
+      router.push({
+        pathname: '/(auth)/login',
+        params: { animateIn: 'true' }
+      });
+    });
   };
 
   return (
@@ -29,12 +115,9 @@ const WelcomeScreen = () => {
         style={styles.overlayGradient}
       />
 
-      {/* Floating Leaves Layer */}
-      <LeafBackground density="normal" />
-
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, { opacity: fadeContentAnim }]}>
         <View style={styles.header}>
-          <View style={styles.iconContainer}>
+          <Animated.View style={[styles.iconContainer, { opacity: fadeIconAnim }]}>
             <LinearGradient
               colors={['#5BCD6B', '#025A5C']}
               style={StyleSheet.absoluteFill}
@@ -42,34 +125,39 @@ const WelcomeScreen = () => {
               end={{ x: 1, y: 1 }}
             />
             <Ionicons name="leaf" size={40} color="white" />
-          </View>
-          <Text style={styles.title}>Quit Tree Today</Text>
-          <Text style={styles.subtitle}>
+          </Animated.View>
+          <Animated.Text style={[styles.title, { opacity: fadeTitleAnim }]}>
+            Quit Tree Today
+          </Animated.Text>
+          <Animated.Text style={[styles.subtitle, { opacity: fadeSubtitleAnim }]}>
             Join thousands who have successfully quit cannabis with science-backed methods
-          </Text>
+          </Animated.Text>
         </View>
 
-        <Pressable 
-          style={({ pressed }) => [
-            styles.startButton,
-            pressed && styles.startButtonPressed
-          ]}
-          onPress={handleStart}
-        >
-          <LinearGradient
-            colors={['rgba(79, 166, 91, 0.8)', 'rgba(2, 90, 92, 0.5)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <View style={styles.buttonContent}>
-            <Text style={styles.buttonText}>Begin Assessment</Text>
-            <View style={styles.iconContainer2}>
-              <Ionicons name="arrow-forward" size={18} color="white" />
+        <Animated.View style={{ opacity: fadeButtonAnim, width: '100%' }}>
+          <Pressable 
+            style={({ pressed }) => [
+              styles.startButton,
+              pressed && styles.startButtonPressed
+            ]}
+            onPress={handleStart}
+            disabled={isNavigating}
+          >
+            <LinearGradient
+              colors={['rgba(79, 166, 91, 0.8)', 'rgba(2, 90, 92, 0.5)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <View style={styles.buttonContent}>
+              <Text style={styles.buttonText}>Begin Assessment</Text>
+              <View style={styles.iconContainer2}>
+                <Ionicons name="arrow-forward" size={18} color="white" />
+              </View>
             </View>
-          </View>
-        </Pressable>
-      </View>
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   );
 };
