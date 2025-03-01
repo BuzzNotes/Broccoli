@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
+import LeafBackground from '../components/LeafBackground';
 
 const BreatheScreen = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -70,12 +71,20 @@ const BreatheScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Main Background Gradient */}
       <LinearGradient
-        colors={colors.gradients.primary.colors}
+        colors={['#0A0A0A', '#1A1A1A']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
       />
+
+      {/* Overlay Gradient */}
+      <LinearGradient
+        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
+        style={styles.overlayGradient}
+      />
+
+      {/* Floating Leaves Layer - sparse density for subtle effect */}
+      <LeafBackground density="sparse" />
 
       <View style={styles.content}>
         <Animated.View
@@ -108,10 +117,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  overlayGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '53%',
+    opacity: 0.8,
+    zIndex: 1,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 2,
   },
   breatheCircle: {
     width: 160,
@@ -123,6 +142,14 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#5BCD6B',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   textContainer: {
     height: 40,

@@ -134,19 +134,26 @@ export default function GoodNewsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Main Background Gradient */}
       <LinearGradient
-        colors={['rgba(79, 196, 191, 0.4)', '#4FA65B']}
+        colors={['#0A0A0A', '#1A1A1A']}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+      />
+
+      {/* Overlay Gradient */}
+      <LinearGradient
+        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
+        style={styles.overlayGradient}
       />
 
       <View style={styles.content}>
         {/* Header Text */}
-        <Text style={styles.title}>Good News!</Text>
-        <Text style={styles.message}>
-          We've built your profile. Your progress will be tracked here.
-        </Text>
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>Good News!</Text>
+          <Text style={styles.message}>
+            We've built your profile. Your progress will be tracked here.
+          </Text>
+        </View>
 
         {/* Profile Card */}
         <View style={styles.cardWrapper}>
@@ -157,7 +164,7 @@ export default function GoodNewsScreen() {
             <Text style={styles.newText}>NEW</Text>
           </View>
           <LinearGradient
-            colors={['#4FA65B', '#45E994']}
+            colors={['#5BCD6B', '#025A5C']}
             style={[StyleSheet.absoluteFill, styles.card]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -186,32 +193,39 @@ export default function GoodNewsScreen() {
           </LinearGradient>
         </View>
 
-        <Text style={styles.subtitle}>
-          Now, let's find out why you're struggling.
-        </Text>
+        {/* Bottom Section with Next Button */}
+        <View style={styles.bottomSection}>
+          <Text style={styles.subtitle}>
+            Now, let's find out why you're struggling.
+          </Text>
 
-        {/* Next Button */}
-        <Animated.View style={{ 
-          width: '100%',
-          transform: [{ scale: bounceAnim }]
-        }}>
-          <Pressable 
-            style={({ pressed }) => [
-              styles.nextButton,
-              pressed && styles.nextButtonPressed
-            ]}
-            onPress={handleNext}
-          >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Text style={styles.buttonText}>Next</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" />
-          </Pressable>
-        </Animated.View>
+          {/* Next Button */}
+          <Animated.View style={{ 
+            width: '100%',
+            transform: [{ scale: bounceAnim }]
+          }}>
+            <Pressable 
+              style={({ pressed }) => [
+                styles.nextButton,
+                pressed && styles.nextButtonPressed
+              ]}
+              onPress={handleNext}
+            >
+              <LinearGradient
+                colors={['rgba(79, 166, 91, 0.8)', 'rgba(2, 90, 92, 0.5)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>Next</Text>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="arrow-forward" size={18} color="white" />
+                </View>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -221,31 +235,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  overlayGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '53%',
+    opacity: 0.8,
+    zIndex: 1,
+  },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    padding: 32,
+    zIndex: 2,
+    justifyContent: 'space-between',
+  },
+  headerSection: {
     alignItems: 'center',
-    padding: 24,
+    paddingTop: 40,
   },
   title: {
     fontSize: 40,
-    color: '#1A1A2E',
+    color: colors.text.primary,
     fontFamily: 'PlusJakartaSans-Bold',
     marginBottom: 16,
     textAlign: 'center',
   },
   message: {
-    fontSize: 20,
-    color: '#1A1A2E',
+    fontSize: 18,
+    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: 40,
     lineHeight: 28,
-    opacity: 0.8,
   },
   cardWrapper: {
     width: '100%',
     aspectRatio: 1.6,
-    marginBottom: 40,
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: {
@@ -256,6 +281,9 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignSelf: 'center',
   },
   sparkleContainer: {
     position: 'absolute',
@@ -294,6 +322,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 24,
     borderRadius: 24,
+    overflow: 'hidden',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -339,9 +368,15 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     textAlign: 'right',
   },
+  bottomSection: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingBottom: 20,
+  },
   subtitle: {
     fontSize: 20,
-    color: '#1A1A2E',
+    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: 32,
     fontFamily: 'PlusJakartaSans-Bold',
@@ -354,22 +389,21 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
-    gap: 12,
     width: '100%',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: 'rgba(79, 166, 91, 0.6)',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 0,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
     elevation: 8,
   },
   nextButtonPressed: {
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.97 }],
     backgroundColor: 'rgba(255,255,255,0.15)',
     shadowOffset: {
       width: 0,
@@ -379,6 +413,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
   buttonText: {
     fontSize: 18,
     color: 'white',
@@ -386,10 +426,12 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
 }); 
