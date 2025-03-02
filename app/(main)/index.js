@@ -118,7 +118,11 @@ const MainScreen = () => {
     } else if (type === 'pledge') {
       // Handle pledge action
     } else if (type === 'journal') {
-      // Handle journal action
+      // Navigate to recovery page with journal tab active
+      router.push({
+        pathname: '/(main)/recovery',
+        params: { initialTab: 'journal' }
+      });
     } else if (type === 'more') {
       // Handle more options
     }
@@ -288,7 +292,7 @@ const MainScreen = () => {
 
       {/* Sticky Panic Button */}
       <TouchableOpacity 
-        style={[styles.panicButton, { bottom: insets.bottom + 70 }]} 
+        style={[styles.panicButton, { bottom: insets.bottom + 80 }]} 
         activeOpacity={0.9}
         onPress={handlePanicButtonPress}
       >
@@ -298,7 +302,7 @@ const MainScreen = () => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
-        <Ionicons name="alert-circle" size={20} color="#FFF" style={styles.panicIcon} />
+        <Ionicons name="alert-circle" size={18} color="#FFF" style={styles.panicIcon} />
         <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
       </TouchableOpacity>
     </View>
@@ -312,7 +316,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 120, // Extra padding for tab bar
+    paddingBottom: 200, // Increased padding for tab bar and panic button
   },
   logoContainer: {
     alignItems: 'center',
@@ -489,26 +493,28 @@ const styles = StyleSheet.create({
   },
   panicButton: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    height: 50,
-    borderRadius: 25,
+    left: 50,
+    right: 50,
+    height: 46,
+    borderRadius: 23,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#FF3B30',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
     overflow: 'hidden',
+    opacity: 0.85,
   },
   panicIcon: {
     marginRight: 8,
+    fontSize: 18,
   },
   panicButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: typography.fonts.bold,
     letterSpacing: 1,
   },

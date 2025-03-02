@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 
@@ -19,7 +20,15 @@ const { width, height } = Dimensions.get('window');
 
 const RecoveryScreen = () => {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState('progress');
+  
+  // Set the active tab based on the initialTab parameter
+  useEffect(() => {
+    if (params.initialTab && ['progress', 'journal', 'resources'].includes(params.initialTab)) {
+      setActiveTab(params.initialTab);
+    }
+  }, [params.initialTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {

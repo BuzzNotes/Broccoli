@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 // Use require for static assets
 const appleIcon = require('../../assets/icons/apple.png');
 const googleIcon = require('../../assets/icons/google.png');
+const broccoliLogo = require('../../assets/images/broccoli-logo.png');
 
 const LoginScreen = () => {
   const { signInWithGoogle, signInWithApple, loading: authLoading } = useAuth();
@@ -165,7 +166,7 @@ const LoginScreen = () => {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
-            <Ionicons name="leaf" size={40} color="white" />
+            <Image source={broccoliLogo} style={styles.logoImage} />
           </View>
           <Text style={styles.title}>Broccoli</Text>
           <Text style={styles.subtitle}>
@@ -210,7 +211,7 @@ const LoginScreen = () => {
             >
               <Image
                 source={appleIcon}
-                style={styles.appleButtonIcon}
+                style={[styles.appleButtonIcon, { tintColor: 'white' }]}
               />
               <Text style={styles.buttonText}>
                 {appleLoading ? 'Signing in with Apple...' : 'Continue with Apple'}
@@ -279,23 +280,15 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 20,
     overflow: 'hidden',
-    shadowColor: '#5BCD6B',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-    margin: 1,
-    alignSelf: 'center',
+  },
+  logoImage: {
+    width: 50,
+    height: 50,
+    resizeMode: 'contain',
   },
   title: {
     fontSize: 38,

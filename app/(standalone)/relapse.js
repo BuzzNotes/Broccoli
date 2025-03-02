@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   TextInput,
   StatusBar,
-  Alert
+  Alert,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,14 +39,24 @@ const RelapseScreen = () => {
       const currentTime = new Date().getTime();
       await AsyncStorage.setItem('streakStartTime', currentTime.toString());
       
-      // Navigate back to main screen
-      router.replace('/(main)');
+      // Also reset any active timer session
+      await AsyncStorage.removeItem('timerSessionStart');
+      await AsyncStorage.removeItem('timerSessionPaused');
+      await AsyncStorage.removeItem('timerSessionElapsed');
       
       // Show confirmation
       Alert.alert(
         "Counter Reset",
         "Your counter has been reset. Don't give up - every new start is a step forward.",
-        [{ text: "OK" }]
+        [
+          { 
+            text: "OK", 
+            onPress: () => {
+              // Navigate to the main screen (timer) using the correct path
+              router.replace('/(main)');
+            }
+          }
+        ]
       );
     } catch (error) {
       console.error('Error resetting counter:', error);
@@ -54,11 +65,19 @@ const RelapseScreen = () => {
   };
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       
+      {/* Enhanced green gradient background */}
+      <LinearGradient
+        colors={['#0F1A15', '#122A1E', '#0F1A15']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
         <TouchableOpacity 
           style={styles.closeButton} 
           onPress={handleClose}
@@ -67,7 +86,13 @@ const RelapseScreen = () => {
           <Ionicons name="close" size={28} color="#FFFFFF" />
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Reset Counter</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.logoText}>BROCCOLI</Text>
+          <Text style={styles.headerTitle}>Reset Counter</Text>
+        </View>
+        
+        {/* Empty view for layout balance */}
+        <View style={styles.closeButton} />
       </View>
       
       {/* Main Content */}
@@ -110,43 +135,61 @@ const RelapseScreen = () => {
           activeOpacity={0.7}
           onPress={handleClose}
         >
+          <LinearGradient
+            colors={['rgba(79, 166, 91, 0.2)', 'rgba(61, 130, 71, 0.2)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#0F1A15',
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    position: 'relative',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(79, 166, 91, 0.2)',
   },
   closeButton: {
-    position: 'absolute',
-    left: 20,
-    zIndex: 10,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    alignItems: 'center',
+  },
+  logoText: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+    letterSpacing: 2,
   },
   headerTitle: {
-    fontSize: 18,
-    color: colors.text.primary,
+    fontSize: 20,
+    color: '#4FA65B',
     fontFamily: typography.fonts.bold,
+    marginTop: 4,
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 30,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
     marginBottom: 12,
@@ -170,7 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reasonInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(79, 166, 91, 0.1)',
     borderRadius: 12,
     padding: 16,
     color: colors.text.primary,
@@ -178,6 +221,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 166, 91, 0.2)',
   },
   resetButton: {
     height: 56,
@@ -206,9 +251,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 166, 91, 0.3)',
   },
   cancelButtonText: {
-    color: colors.text.secondary,
+    color: '#4FA65B',
     fontSize: 16,
     fontFamily: typography.fonts.medium,
   },
