@@ -85,9 +85,9 @@ const LoginScreen = () => {
     router.push('/(tabs)');
   };
 
-  const handleSkipToTimer = () => {
+  const handleGoToMain = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(tabs)/timer');
+    router.push('/(main)');
   };
 
   const handleGoogleSignIn = async () => {
@@ -148,13 +148,13 @@ const LoginScreen = () => {
       />
 
       <SafeAreaView style={styles.contentContainer}>
-        {/* Skip to Timer Button */}
+        {/* Main App Button */}
         <TouchableOpacity 
-          style={styles.skipToTimerButton} 
-          onPress={handleSkipToTimer}
+          style={styles.mainAppButton} 
+          onPress={handleGoToMain}
           disabled={isLoading}
         >
-          <Ionicons name="timer-outline" size={24} color="white" />
+          <Ionicons name="home-outline" size={24} color="white" />
         </TouchableOpacity>
 
         {/* Logo Section */}
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontFamily: 'PlusJakartaSans-Bold',
   },
-  skipToTimerButton: {
+  mainAppButton: {
     position: 'absolute',
     top: 16,
     right: 16,

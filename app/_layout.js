@@ -220,6 +220,13 @@ export default function Layout() {
               }}
             />
             <Stack.Screen 
+              name="(standalone)/pledge"
+              options={{
+                animation: 'slide_from_bottom',
+                presentation: 'modal'
+              }}
+            />
+            <Stack.Screen 
               name="(standalone)/edit-profile"
               options={{
                 animation: 'slide_from_bottom',

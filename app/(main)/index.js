@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,8 @@ import {
   Dimensions,
   Platform,
   StatusBar,
-  TouchableOpacity
+  TouchableOpacity,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,10 +22,15 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withSpring, 
-  withTiming
+  withTiming,
+  withRepeat,
+  interpolate
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieAnimation from '../../src/components/LottieAnimation';
+import ConfettiAnimation from '../../src/components/ConfettiAnimation';
+import FlipClock from '../../src/components/FlipClock';
+import SecondsFlipClock from '../../src/components/SecondsFlipClock';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 
@@ -44,44 +50,61 @@ const MainScreen = () => {
 
   // UI State
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  // Update Timer
+  const [showPledgeModal, setShowPledgeModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiKey, setConfettiKey] = useState(0);
+  
+  // Animation values for rainbow button
+  const rainbowAnimation = useSharedValue(0);
+  
+  // Start rainbow animation when modal is shown
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeElapsed(prev => {
-        const newSeconds = prev.seconds + 1;
-        if (newSeconds === 60) {
-          const newMinutes = prev.minutes + 1;
-          if (newMinutes === 60) {
-            return {
-              hours: prev.hours + 1,
-              minutes: 0,
-              seconds: 0
-            };
-          }
-          return {
-            ...prev,
-            minutes: newMinutes,
-            seconds: 0
-          };
-        }
-        return {
-          ...prev,
-          seconds: newSeconds
-        };
-      });
-    }, 1000);
+    if (showPledgeModal) {
+      rainbowAnimation.value = 0;
+      rainbowAnimation.value = withRepeat(
+        withTiming(1, { duration: 2000 }),
+        -1, // Infinite repeat
+        false // No reverse
+      );
+    }
+  }, [showPledgeModal]);
 
-    return () => clearInterval(interval);
-  }, []);
-
+  // Format time for display
+  const formatTime = (value) => {
+    return value < 10 ? `0${value}` : `${value}`;
+  };
+  
+  // Format time for human-readable display
+  const formatTimeForDisplay = () => {
+    if (timeElapsed.hours === 0 && timeElapsed.minutes === 0) {
+      return `${timeElapsed.seconds}`;
+    } else if (timeElapsed.hours === 0) {
+      return `${timeElapsed.minutes}m`;
+    } else if (timeElapsed.hours < 24) {
+      return `${timeElapsed.hours}hr ${timeElapsed.minutes}m`;
+    } else {
+      const days = Math.floor(timeElapsed.hours / 24);
+      return days === 1 ? `${days} day` : `${days} days`;
+    }
+  };
+  
+  // Determine if we should show seconds separately
+  const shouldShowSecondsOnly = () => {
+    return timeElapsed.hours === 0 && timeElapsed.minutes === 0;
+  };
+  
+  // Determine if we should show seconds as a smaller box
+  const shouldShowSecondsBox = () => {
+    return timeElapsed.hours === 0 || timeElapsed.minutes > 0;
+  };
+  
   // Initialize timer
   const initializeTimer = async () => {
     try {
       const startTimeStr = await AsyncStorage.getItem('streakStartTime');
       if (!startTimeStr) {
         router.replace('/(standalone)/start-streak');
-        return;
+        return null;
       }
       
       const startTime = parseInt(startTimeStr, 10);
@@ -93,13 +116,41 @@ const MainScreen = () => {
       const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000);
       
       setTimeElapsed({ hours, minutes, seconds });
+      
+      return startTime;
     } catch (error) {
       console.error('Error initializing timer:', error);
+      return null;
     }
   };
 
   useEffect(() => {
-    initializeTimer();
+    let timerInterval;
+    
+    const setupTimer = async () => {
+      const startTime = await initializeTimer();
+      
+      if (startTime) {
+        timerInterval = setInterval(() => {
+          const currentTime = new Date().getTime();
+          const elapsedMs = currentTime - startTime;
+          
+          const hours = Math.floor(elapsedMs / (1000 * 60 * 60));
+          const minutes = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000);
+          
+          setTimeElapsed({ hours, minutes, seconds });
+        }, 1000);
+      }
+    };
+    
+    setupTimer();
+    
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
   }, []);
 
   const handleReset = () => {
@@ -116,7 +167,8 @@ const MainScreen = () => {
     if (type === 'meditate') {
       router.push('/(standalone)/meditate');
     } else if (type === 'pledge') {
-      // Handle pledge action
+      // Navigate to the pledge screen instead of showing the modal
+      router.push('/(standalone)/pledge');
     } else if (type === 'journal') {
       // Navigate to recovery page with journal tab active
       router.push({
@@ -126,6 +178,32 @@ const MainScreen = () => {
     } else if (type === 'more') {
       // Handle more options
     }
+  };
+
+  // Handle pledge confirmation
+  const handlePledgeConfirm = () => {
+    // Close the modal
+    setShowPledgeModal(false);
+    
+    // Hide confetti first (if it's already showing)
+    setShowConfetti(false);
+    
+    // Use setTimeout to ensure state updates before showing again
+    setTimeout(() => {
+      // Generate a new key to force animation to replay
+      setConfettiKey(prevKey => prevKey + 1);
+      
+      // Show confetti animation
+      setShowConfetti(true);
+      
+      // Provide haptic feedback for confirmation
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, 50);
+  };
+
+  // Handle when confetti animation finishes
+  const handleConfettiFinish = () => {
+    setShowConfetti(false);
   };
 
   const handlePanicButtonPress = () => {
@@ -145,10 +223,16 @@ const MainScreen = () => {
     };
   });
 
-  // Format time for display
-  const formatTime = (value) => {
-    return value < 10 ? `0${value}` : `${value}`;
-  };
+  // Rainbow button animation style
+  const rainbowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: interpolate(
+        rainbowAnimation.value,
+        [0, 1],
+        [-200, 200]
+      )}]
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -161,6 +245,110 @@ const MainScreen = () => {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
+      
+      {/* Pledge Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showPledgeModal}
+        onRequestClose={() => setShowPledgeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Modal Header with Gradient */}
+            <LinearGradient
+              colors={['#4FA65B', '#3D8247']}
+              style={styles.modalHeaderGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>PLEDGE YOUR SOBRIETY</Text>
+                <Pressable 
+                  onPress={() => setShowPledgeModal(false)} 
+                  style={styles.modalCloseButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={28} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            </LinearGradient>
+            
+            <ScrollView 
+              style={styles.modalScrollView} 
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.pledgeSection}>
+                <Text style={styles.pledgeTitle}>
+                  Why Sobriety Matters
+                </Text>
+                
+                <View style={styles.pledgePoint}>
+                  <Ionicons name="brain" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Text style={styles.pledgeText}>
+                    Improved mental clarity and cognitive function
+                  </Text>
+                </View>
+                
+                <View style={styles.pledgePoint}>
+                  <Ionicons name="heart" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Text style={styles.pledgeText}>
+                    Better physical health and respiratory function
+                  </Text>
+                </View>
+                
+                <View style={styles.pledgePoint}>
+                  <Ionicons name="cash" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Text style={styles.pledgeText}>
+                    Financial savings that add up over time
+                  </Text>
+                </View>
+                
+                <View style={styles.pledgePoint}>
+                  <Ionicons name="people" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Text style={styles.pledgeText}>
+                    Stronger relationships and social connections
+                  </Text>
+                </View>
+                
+                <View style={styles.pledgePoint}>
+                  <Ionicons name="trophy" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Text style={styles.pledgeText}>
+                    Sense of accomplishment and self-control
+                  </Text>
+                </View>
+              </View>
+              
+              <Animated.View style={styles.pledgeButtonContainer}>
+                <TouchableOpacity 
+                  style={styles.pledgeButton} 
+                  activeOpacity={0.7}
+                  onPress={handlePledgeConfirm}
+                >
+                  <Animated.View style={[StyleSheet.absoluteFill, rainbowAnimatedStyle]}>
+                    <LinearGradient
+                      colors={['#FF5F6D', '#FFC371', '#4FA65B', '#00C9FF', '#9D50BB', '#FF5F6D']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{ width: 400, height: '100%' }}
+                    />
+                  </Animated.View>
+                  <Text style={styles.pledgeButtonText}>PLEDGE NOW</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <ConfettiAnimation 
+          animationKey={confettiKey} 
+          onAnimationFinish={handleConfettiFinish} 
+        />
+      )}
       
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 10 }]}
@@ -184,16 +372,32 @@ const MainScreen = () => {
         
         {/* Timer Section - More modest size */}
         <View style={styles.timerSection}>
-          <View style={styles.timerContainer}>
-            <Text style={styles.timer}>
-              {formatTime(timeElapsed.hours)}:{formatTime(timeElapsed.minutes)}
-              <Text style={styles.timerSeconds}>{formatTime(timeElapsed.seconds)}</Text>
-            </Text>
+          <Text style={styles.timerLabel}>You've been cannabis-free for:</Text>
+          
+          <View style={styles.timerDisplay}>
+            {/* Main Timer Display */}
+            {!shouldShowSecondsOnly() ? (
+              <Text style={styles.humanReadableTime}>{formatTimeForDisplay()}</Text>
+            ) : (
+              <Text style={styles.largeSecondsText}>{timeElapsed.seconds}</Text>
+            )}
+            
+            {/* Seconds Label (only for seconds-only mode) */}
+            {shouldShowSecondsOnly() && (
+              <Text style={styles.secondsLabel}>seconds</Text>
+            )}
+            
+            {/* Seconds Box (shown only when not in seconds-only mode) */}
+            {!shouldShowSecondsOnly() && shouldShowSecondsBox() && (
+              <View style={styles.secondsBoxContainer}>
+                <SecondsFlipClock seconds={timeElapsed.seconds} />
+              </View>
+            )}
           </View>
           
-          <View style={styles.timerLabel}>
+          <View style={styles.timerSubLabel}>
             <Ionicons name="leaf" size={16} color="#4FA65B" style={styles.leafIcon} />
-            <Text style={styles.timerLabelText}>Cannabis-Free</Text>
+            <Text style={styles.timerLabelText}>Keep going, you're doing great!</Text>
           </View>
           
           {/* Reset Button - Refined with depth */}
@@ -343,34 +547,58 @@ const styles = StyleSheet.create({
   },
   timerSection: {
     alignItems: 'center',
-    marginBottom: 36,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    width: '100%',
   },
-  timerContainer: {
+  timerDisplay: {
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    marginVertical: 8,
+    width: '100%',
   },
-  timer: {
-    fontSize: 56, // Reduced from 72
+  timerLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontFamily: typography.fonts.medium,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  humanReadableTime: {
+    fontSize: 38,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.bold,
+    textAlign: 'center',
+  },
+  largeSecondsText: {
+    fontSize: 56,
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
   },
-  timerSeconds: {
-    fontSize: 36, // Reduced from 48
-    color: colors.text.secondary,
-    fontFamily: typography.fonts.bold,
+  secondsLabel: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: typography.fonts.medium,
+    marginTop: 0,
   },
-  timerLabel: {
+  secondsBoxContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ scale: 0.7 }],
+  },
+  timerSubLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   leafIcon: {
     marginRight: 8,
   },
   timerLabelText: {
-    fontSize: 16, // Reduced from 18
+    fontSize: 16,
     color: colors.text.secondary,
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.medium,
   },
   resetButton: {
     overflow: 'hidden',
@@ -382,16 +610,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
-    marginTop: 8,
+    marginTop: 16,
+    width: '80%',
   },
   resetButtonBlur: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resetButtonText: {
+    fontSize: 16,
     color: colors.text.primary,
-    fontSize: 15,
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.medium,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -478,7 +708,7 @@ const styles = StyleSheet.create({
   reasonText: {
     fontSize: 16, // Reduced from 18
     color: colors.text.primary,
-    fontFamily: typography.fonts.bold,
+    fontFamily: typography.fonts.regular,
     marginBottom: 20,
     fontStyle: 'italic',
   },
@@ -495,18 +725,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 50,
     right: 50,
-    height: 46,
-    borderRadius: 23,
+    height: 50,
+    borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#FF3B30',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 5,
     overflow: 'hidden',
-    opacity: 0.85,
   },
   panicIcon: {
     marginRight: 8,
@@ -517,6 +746,112 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: typography.fonts.bold,
     letterSpacing: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: '15%', // Leave top 15% of screen uncovered
+  },
+  modalContent: {
+    backgroundColor: '#0F1A15',
+    borderRadius: 20,
+    width: '95%',
+    maxHeight: '85%', // Take up 85% of screen height
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 166, 91, 0.3)',
+    shadowColor: '#4FA65B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(79, 166, 91, 0.2)',
+  },
+  modalTitle: {
+    fontSize: 22,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.bold,
+    letterSpacing: 1,
+  },
+  modalCloseButton: {
+    padding: 8,
+    marginLeft: 12,
+  },
+  modalScrollView: {
+    maxHeight: '75%',
+  },
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 30,
+  },
+  pledgeSection: {
+    marginBottom: 30,
+  },
+  pledgeTitle: {
+    fontSize: 28,
+    color: colors.text.primary,
+    fontFamily: typography.fonts.bold,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  pledgePoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  pledgeIcon: {
+    marginRight: 16,
+  },
+  pledgeText: {
+    fontSize: 16,
+    color: colors.text.secondary,
+    fontFamily: typography.fonts.regular,
+    lineHeight: 22,
+  },
+  pledgeButtonContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 20,
+  },
+  pledgeButton: {
+    borderRadius: 30,
+    height: 60,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  pledgeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontFamily: typography.fonts.bold,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  modalHeaderGradient: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(79, 166, 91, 0.3)',
+    width: '100%',
   },
 });
 
