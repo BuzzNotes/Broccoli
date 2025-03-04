@@ -143,10 +143,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardContainer: {
-    width: 60,
-    height: 80,
-    position: 'relative',
-    perspective: 1000,
+    width: 65,
+    height: 85,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginHorizontal: 4,
   },
   card: {
     position: 'absolute',
@@ -172,16 +176,29 @@ const styles = StyleSheet.create({
     transform: [{ rotateX: '180deg' }],
   },
   cardText: {
-    fontSize: 40,
-    fontFamily: typography.fonts.bold,
     color: '#FFFFFF',
+    fontSize: 46,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   separator: {
-    fontSize: 40,
-    fontFamily: typography.fonts.bold,
     color: '#FFFFFF',
-    marginHorizontal: 5,
-  }
+    fontSize: 46,
+    fontWeight: '700',
+    marginHorizontal: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  label: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+    opacity: 0.8,
+  },
 });
 
 export default FlipClock; 

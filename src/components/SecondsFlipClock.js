@@ -1,84 +1,92 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { typography } from '../../app/styles/typography';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const SecondsDropCard = ({ value, prevValue, isAnimating }) => {
-  // Animation values for the dropping effect
-  const currentValuePosition = new Animated.Value(0);
-  const newValuePosition = new Animated.Value(-60); // Start above the container (negative value)
-  const currentValueOpacity = new Animated.Value(1);
-  const newValueOpacity = new Animated.Value(0);
+const SecondsRollDigit = ({ value, prevValue, isAnimating }) => {
+  // Animation values for the rolling effect
+  const rollAnimation = new Animated.Value(0);
 
   useEffect(() => {
     if (isAnimating) {
-      // Reset animation values
-      newValuePosition.setValue(-60);
-      newValueOpacity.setValue(1);
-      currentValueOpacity.setValue(1);
+      // Reset animation value
+      rollAnimation.setValue(0);
       
-      // Run the dropping animation
-      Animated.parallel([
-        // Move current value down and fade out
-        Animated.timing(currentValuePosition, {
-          toValue: 60, // Move down out of view
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(currentValueOpacity, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        // Drop new value from top and fade in
-        Animated.timing(newValuePosition, {
-          toValue: 0, // Final position (centered)
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(newValueOpacity, {
-          toValue: 1,
-          duration: 300,
-          delay: 100,
-          useNativeDriver: true,
-        })
-      ]).start();
-    } else {
-      // Reset positions when not animating
-      currentValuePosition.setValue(0);
-      newValuePosition.setValue(-60);
-      currentValueOpacity.setValue(1);
-      newValueOpacity.setValue(0);
+      // Run the rolling animation with a spring effect for more natural motion
+      Animated.spring(rollAnimation, {
+        toValue: 1,
+        friction: 8, // Lower friction for more bounce
+        tension: 40, // Lower tension for smoother motion
+        useNativeDriver: true,
+      }).start();
     }
   }, [value, isAnimating]);
 
+  // Create interpolations for the rolling effect
+  const currentPositionY = rollAnimation.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 40, 60] // Accelerate then decelerate for more natural motion
+  });
+
+  const nextPositionY = rollAnimation.interpolate({
+    inputRange: [0, 0.6, 1],
+    outputRange: [-60, -30, 0] // Start from above with variable speed
+  });
+
+  // Scale effect to create perspective
+  const currentScale = rollAnimation.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.95, 0.9]
+  });
+
+  const nextScale = rollAnimation.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.9, 0.95, 1]
+  });
+
+  // Opacity for smooth transition
+  const currentOpacity = rollAnimation.interpolate({
+    inputRange: [0, 0.6, 1],
+    outputRange: [1, 0.4, 0]
+  });
+
+  const nextOpacity = rollAnimation.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0.8, 1]
+  });
+
   return (
-    <View style={styles.cardContainer}>
-      {/* Current value that will move down */}
+    <View style={styles.digitContainer}>
+      {/* Current value that rolls down */}
       <Animated.View 
         style={[
-          styles.card,
+          styles.digit,
           {
-            transform: [{ translateY: currentValuePosition }],
-            opacity: currentValueOpacity,
-            zIndex: 1
+            transform: [
+              { translateY: currentPositionY },
+              { scale: currentScale }
+            ],
+            opacity: currentOpacity
           }
         ]}
       >
-        <Text style={styles.cardText}>{prevValue}</Text>
+        <Text style={styles.digitText}>{prevValue}</Text>
       </Animated.View>
       
-      {/* New value that drops from top */}
+      {/* New value that rolls in from top */}
       <Animated.View 
         style={[
-          styles.card,
+          styles.digit,
           {
-            transform: [{ translateY: newValuePosition }],
-            opacity: newValueOpacity,
-            zIndex: 2
+            transform: [
+              { translateY: nextPositionY },
+              { scale: nextScale }
+            ],
+            opacity: nextOpacity
           }
         ]}
       >
-        <Text style={styles.cardText}>{value}</Text>
+        <Text style={styles.digitText}>{value}</Text>
       </Animated.View>
     </View>
   );
@@ -95,7 +103,7 @@ const SecondsFlipClock = ({ seconds }) => {
       
       const timer = setTimeout(() => {
         setIsAnimating(false);
-      }, 500); // Match animation duration
+      }, 600); // Slightly longer to accommodate spring animation
       
       return () => clearTimeout(timer);
     }
@@ -109,56 +117,99 @@ const SecondsFlipClock = ({ seconds }) => {
   const formattedSeconds = formatValue(seconds);
   const prevFormattedSeconds = formatValue(prevSeconds);
 
+  // Split the seconds into individual digits for better animation
+  const currentDigits = formattedSeconds.split('');
+  const prevDigits = prevFormattedSeconds.split('');
+
   return (
     <View style={styles.container}>
-      <SecondsDropCard 
-        value={formattedSeconds} 
-        prevValue={prevFormattedSeconds} 
-        isAnimating={isAnimating} 
-      />
-      <Text style={styles.secondsLabel}>seconds</Text>
+      <View style={styles.secondsContainer}>
+        <LinearGradient
+          colors={['rgba(20, 60, 37, 0.9)', 'rgba(26, 80, 50, 0.9)']}
+          style={styles.secondsBackground}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.digitsRow}>
+          <SecondsRollDigit 
+            value={currentDigits[0]} 
+            prevValue={prevDigits[0]} 
+            isAnimating={isAnimating && prevDigits[0] !== currentDigits[0]} 
+          />
+          <SecondsRollDigit 
+            value={currentDigits[1]} 
+            prevValue={prevDigits[1]} 
+            isAnimating={isAnimating && prevDigits[1] !== currentDigits[1]} 
+          />
+        </View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: 'rgba(255, 255, 255)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardContainer: {
-    width: 50,
-    height: 60,
+  secondsContainer: {
     position: 'relative',
-    overflow: 'hidden', // Hide content that overflows
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(91, 189, 104, 0.4)',
   },
-  card: {
+  secondsBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 12,
+  },
+  digitsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+  },
+  digitContainer: {
+    width: 16,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  digit: {
     position: 'absolute',
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(79, 166, 91, 0.1)',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    shadowColor: '#4FA65B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  cardText: {
-    fontSize: 30,
-    fontFamily: typography.fonts.bold,
+  digitText: {
     color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  secondsLabel: {
-    fontSize: 12,
-    fontFamily: typography.fonts.medium,
-    color: 'rgba(255, 255, 255, 0.7)',
+  label: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
     marginTop: 2,
-  }
+    opacity: 0.8,
+  },
 });
 
 export default SecondsFlipClock; 

@@ -387,7 +387,7 @@ const PanicScreen = () => {
       
       {/* Enhanced red gradient background */}
       <LinearGradient
-        colors={['#1A0505', '#2A0A0A', '#1A0505']}
+        colors={['#2A0505', '#3A0A0A', '#2A0505']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -571,7 +571,7 @@ const PanicScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A0505',
+    backgroundColor: '#2A0505',
   },
   container: {
     flex: 1,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   },
   pulsingOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
   },
   header: {
     flexDirection: 'row',
@@ -589,15 +589,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 59, 48, 0.3)',
-    backgroundColor: 'rgba(26, 5, 5, 0.9)',
+    borderBottomColor: 'rgba(255, 59, 48, 0.4)',
+    backgroundColor: 'rgba(42, 5, 5, 0.9)',
     zIndex: 10,
   },
   warningBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#CC2D25',
+    backgroundColor: '#D83232',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#FF3B30',

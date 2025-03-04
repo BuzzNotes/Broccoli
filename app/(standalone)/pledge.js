@@ -105,7 +105,7 @@ const Cloud = ({ startDelay, duration, startY, size = 64 }) => {
         },
       ]}
     >
-      <Ionicons name="leaf" size={size} color="rgba(79, 166, 91, 0.5)" />
+      <Ionicons name="leaf" size={size} color="rgba(91, 189, 104, 0.5)" />
     </Animated.View>
   );
 };
@@ -153,7 +153,7 @@ const ProgressCircle = ({ progress }) => {
           cx={circleRadius + strokeWidth/2}
           cy={circleRadius + strokeWidth/2}
           r={circleRadius}
-          stroke="rgba(79, 166, 91, 0.8)"
+          stroke="rgba(91, 189, 104, 0.8)"
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
@@ -564,13 +564,13 @@ const styles = StyleSheet.create({
     minWidth: 200,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     overflow: 'hidden',
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 6,
   },
   pledgeButtonDisabled: {
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -580,9 +580,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'PlusJakartaSans-Bold',
     letterSpacing: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
   heartIcon: {
     marginBottom: 32,
@@ -616,16 +616,16 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   returnButton: {
-    backgroundColor: 'rgba(79,166,91,0.15)',
+    backgroundColor: 'rgba(91,189,104,0.15)',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(79,166,91,0.3)',
+    borderColor: 'rgba(91,189,104,0.3)',
   },
   returnButtonText: {
     fontSize: 18,
-    color: 'rgba(79,166,91,0.8)',
+    color: 'rgba(91,189,104,0.8)',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   cloud: {

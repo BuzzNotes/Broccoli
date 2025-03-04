@@ -1,18 +1,18 @@
 export const colors = {
     // Brand Colors
     primary: '#4285F4',
-    secondary: '#4FA65B',
+    secondary: '#5BBD68',  // Brighter green
     accent: '#FF4B4B',
   
     // Gradients
-    gradientStart: '#4FA65B',  // Light green from Figma
-    gradientEnd: '#025A5C',    // Dark green/teal from Figma
-    loginGradient: ['#4FA65B', '#025A5C'],  // Array for LinearGradient use
+    gradientStart: '#5BBD68',  // Brighter light green
+    gradientEnd: '#1A5032',    // Brighter dark green
+    loginGradient: ['#5BBD68', '#1A5032'],  // Array for LinearGradient use
   
     // Backgrounds
     background: {
-      dark: '#0A0A1A',
-      card: '#1A1A2E',
+      dark: '#143C25',  // Updated to match our new background
+      card: '#1A5032',  // Updated to match our new card background
       overlay: 'rgba(255, 255, 255, 0.2)',
     },
   
@@ -25,23 +25,23 @@ export const colors = {
     },
   
     // Status
-    success: '#4FA65B',
+    success: '#5BBD68',  // Brighter green
     error: '#FF4B4B',
     warning: '#FFD700',
   
     // Tab Bar
     tabBar: {
-      active: '#4285F4',
+      active: '#5BBD68',  // Updated to match our theme
       inactive: '#666666',
-      background: '#1A1A2E',
+      background: '#143C25',  // Updated to match our background
     },
   
     // Gradients
     gradients: {
       primary: {
-        start: '#4FA65B',
+        start: '#5BBD68',
         end: '#45E994',
-        colors: ['#4FA65B', '#45E994'],
+        colors: ['#5BBD68', '#45E994'],
       },
       overlay: {
         start: 'rgba(255,255,255,0)',

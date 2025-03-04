@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "com.sixfortylabs.broccoli",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sixfortylabs.broccoli",
@@ -61,6 +61,23 @@
         "projectId": "de979687-ff43-4b3b-89b0-d02b144c9141"
       }
     },
-    "owner": "austincotter"
+    "owner": "austincotter",
+    "fonts": [
+      {
+        "asset": "./assets/fonts/SF-Pro-Rounded-Bold.otf"
+      },
+      {
+        "asset": "./assets/fonts/SF-Pro-Rounded-Semibold.otf"
+      },
+      {
+        "asset": "./assets/fonts/SF-Pro-Rounded-Medium.otf"
+      },
+      {
+        "asset": "./assets/fonts/SF-Pro-Rounded-Regular.otf"
+      },
+      {
+        "asset": "./assets/fonts/SF-Pro-Rounded-Light.otf"
+      }
+    ]
   }
 }

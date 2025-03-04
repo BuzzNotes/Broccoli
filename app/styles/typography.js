@@ -12,8 +12,11 @@ export const typography = {
   
   // Font Families
   fonts: {
-    bold: 'PlusJakartaSans-Bold',
-    regular: 'PlusJakartaSans-Regular',
+    bold: 'SF-Pro-Rounded-Bold',
+    semibold: 'SF-Pro-Rounded-Semibold',
+    medium: 'SF-Pro-Rounded-Medium',
+    regular: 'SF-Pro-Rounded-Regular',
+    light: 'SF-Pro-Rounded-Light',
   },
   
   // Line Heights

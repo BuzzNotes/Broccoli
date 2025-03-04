@@ -76,16 +76,19 @@ const MainScreen = () => {
   
   // Format time for human-readable display
   const formatTimeForDisplay = () => {
-    if (timeElapsed.hours === 0 && timeElapsed.minutes === 0) {
-      return `${timeElapsed.seconds}`;
-    } else if (timeElapsed.hours === 0) {
-      return `${timeElapsed.minutes}m`;
-    } else if (timeElapsed.hours < 24) {
-      return `${timeElapsed.hours}hr ${timeElapsed.minutes}m`;
-    } else {
-      const days = Math.floor(timeElapsed.hours / 24);
-      return days === 1 ? `${days} day` : `${days} days`;
+    let formattedTime = '';
+    
+    if (timeElapsed.days > 0) {
+      formattedTime += `${timeElapsed.days}d `;
     }
+    
+    if (timeElapsed.hours > 0 || timeElapsed.days > 0) {
+      formattedTime += `${timeElapsed.hours}h `;
+    }
+    
+    formattedTime += `${timeElapsed.minutes}m`;
+    
+    return formattedTime;
   };
   
   // Determine if we should show seconds separately
@@ -240,7 +243,7 @@ const MainScreen = () => {
       
       {/* Enhanced green gradient background */}
       <LinearGradient
-        colors={['#0F1A15', '#122A1E', '#0F1A15']}
+        colors={['#143C25', '#1A5032', '#143C25']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -257,7 +260,7 @@ const MainScreen = () => {
           <View style={styles.modalContent}>
             {/* Modal Header with Gradient */}
             <LinearGradient
-              colors={['#4FA65B', '#3D8247']}
+              colors={['#4FA65B', '#45925A']}
               style={styles.modalHeaderGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -285,35 +288,35 @@ const MainScreen = () => {
                 </Text>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="brain" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Ionicons name="brain" size={24} color="#5BBD68" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Improved mental clarity and cognitive function
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="heart" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Ionicons name="heart" size={24} color="#5BBD68" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Better physical health and respiratory function
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="cash" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Ionicons name="cash" size={24} color="#5BBD68" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Financial savings that add up over time
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="people" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Ionicons name="people" size={24} color="#5BBD68" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Stronger relationships and social connections
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="trophy" size={24} color="#4FA65B" style={styles.pledgeIcon} />
+                  <Ionicons name="trophy" size={24} color="#5BBD68" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Sense of accomplishment and self-control
                   </Text>
@@ -350,13 +353,8 @@ const MainScreen = () => {
         />
       )}
       
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 10 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {/* Logo Section */}
+      {/* Header with Logo in top left */}
+      <View style={[styles.headerContainer, { top: insets.top + 10 }]}>
         <View style={styles.logoContainer}>
           <Animated.Image 
             source={require('../../assets/images/broccoli-logo.png')}
@@ -364,13 +362,20 @@ const MainScreen = () => {
           />
           <Text style={styles.logoText}>BROCCOLI</Text>
         </View>
-        
-        {/* Lottie Animation */}
-        <View style={styles.animationContainer}>
+      </View>
+      
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {/* Lottie Animation - Now at the top */}
+        <View style={[styles.animationContainer, { marginTop: insets.top + 55 }]}>
           <LottieAnimation />
         </View>
         
-        {/* Timer Section - More modest size */}
+        {/* Timer Section */}
         <View style={styles.timerSection}>
           <Text style={styles.timerLabel}>You've been cannabis-free for:</Text>
           
@@ -382,11 +387,6 @@ const MainScreen = () => {
               <Text style={styles.largeSecondsText}>{timeElapsed.seconds}</Text>
             )}
             
-            {/* Seconds Label (only for seconds-only mode) */}
-            {shouldShowSecondsOnly() && (
-              <Text style={styles.secondsLabel}>seconds</Text>
-            )}
-            
             {/* Seconds Box (shown only when not in seconds-only mode) */}
             {!shouldShowSecondsOnly() && shouldShowSecondsBox() && (
               <View style={styles.secondsBoxContainer}>
@@ -396,11 +396,11 @@ const MainScreen = () => {
           </View>
           
           <View style={styles.timerSubLabel}>
-            <Ionicons name="leaf" size={16} color="#4FA65B" style={styles.leafIcon} />
+            <Ionicons name="leaf" size={14} color="#5BBD68" style={styles.leafIcon} />
             <Text style={styles.timerLabelText}>Keep going, you're doing great!</Text>
           </View>
           
-          {/* Reset Button - Refined with depth */}
+          {/* Reset Button */}
           <Pressable 
             style={({ pressed }) => [
               styles.resetButton,
@@ -409,7 +409,7 @@ const MainScreen = () => {
             onPress={handleReset}
           >
             <LinearGradient
-              colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.1)']}
+              colors={['rgba(79, 166, 91, 0.3)', 'rgba(79, 166, 91, 0.15)']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
@@ -430,7 +430,7 @@ const MainScreen = () => {
               onPress={() => handleButtonPress(type)}
             >
               <LinearGradient
-                colors={['rgba(79, 166, 91, 0.3)', 'rgba(79, 166, 91, 0.1)']}
+                colors={['rgba(79, 166, 91, 0.4)', 'rgba(79, 166, 91, 0.2)']}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -442,7 +442,7 @@ const MainScreen = () => {
                   type === 'journal' ? 'book' : 'grid'
                 } 
                 size={24} 
-                color="#4FA65B" 
+                color="#5BBD68" 
               />
               <Text style={styles.buttonText}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -516,39 +516,49 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1A15',
+    backgroundColor: '#143C25',
   },
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 200, // Increased padding for tab bar and panic button
   },
-  logoContainer: {
+  headerContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 24,
+    paddingLeft: 20,
+    position: 'absolute',
+    left: 0,
+    zIndex: 10,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   logo: {
-    width: 60,
-    height: 60,
+    width: 35,
+    height: 35,
     resizeMode: 'contain',
   },
   logoText: {
-    fontSize: 18,
+    fontSize: 16,
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
-    marginTop: 8,
-    letterSpacing: 2,
+    marginLeft: 8,
+    letterSpacing: 1,
   },
   animationContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 180,
-    marginBottom: 24,
+    height: 190,
+    marginBottom: 10,
+    width: '100%',
   },
   timerSection: {
     alignItems: 'center',
     marginBottom: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     width: '100%',
   },
   timerDisplay: {
@@ -558,45 +568,48 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   timerLabel: {
-    fontSize: 14,
-    color: colors.text.secondary,
+    fontSize: 15,
+    color: colors.text.primary,
     fontFamily: typography.fonts.medium,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
+    opacity: 1.5,
   },
   humanReadableTime: {
-    fontSize: 38,
+    fontSize: 46,
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
     textAlign: 'center',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(91, 189, 104, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    marginBottom: 4,
   },
   largeSecondsText: {
-    fontSize: 56,
+    fontSize: 60,
     color: colors.text.primary,
     fontFamily: typography.fonts.bold,
-  },
-  secondsLabel: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: typography.fonts.medium,
-    marginTop: 0,
+    textShadowColor: 'rgba(91, 189, 104, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   secondsBoxContainer: {
-    marginTop: 8,
+    marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ scale: 0.7 }],
+    transform: [{ scale: 0.8 }],
   },
   timerSubLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   leafIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   timerLabelText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text.secondary,
     fontFamily: typography.fonts.medium,
   },
@@ -604,22 +617,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    shadowColor: '#4FA65B',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
-    marginTop: 16,
-    width: '80%',
+    marginTop: 10,
+    width: '70%',
   },
   resetButtonBlur: {
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   resetButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text.primary,
     fontFamily: typography.fonts.medium,
   },
@@ -637,10 +650,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(15, 26, 21, 0.7)',
-    shadowColor: '#4FA65B',
+    backgroundColor: 'rgba(20, 60, 37, 0.7)',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -665,9 +678,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -692,9 +705,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -755,14 +768,14 @@ const styles = StyleSheet.create({
     paddingTop: '15%', // Leave top 15% of screen uncovered
   },
   modalContent: {
-    backgroundColor: '#0F1A15',
+    backgroundColor: '#143C25',
     borderRadius: 20,
     width: '95%',
     maxHeight: '85%', // Take up 85% of screen height
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    shadowColor: '#4FA65B',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -774,7 +787,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '100%',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(79, 166, 91, 0.2)',
+    borderBottomColor: 'rgba(91, 189, 104, 0.3)',
   },
   modalTitle: {
     fontSize: 22,
@@ -830,21 +843,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 6,
   },
   pledgeButtonText: {
     color: '#FFFFFF',
     fontSize: 20,
     fontFamily: typography.fonts.bold,
     letterSpacing: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
   modalHeaderGradient: {
     borderTopLeftRadius: 20,

@@ -514,8 +514,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.1)',
   },
   activeButton: {
-    backgroundColor: 'rgba(79,166,91,0.15)',
-    borderColor: 'rgba(79,166,91,0.3)',
+    backgroundColor: 'rgba(91,189,104,0.15)',
+    borderColor: 'rgba(91,189,104,0.3)',
   },
   endButton: {
     backgroundColor: 'rgba(255,75,75,0.15)',
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Bold',
   },
   activeButtonText: {
-    color: 'rgba(79,166,91,0.8)',
+    color: 'rgba(91,189,104,0.8)',
   },
   endButtonText: {
     color: 'rgba(255,75,75,0.8)',
@@ -564,16 +564,16 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   returnButton: {
-    backgroundColor: 'rgba(79,166,91,0.15)',
+    backgroundColor: 'rgba(91,189,104,0.15)',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(79,166,91,0.3)',
+    borderColor: 'rgba(91,189,104,0.3)',
   },
   returnButtonText: {
     fontSize: 18,
-    color: 'rgba(79,166,91,0.8)',
+    color: 'rgba(91,189,104,0.8)',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   durationButtons: {

@@ -8,10 +8,12 @@ import { LeafAnimationProvider } from '../src/context/LeafAnimationContext';
 import { logFirebaseStatus, isFirebaseInitialized } from '../src/utils/firebaseCheck';
 import LoadingScreen from '../src/components/LoadingScreen';
 import PersistentLeafBackground from './components/PersistentLeafBackground';
+import useCachedResources from '../src/hooks/useCachedResources';
 
 export default function Layout() {
   const [firebaseReady, setFirebaseReady] = useState(true); // Start with true to avoid blocking navigation
   const [initAttempts, setInitAttempts] = useState(0);
+  const isLoadingComplete = useCachedResources();
   
   useEffect(() => {
     // Check Firebase initialization status
@@ -50,6 +52,10 @@ export default function Layout() {
     
     checkFirebase();
   }, [initAttempts]);
+
+  if (!isLoadingComplete) {
+    return <LoadingScreen />;
+  }
 
   return (
     <AuthProvider>
@@ -101,52 +107,6 @@ export default function Layout() {
               }} 
             />
 
-            {/* New Onboarding Screens */}
-            <Stack.Screen 
-              name="(onboarding)/good-news"
-              options={{ animation: 'fade' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/personal/age"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/personal/height"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/personal/weight"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/personal/activity"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/analysis/personal"
-              options={{ animation: 'fade' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/usage/frequency"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/analysis/usage"
-              options={{ animation: 'fade' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/usage/amount"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/questions/usage/method"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen 
-              name="(onboarding)/analysis/final"
-              options={{ animation: 'fade' }}
-            />
-
             {/* Main App Screens */}
             <Stack.Screen 
               name="(main)"
@@ -154,40 +114,6 @@ export default function Layout() {
                 animation: 'none',
                 presentation: 'card'
               }}
-            />
-            <Stack.Screen 
-              name="(main)/index" 
-              options={{ 
-                animation: 'fade',
-                presentation: 'card',
-              }} 
-            />
-            <Stack.Screen 
-              name="(main)/recovery" 
-              options={{ 
-                animation: 'slide_from_right',
-                presentation: 'card',
-                gestureEnabled: true,
-                gestureDirection: 'horizontal',
-              }} 
-            />
-            <Stack.Screen 
-              name="(main)/profile" 
-              options={{ 
-                animation: 'slide_from_right',
-                presentation: 'card',
-                gestureEnabled: true,
-                gestureDirection: 'horizontal',
-              }} 
-            />
-            <Stack.Screen 
-              name="(main)/community" 
-              options={{ 
-                animation: 'slide_from_right',
-                presentation: 'card',
-                gestureEnabled: true,
-                gestureDirection: 'horizontal',
-              }} 
             />
 
             {/* Standalone Screens */}
@@ -257,6 +183,6 @@ export default function Layout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A1A', // Fallback background
+    backgroundColor: 'transparent',
   },
 }); 
