@@ -33,6 +33,7 @@ import FlipClock from '../../src/components/FlipClock';
 import SecondsFlipClock from '../../src/components/SecondsFlipClock';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
+import TimerDisplay from '../../src/components/TimerDisplay';
 
 const { width, height } = Dimensions.get('window');
 
@@ -367,65 +368,19 @@ const MainScreen = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Timer Label - Above Lottie */}
-        <Text style={[styles.timerLabel, { marginTop: insets.top + 55, marginBottom: 20 }]}>
+        {/* Timer Label - Above Timer */}
+        <Text style={[styles.timerLabel, { marginTop: insets.top + 35, marginBottom: 16 }]}>
           You've been cannabis-free for:
         </Text>
         
-        {/* Lottie Animation with Timer Side by Side */}
-        <View style={styles.horizontalContainer}>
-          {/* Timer Display on Left - Vertical Layout */}
-          <View style={styles.timerContainer}>
-            {/* Main Timer Display - Units with Labels in Vertical Stack */}
-            <View style={styles.timeUnitsContainer}>
-              {timeElapsed.days > 0 && (
-                <View style={styles.timeUnitWrapper}>
-                  <Text style={styles.timeUnitValue}>{timeElapsed.days}</Text>
-                  <Text style={styles.timeUnitLabel}>days</Text>
-                </View>
-              )}
-              
-              {(timeElapsed.hours > 0 || timeElapsed.days > 0) && (
-                <View style={styles.timeUnitWrapper}>
-                  <Text style={styles.timeUnitValue}>{timeElapsed.hours}</Text>
-                  <Text style={styles.timeUnitLabel}>hours</Text>
-                </View>
-              )}
-              
-              {(timeElapsed.minutes > 0 || timeElapsed.hours > 0 || timeElapsed.days > 0) && (
-                <View style={styles.timeUnitWrapper}>
-                  <Text style={styles.timeUnitValue}>{timeElapsed.minutes}</Text>
-                  <Text style={styles.timeUnitLabel}>minutes</Text>
-                </View>
-              )}
-              
-              <View style={styles.timeUnitWrapper}>
-                <Text style={styles.timeUnitValue}>{timeElapsed.seconds}</Text>
-                <Text style={styles.timeUnitLabel}>seconds</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Lottie Animation on Right */}
-          <View style={styles.lottieContainer}>
-            <LottieAnimation secondsProgress={timeElapsed.seconds}>
-              {/* Reset Icon Button - Now just the icon without background */}
-              <Pressable 
-                style={({ pressed }) => [
-                  styles.resetIconButton,
-                  pressed && { transform: [{ scale: 0.9 }], opacity: 0.5 }
-                ]}
-                onPress={handleReset}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-              >
-                <Ionicons name="refresh" size={32} color="#5BBD68" />
-              </Pressable>
-            </LottieAnimation>
-          </View>
-        </View>
+        {/* New Timer Display */}
+        <TimerDisplay 
+          timeElapsed={timeElapsed}
+          onReset={handleReset}
+        />
         
-        {/* Motivational Text - Below Lottie */}
-        <View style={styles.timerSubLabel}>
+        {/* Motivational Text */}
+        <View style={[styles.timerSubLabel, { marginTop: 12, marginBottom: 32 }]}>
           <Ionicons name="leaf" size={14} color="#5BBD68" style={styles.leafIcon} />
           <Text style={styles.timerLabelText}>Keep going, you're doing great!</Text>
         </View>
@@ -530,7 +485,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 200, // Increased padding for tab bar and panic button
+    paddingBottom: 120, // Reduced padding for better spacing
   },
   headerContainer: {
     width: '100%',
@@ -575,7 +530,7 @@ const styles = StyleSheet.create({
     transform: [{ translateY: 5 }],
   },
   timerLabel: {
-    fontSize: 28,
+    fontSize: 24, // Slightly smaller for better hierarchy
     color: '#000000',
     fontFamily: typography.fonts.bold,
     textAlign: 'center',
@@ -605,7 +560,7 @@ const styles = StyleSheet.create({
   timerSubLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center', // Center the motivational text
   },
   leafIcon: {
     marginRight: 6,
@@ -647,8 +602,8 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 36,
-    marginHorizontal: -6, // Negative margin to offset button padding
+    marginBottom: 32, // Reduced margin
+    marginHorizontal: -6,
   },
   actionButton: {
     width: (width - 72) / 4,
@@ -677,7 +632,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 20, // Reduced margin
   },
   statCard: {
     flex: 1,
@@ -711,7 +666,7 @@ const styles = StyleSheet.create({
   reasonCard: {
     borderRadius: 20,
     padding: 24,
-    marginBottom: 24,
+    marginBottom: 20, // Reduced margin
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(91, 189, 104, 0.4)',
