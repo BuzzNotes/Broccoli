@@ -82,7 +82,7 @@ const LoginScreen = () => {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(tabs)');
+    router.push('/(onboarding)/good-news');
   };
 
   const handleGoToMain = () => {
