@@ -283,12 +283,12 @@ const CommunityScreen = () => {
         
         <View style={styles.postStats}>
           <View style={styles.postStat}>
-            <Ionicons name="heart" size={16} color="#4FA65B" />
+            <Ionicons name="heart" size={16} color="#5BBD68" />
             <Text style={styles.postStatText}>{item.likeCount || 0}</Text>
           </View>
           
           <View style={styles.postStat}>
-            <Ionicons name="chatbubble" size={16} color="#4FA65B" />
+            <Ionicons name="chatbubble" size={16} color="#5BBD68" />
             <Text style={styles.postStatText}>{item.commentCount || 0}</Text>
           </View>
         </View>
@@ -301,7 +301,7 @@ const CommunityScreen = () => {
     
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#4FA65B" />
+        <ActivityIndicator size="small" color="#5BBD68" />
       </View>
     );
   };
@@ -313,7 +313,7 @@ const CommunityScreen = () => {
       <View style={styles.emptyContainer}>
         {firebaseError ? (
           <>
-            <Ionicons name="cloud-offline" size={64} color="#4FA65B" />
+            <Ionicons name="cloud-offline" size={64} color="#5BBD68" />
             <Text style={styles.emptyTitle}>Connection Error</Text>
             <Text style={styles.emptyText}>
               Could not connect to the community server. Please check your internet connection and try again.
@@ -322,16 +322,37 @@ const CommunityScreen = () => {
               style={styles.retryButton}
               onPress={() => loadPosts(true)}
             >
+              <LinearGradient
+                colors={['#5BBD68', '#45925A']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                borderRadius={24}
+              />
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
-            <Ionicons name="people" size={64} color="#4FA65B" />
+            <Ionicons name="people" size={64} color="#5BBD68" />
             <Text style={styles.emptyTitle}>No Posts Yet</Text>
             <Text style={styles.emptyText}>
               Be the first to share your journey with the community!
             </Text>
+            <TouchableOpacity 
+              style={styles.createFirstPostButton}
+              onPress={handleCreatePost}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#5BBD68', '#45925A']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                borderRadius={24}
+              />
+              <Text style={styles.createFirstPostText}>Create First Post</Text>
+            </TouchableOpacity>
           </>
         )}
       </View>
@@ -340,15 +361,12 @@ const CommunityScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       
-      {/* Enhanced green gradient background */}
-      <LinearGradient
-        colors={['#0F1A15', '#122A1E', '#0F1A15']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* White background */}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
+      </View>
       
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.screenTitle}>Community</Text>
@@ -358,13 +376,20 @@ const CommunityScreen = () => {
           activeOpacity={0.8}
           onPress={handleCreatePost}
         >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
+          <LinearGradient
+            colors={['rgba(91, 189, 104, 0.2)', 'rgba(91, 189, 104, 0.1)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            borderRadius={20}
+          />
+          <Ionicons name="add" size={24} color="#5BBD68" />
         </TouchableOpacity>
       </View>
       
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4FA65B" />
+          <ActivityIndicator size="large" color="#5BBD68" />
           <Text style={styles.loadingText}>Loading posts...</Text>
         </View>
       ) : (
@@ -378,8 +403,8 @@ const CommunityScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#4FA65B"
-              colors={["#4FA65B"]}
+              tintColor="#5BBD68"
+              colors={["#5BBD68"]}
             />
           }
           ListEmptyComponent={renderEmptyComponent}
@@ -396,7 +421,7 @@ const CommunityScreen = () => {
           onPress={handleCreatePost}
         >
           <LinearGradient
-            colors={['#4FA65B', '#3D8549']}
+            colors={['#5BBD68', '#45925A']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -412,7 +437,7 @@ const CommunityScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1A15',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -422,19 +447,25 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   screenTitle: {
-    fontSize: 28,
-    color: colors.text.primary,
+    fontSize: 32,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
   },
   createPostButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(79, 166, 91, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#5BBD68',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   loadingContainer: {
     flex: 1,
@@ -444,83 +475,78 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   listContent: {
     paddingHorizontal: 24,
-    paddingBottom: 100, // Extra padding for tab bar
+    paddingBottom: 100,
   },
   postCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 16,
+    padding: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    shadowColor: '#4FA65B',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingBottom: 12,
+    marginBottom: 12,
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  postHeaderInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   userAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.5)',
+    borderColor: 'rgba(91, 189, 104, 0.5)',
   },
   userName: {
-    fontSize: 14,
-    color: colors.text.primary,
-    fontFamily: typography.fonts.medium,
+    fontSize: 16,
+    color: '#000000',
+    fontFamily: typography.fonts.bold,
   },
   postTime: {
     fontSize: 12,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
-  },
-  postContent: {
-    padding: 16,
-    paddingTop: 0,
   },
   postTitle: {
     fontSize: 18,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 8,
   },
   postBody: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
     lineHeight: 20,
+    marginBottom: 12,
   },
   postImage: {
     width: '100%',
     height: 180,
     borderRadius: 12,
-    marginTop: 12,
+    marginBottom: 12,
   },
-  postFooter: {
+  postStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   postStat: {
     flexDirection: 'row',
@@ -529,15 +555,9 @@ const styles = StyleSheet.create({
   },
   postStatText: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
     marginLeft: 4,
-  },
-  lastActivityText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    fontFamily: typography.fonts.regular,
-    marginLeft: 'auto',
   },
   floatingButton: {
     position: 'absolute',
@@ -548,7 +568,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -559,49 +579,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 60,
   },
-  emptyText: {
-    fontSize: 18,
-    color: colors.text.primary,
-    fontFamily: typography.fonts.bold,
-    marginTop: 16,
-  },
-  emptySubText: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    fontFamily: typography.fonts.regular,
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  emptyButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  emptyButtonText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: typography.fonts.bold,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  errorText: {
+  emptyTitle: {
     fontSize: 20,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginTop: 16,
+    marginBottom: 8,
   },
-  errorSubText: {
-    fontSize: 14,
-    color: colors.text.secondary,
+  emptyText: {
+    fontSize: 16,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
-    marginTop: 8,
     marginBottom: 24,
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
   retryButton: {
     paddingVertical: 12,
@@ -614,15 +605,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: typography.fonts.bold,
   },
+  createFirstPostButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  createFirstPostText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+  },
   footerLoader: {
     padding: 16,
     alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 20,
-    color: colors.text.primary,
-    fontFamily: typography.fonts.bold,
-    marginTop: 16,
   },
 });
 

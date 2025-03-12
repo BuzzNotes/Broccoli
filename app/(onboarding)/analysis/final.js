@@ -139,15 +139,85 @@ const FinalAnalysis = () => {
   const handleContinue = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push('/(onboarding)/symptoms');
+      router.push('/(onboarding)/education');
     } catch (error) {
       console.error('Error:', error);
     }
   };
 
-  const userScore = 52;
-  const averageScore = 13;
+  // Calculate user's addiction score based on their answers
+  const calculateAddictionScore = () => {
+    // Get all addiction-related answers
+    const addictionKeys = [
+      'addiction_frequency',
+      'addiction_duration',
+      'addiction_increased',
+      'addiction_anxiety',
+      'addiction_memory',
+      'addiction_other_substances',
+      'addiction_gender', // This has a score of 0 for all options
+      'addiction_stress',
+      'addiction_boredom',
+      'addiction_money'
+    ];
+    
+    // Maximum possible score calculation
+    // frequency (4) + duration (4) + increased (1) + anxiety (3) + memory (3) + 
+    // other_substances (1) + gender (0) + stress (3) + boredom (3) + money (1) = 23
+    const maxPossibleScore = 23;
+    
+    // Sum up the scores from all answers
+    let totalScore = 0;
+    let answeredQuestions = 0;
+    
+    addictionKeys.forEach(key => {
+      if (answers[key] && typeof answers[key].score === 'number') {
+        totalScore += answers[key].score;
+        answeredQuestions++;
+      }
+    });
+    
+    // If user hasn't answered any questions, return a default score
+    if (answeredQuestions === 0) {
+      return 50; // Default score if no questions answered
+    }
+    
+    // Calculate percentage of maximum possible score
+    return Math.round((totalScore / maxPossibleScore) * 100);
+  };
+
+  // Calculate the user's score
+  const userScore = calculateAddictionScore();
+  
+  // Average score for comparison (this would typically come from real data)
+  const averageScore = 35;
+  
+  // Calculate the difference for display
   const difference = userScore - averageScore;
+
+  // Get a dynamic result message based on the user's score
+  const getResultMessage = (score) => {
+    if (score >= 80) {
+      return "Your responses indicate a severe\ndependence on cannabis*";
+    } else if (score >= 60) {
+      return "Your responses indicate a significant\ndependence on cannabis*";
+    } else if (score >= 40) {
+      return "Your responses indicate a moderate\ndependence on cannabis*";
+    } else if (score >= 20) {
+      return "Your responses indicate a mild\ndependence on cannabis*";
+    } else {
+      return "Your responses indicate a minimal\ndependence on cannabis*";
+    }
+  };
+
+  // Get a dynamic comparison text based on the difference
+  const getComparisonText = (diff) => {
+    if (diff <= 0) {
+      return `${Math.abs(diff)}% lower dependence than average`;
+    } else {
+      return `${diff}% higher dependence than average`;
+    }
+  };
 
   if (loading) {
     return (
@@ -185,13 +255,16 @@ const FinalAnalysis = () => {
         <Text style={styles.subtitle}>We've got some news to break to you...</Text>
 
         <Text style={styles.resultText}>
-          Your responses indicate a clear{'\n'}dependence on cannabis*
+          {getResultMessage(userScore)}
         </Text>
 
         <BarChart userScore={userScore} averageScore={averageScore} />
 
-        <Text style={styles.comparisonText}>
-          {difference}% higher dependence on cannabis
+        <Text style={[
+          styles.comparisonText, 
+          { color: difference <= 0 ? '#4FA65B' : '#FF4B4B' }
+        ]}>
+          {getComparisonText(difference)}
         </Text>
 
         <Text style={styles.disclaimer}>
@@ -205,7 +278,7 @@ const FinalAnalysis = () => {
           ]}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Check your symptoms</Text>
+          <Text style={styles.buttonText}>Learn about cannabis</Text>
           <Ionicons name="arrow-forward" size={20} color="white" />
         </Pressable>
       </Animated.View>

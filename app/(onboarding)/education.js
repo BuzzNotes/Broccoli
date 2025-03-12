@@ -27,28 +27,10 @@ const slides = [
     backgroundColor: [199, 74, 57],
   },
   {
-    title: 'Feeling unhappy?',
-    text: 'Regular cannabis use disrupts your brain\'s natural chemical balance, leading to increased anxiety and depression when not using.',
-    image: require('../Graphics/SadBrain.jpg'),
-    backgroundColor: [200, 62, 59],
-  },
-  {
-    title: 'We\'re here to help',
-    text: 'Broccoli is your companion on the journey to sobriety. We\'ll keep you accountable and help you become the best version of yourself.',
-    image: require('../Graphics/PeacefulBrain.jpg'),
-    backgroundColor: [85, 92, 118],
-  },
-  {
-    title: 'Boost your brain!',
-    text: 'Your brain has an amazing ability to heal. By staying sober, you\'ll regain mental clarity and emotional balance.',
-    image: require('../Graphics/RocketBrain.jpg'),
-    backgroundColor: [67, 62, 80],
-  },
-  {
     title: 'Let\'s get started!',
     text: 'Congratulations on taking the first step toward sobriety! Your journey to a clearer mind begins now.',
     image: require('../Graphics/CelebrationBrain.jpg'),
-    backgroundColor: [114, 173, 129],
+    backgroundColor: [114, 173, 129], // Green color
   },
 ];
 
@@ -157,7 +139,7 @@ const EducationScreen = () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       if (isLastSlide) {
-        router.replace('/(onboarding)/benefits');
+        router.replace('/(onboarding)/rating');
         return;
       }
 
@@ -313,7 +295,7 @@ const EducationScreen = () => {
               disabled={isTransitioning}
             >
               <Text style={styles.buttonText}>
-                {isLastSlide ? 'See my plan' : 'Next'}
+                {isLastSlide ? 'Start my journey' : 'Next'}
               </Text>
               <Ionicons name="arrow-forward" size={20} color="black" />
             </Pressable>

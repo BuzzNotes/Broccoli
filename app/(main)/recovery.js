@@ -38,10 +38,10 @@ const RecoveryScreen = () => {
             <View style={styles.statsContainer}>
               <View style={styles.statCard}>
                 <LinearGradient
-                  colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                  style={StyleSheet.absoluteFill}
+                  colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
+                  style={[StyleSheet.absoluteFill, styles.cardGradient]}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 0, y: 1 }}
                 />
                 <Text style={styles.statLabel}>Current Streak</Text>
                 <Text style={styles.statValue}>7 days</Text>
@@ -49,10 +49,10 @@ const RecoveryScreen = () => {
               
               <View style={styles.statCard}>
                 <LinearGradient
-                  colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                  style={StyleSheet.absoluteFill}
+                  colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
+                  style={[StyleSheet.absoluteFill, styles.cardGradient]}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 0, y: 1 }}
                 />
                 <Text style={styles.statLabel}>Money Saved</Text>
                 <Text style={styles.statValue}>$120</Text>
@@ -61,10 +61,10 @@ const RecoveryScreen = () => {
             
             <View style={styles.milestoneCard}>
               <LinearGradient
-                colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                style={StyleSheet.absoluteFill}
+                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
+                style={[StyleSheet.absoluteFill, styles.cardGradient]}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0, y: 1 }}
               />
               <Text style={styles.cardTitle}>Next Milestone</Text>
               <View style={styles.milestoneProgress}>
@@ -77,22 +77,22 @@ const RecoveryScreen = () => {
             
             <View style={styles.benefitsCard}>
               <LinearGradient
-                colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                style={StyleSheet.absoluteFill}
+                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
+                style={[StyleSheet.absoluteFill, styles.cardGradient]}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0, y: 1 }}
               />
               <Text style={styles.cardTitle}>Benefits You're Experiencing</Text>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#4FA65B" />
+                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
                 <Text style={styles.benefitText}>Improved lung function</Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#4FA65B" />
+                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
                 <Text style={styles.benefitText}>Better sleep quality</Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#4FA65B" />
+                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
                 <Text style={styles.benefitText}>Increased mental clarity</Text>
               </View>
             </View>
@@ -101,31 +101,23 @@ const RecoveryScreen = () => {
       case 'journal':
         return (
           <View style={styles.tabContent}>
-            <View style={styles.journalCard}>
-              <LinearGradient
-                colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              />
-              <Text style={styles.cardTitle}>Your Journal</Text>
-              <Text style={styles.journalPrompt}>Record your thoughts and feelings about your cannabis-free journey.</Text>
-              
-              <TouchableOpacity style={styles.addEntryButton} activeOpacity={0.8}>
+            <View style={styles.journalHeader}>
+              <Text style={styles.journalTitle}>My Recovery Journal</Text>
+              <TouchableOpacity style={styles.addButton}>
                 <LinearGradient
-                  colors={['rgba(79, 166, 91, 0.3)', 'rgba(79, 166, 91, 0.1)']}
+                  colors={['#5BBD68', '#45925A']}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 />
-                <Text style={styles.addEntryText}>Add New Entry</Text>
+                <Ionicons name="add" size={24} color="white" />
               </TouchableOpacity>
             </View>
             
             <View style={styles.emptyJournal}>
-              <Ionicons name="book-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
+              <Ionicons name="book-outline" size={64} color="#5BBD68" />
               <Text style={styles.emptyText}>No journal entries yet</Text>
-              <Text style={styles.emptySubtext}>Start documenting your journey today</Text>
+              <Text style={styles.emptySubtext}>Start documenting your recovery journey</Text>
             </View>
           </View>
         );
@@ -134,38 +126,38 @@ const RecoveryScreen = () => {
           <View style={styles.tabContent}>
             <View style={styles.resourceCard}>
               <LinearGradient
-                colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
-                style={StyleSheet.absoluteFill}
+                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
+                style={[StyleSheet.absoluteFill, styles.cardGradient]}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                end={{ x: 0, y: 1 }}
               />
               <Text style={styles.cardTitle}>Helpful Resources</Text>
               
-              <TouchableOpacity style={styles.resourceItem} activeOpacity={0.7}>
-                <Ionicons name="document-text" size={24} color="#4FA65B" />
+              <TouchableOpacity style={styles.resourceItem}>
+                <Ionicons name="document-text" size={32} color="#5BBD68" />
                 <View style={styles.resourceInfo}>
                   <Text style={styles.resourceTitle}>Cannabis Withdrawal Guide</Text>
-                  <Text style={styles.resourceDesc}>Learn about common symptoms and how to manage them</Text>
+                  <Text style={styles.resourceDesc}>Learn what to expect during withdrawal</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.resourceItem} activeOpacity={0.7}>
-                <Ionicons name="people" size={24} color="#4FA65B" />
+              <TouchableOpacity style={styles.resourceItem}>
+                <Ionicons name="people" size={32} color="#5BBD68" />
                 <View style={styles.resourceInfo}>
-                  <Text style={styles.resourceTitle}>Support Communities</Text>
+                  <Text style={styles.resourceTitle}>Support Groups</Text>
                   <Text style={styles.resourceDesc}>Connect with others on the same journey</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.resourceItem} activeOpacity={0.7}>
-                <Ionicons name="fitness" size={24} color="#4FA65B" />
+              <TouchableOpacity style={styles.resourceItem}>
+                <Ionicons name="fitness" size={32} color="#5BBD68" />
                 <View style={styles.resourceInfo}>
-                  <Text style={styles.resourceTitle}>Healthy Alternatives</Text>
-                  <Text style={styles.resourceDesc}>Activities to replace cannabis use</Text>
+                  <Text style={styles.resourceTitle}>Healthy Habits Guide</Text>
+                  <Text style={styles.resourceDesc}>Replace cannabis with positive activities</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
               </TouchableOpacity>
             </View>
           </View>
@@ -177,44 +169,43 @@ const RecoveryScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       
-      {/* Enhanced green gradient background */}
-      <LinearGradient
-        colors={['#0F1A15', '#122A1E', '#0F1A15']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* White background */}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
+      </View>
       
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 20 }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.screenTitle}>Recovery</Text>
         
         {/* Tab Navigation */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'progress' && styles.activeTab]} 
-            onPress={() => setActiveTab('progress')}
-          >
-            <Text style={[styles.tabText, activeTab === 'progress' && styles.activeTabText]}>Progress</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'journal' && styles.activeTab]} 
-            onPress={() => setActiveTab('journal')}
-          >
-            <Text style={[styles.tabText, activeTab === 'journal' && styles.activeTabText]}>Journal</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'resources' && styles.activeTab]} 
-            onPress={() => setActiveTab('resources')}
-          >
-            <Text style={[styles.tabText, activeTab === 'resources' && styles.activeTabText]}>Resources</Text>
-          </TouchableOpacity>
+          {['progress', 'journal', 'resources'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                styles.tabButton,
+                activeTab === tab && styles.activeTabButton
+              ]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.activeTabText
+                ]}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
         
         {/* Tab Content */}
@@ -227,15 +218,15 @@ const RecoveryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1A15',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 120, // Extra padding for tab bar
+    paddingBottom: 100,
   },
   screenTitle: {
-    fontSize: 28,
-    color: colors.text.primary,
+    fontSize: 32,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 24,
   },
@@ -243,29 +234,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 24,
     borderRadius: 16,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(91, 189, 104, 0.1)',
+    padding: 4,
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.2)',
   },
-  tab: {
+  tabButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
+    borderRadius: 12,
   },
-  activeTab: {
-    backgroundColor: 'rgba(79, 166, 91, 0.2)',
+  activeTabButton: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#5BBD68',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabText: {
-    fontSize: 14,
-    color: colors.text.secondary,
+    fontSize: 16,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   activeTabText: {
-    color: colors.text.primary,
+    color: '#5BBD68',
     fontFamily: typography.fonts.bold,
   },
   tabContent: {
-    marginBottom: 20,
+    marginTop: 8,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -279,23 +277,26 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
+  },
+  cardGradient: {
+    borderRadius: 20,
   },
   statLabel: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     marginBottom: 12,
-    fontFamily: typography.fonts.medium,
   },
   statValue: {
     fontSize: 24,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
   },
   milestoneCard: {
@@ -304,17 +305,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   cardTitle: {
     fontSize: 18,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 16,
   },
@@ -323,19 +325,19 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(91, 189, 104, 0.2)',
     borderRadius: 4,
     marginBottom: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4FA65B',
+    backgroundColor: '#5BBD68',
     borderRadius: 4,
   },
   milestoneText: {
-    fontSize: 14,
-    color: colors.text.secondary,
+    fontSize: 16,
+    color: '#000000',
     fontFamily: typography.fonts.medium,
   },
   benefitsCard: {
@@ -344,13 +346,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   benefitItem: {
     flexDirection: 'row',
@@ -359,44 +362,33 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 16,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.medium,
     marginLeft: 12,
   },
-  journalCard: {
-    borderRadius: 20,
-    padding: 24,
+  journalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    position: 'relative',
-    shadowColor: '#4FA65B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  journalPrompt: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    fontFamily: typography.fonts.regular,
-    marginBottom: 20,
-    lineHeight: 22,
+  journalTitle: {
+    fontSize: 20,
+    color: '#000000',
+    fontFamily: typography.fonts.bold,
   },
-  addEntryButton: {
-    height: 50,
-    borderRadius: 25,
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-  },
-  addEntryText: {
-    fontSize: 16,
-    color: colors.text.primary,
-    fontFamily: typography.fonts.bold,
+    shadowColor: '#5BBD68',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   emptyJournal: {
     alignItems: 'center',
@@ -405,13 +397,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: '#999999',
     fontFamily: typography.fonts.regular,
     marginTop: 8,
   },
@@ -421,20 +413,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   resourceItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   resourceInfo: {
     flex: 1,
@@ -442,13 +435,13 @@ const styles = StyleSheet.create({
   },
   resourceTitle: {
     fontSize: 16,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 4,
   },
   resourceDesc: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
   },
 });

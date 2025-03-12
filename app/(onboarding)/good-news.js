@@ -201,7 +201,7 @@ export default function GoodNewsScreen() {
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(onboarding)/questions/personal/age');
+    router.push('/(onboarding)/questions/addiction/frequency');
   };
 
   return (

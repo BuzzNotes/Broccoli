@@ -149,7 +149,7 @@ const ProfileScreen = () => {
     if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#4FA65B" size="large" />
+          <ActivityIndicator color="#5BBD68" size="large" />
           <Text style={styles.loadingText}>Loading data...</Text>
       </View>
   );
@@ -158,7 +158,7 @@ const ProfileScreen = () => {
     if (chartData.length === 0) {
   return (
         <View style={styles.emptyChartContainer}>
-          <Ionicons name="analytics-outline" size={48} color="rgba(255, 255, 255, 0.3)" />
+          <Ionicons name="analytics-outline" size={48} color="rgba(0, 0, 0, 0.3)" />
           <Text style={styles.emptyChartText}>No data for this period</Text>
         </View>
       );
@@ -202,7 +202,7 @@ const ProfileScreen = () => {
           y1={paddingTop} 
           x2={paddingLeft} 
           y2={paddingTop + graphHeight} 
-          stroke="rgba(255, 255, 255, 0.2)" 
+          stroke="rgba(0, 0, 0, 0.2)" 
           strokeWidth="1" 
         />
         
@@ -212,7 +212,7 @@ const ProfileScreen = () => {
           y1={paddingTop + graphHeight} 
           x2={paddingLeft + graphWidth} 
           y2={paddingTop + graphHeight} 
-          stroke="rgba(255, 255, 255, 0.2)" 
+          stroke="rgba(0, 0, 0, 0.2)" 
           strokeWidth="1" 
         />
         
@@ -226,14 +226,14 @@ const ProfileScreen = () => {
                 y1={y} 
                 x2={paddingLeft} 
                 y2={y} 
-                stroke="rgba(255, 255, 255, 0.2)" 
+                stroke="rgba(0, 0, 0, 0.2)" 
                 strokeWidth="1" 
               />
               <SvgText 
                 x={paddingLeft - 10} 
                 y={y + 4} 
                 textAnchor="end" 
-                fill="rgba(255, 255, 255, 0.6)" 
+                fill="rgba(0, 0, 0, 0.6)" 
                 fontSize="12"
               >
                 {value}
@@ -251,7 +251,7 @@ const ProfileScreen = () => {
               x={x} 
               y={paddingTop + graphHeight + 20} 
               textAnchor="middle" 
-              fill="rgba(255, 255, 255, 0.6)" 
+              fill="rgba(0, 0, 0, 0.6)" 
               fontSize="12"
             >
               {point.label}
@@ -262,7 +262,7 @@ const ProfileScreen = () => {
         {/* Line path */}
         <Path 
           d={pathD} 
-          stroke="#007AFF" 
+          stroke="#5BBD68" 
           strokeWidth="2" 
           fill="none" 
         />
@@ -277,7 +277,7 @@ const ProfileScreen = () => {
               cx={x} 
               cy={y} 
               r="4" 
-              fill="#007AFF" 
+              fill="#5BBD68" 
               stroke="#FFFFFF" 
               strokeWidth="2" 
             />
@@ -353,15 +353,12 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       
-      {/* Enhanced green gradient background */}
-      <LinearGradient
-        colors={['#0F1A15', '#122A1E', '#0F1A15']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* White background instead of green gradient */}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
+      </View>
       
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
@@ -372,10 +369,10 @@ const ProfileScreen = () => {
         {/* User Profile Section */}
         <View style={styles.profileCard}>
           <LinearGradient
-            colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
+            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
           />
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
@@ -431,10 +428,10 @@ const ProfileScreen = () => {
         {/* Relapse Tracking Chart */}
         <View style={styles.chartCard}>
           <LinearGradient
-            colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
+            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
           />
           
           {/* Time frame selector */}
@@ -518,51 +515,51 @@ const ProfileScreen = () => {
         {/* Settings Section */}
         <View style={styles.settingsCard}>
           <LinearGradient
-            colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
+            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
           />
           <Text style={styles.cardTitle}>Settings</Text>
           
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
-              <Ionicons name="notifications" size={24} color="#4FA65B" />
+              <Ionicons name="notifications" size={24} color="#5BBD68" />
               <Text style={styles.settingText}>Push Notifications</Text>
             </View>
             <Switch
               value={notifications}
               onValueChange={toggleNotifications}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(79, 166, 91, 0.5)' }}
-              thumbColor={notifications ? '#4FA65B' : '#f4f3f4'}
+              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
+              thumbColor={notifications ? '#5BBD68' : '#f4f3f4'}
               ios_backgroundColor="#3e3e3e"
-        />
-      </View>
+            />
+          </View>
 
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
-              <Ionicons name="moon" size={24} color="#4FA65B" />
+              <Ionicons name="moon" size={24} color="#5BBD68" />
               <Text style={styles.settingText}>Dark Mode</Text>
             </View>
             <Switch
               value={darkMode}
               onValueChange={toggleDarkMode}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(79, 166, 91, 0.5)' }}
-              thumbColor={darkMode ? '#4FA65B' : '#f4f3f4'}
+              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
+              thumbColor={darkMode ? '#5BBD68' : '#f4f3f4'}
               ios_backgroundColor="#3e3e3e"
             />
           </View>
           
           <View style={styles.settingItem}>
             <View style={styles.settingInfo}>
-              <Ionicons name="time" size={24} color="#4FA65B" />
+              <Ionicons name="time" size={24} color="#5BBD68" />
               <Text style={styles.settingText}>Daily Reminders</Text>
             </View>
             <Switch
               value={reminders}
               onValueChange={toggleReminders}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(79, 166, 91, 0.5)' }}
-              thumbColor={reminders ? '#4FA65B' : '#f4f3f4'}
+              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
+              thumbColor={reminders ? '#5BBD68' : '#f4f3f4'}
               ios_backgroundColor="#3e3e3e"
             />
           </View>
@@ -571,29 +568,29 @@ const ProfileScreen = () => {
       {/* Support Section */}
         <View style={styles.supportCard}>
           <LinearGradient
-            colors={['rgba(79, 166, 91, 0.2)', 'rgba(79, 166, 91, 0.05)']}
+            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0, y: 1 }}
           />
           <Text style={styles.cardTitle}>Support</Text>
           
           <TouchableOpacity style={styles.supportItem} activeOpacity={0.7}>
-            <Ionicons name="help-circle" size={24} color="#4FA65B" />
+            <Ionicons name="help-circle" size={24} color="#5BBD68" />
             <Text style={styles.supportText}>Help Center</Text>
-            <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+            <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.supportItem} activeOpacity={0.7}>
-            <Ionicons name="chatbubble-ellipses" size={24} color="#4FA65B" />
+            <Ionicons name="chatbubble-ellipses" size={24} color="#5BBD68" />
             <Text style={styles.supportText}>Contact Support</Text>
-            <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+            <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
           </TouchableOpacity>
           
           <TouchableOpacity style={[styles.supportItem, { borderBottomWidth: 0 }]} activeOpacity={0.7}>
-            <Ionicons name="star" size={24} color="#4FA65B" />
+            <Ionicons name="star" size={24} color="#5BBD68" />
             <Text style={styles.supportText}>Rate the App</Text>
-            <Ionicons name="chevron-forward" size={20} color="#4FA65B" />
+            <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
           </TouchableOpacity>
       </View>
 
@@ -622,7 +619,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F1A15',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -630,7 +627,7 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: 28,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 24,
   },
@@ -638,14 +635,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
     marginBottom: 24,
+    backgroundColor: '#FFFFFF',
   },
   profileHeader: {
     flexDirection: 'row',
@@ -661,13 +659,13 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#4FA65B',
+    borderColor: '#5BBD68',
   },
   editAvatarButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#4FA65B',
+    backgroundColor: '#5BBD68',
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -684,31 +682,31 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 20,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
     marginBottom: 4,
   },
   userAge: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.regular,
     marginBottom: 12,
   },
   editProfileButton: {
-    backgroundColor: 'rgba(79, 166, 91, 0.2)',
+    backgroundColor: 'rgba(91, 189, 104, 0.1)',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
-    shadowColor: '#4FA65B',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -716,7 +714,7 @@ const styles = StyleSheet.create({
   },
   editProfileText: {
     fontSize: 14,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.medium,
   },
   statsRow: {
@@ -731,13 +729,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 22,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   statDivider: {
@@ -751,17 +749,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   timeFrameContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderRadius: 20,
     padding: 4,
     marginTop: 16,
@@ -775,15 +774,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   timeFrameButtonActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(91, 189, 104, 0.2)',
   },
   timeFrameText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   timeFrameTextActive: {
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
   },
   totalRelapsesContainer: {
@@ -792,12 +791,12 @@ const styles = StyleSheet.create({
   },
   totalRelapsesNumber: {
     fontSize: 36,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
   },
   totalRelapsesLabel: {
     fontSize: 16,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
     marginTop: 4,
   },
@@ -837,7 +836,7 @@ const styles = StyleSheet.create({
   },
   revertText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   settingsCard: {
@@ -846,17 +845,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   cardTitle: {
     fontSize: 18,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.bold,
     marginBottom: 16,
   },
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   settingInfo: {
     flexDirection: 'row',
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 16,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.medium,
     marginLeft: 16,
   },
@@ -884,25 +884,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(79, 166, 91, 0.3)',
+    borderColor: 'rgba(91, 189, 104, 0.4)',
     position: 'relative',
-    shadowColor: '#4FA65B',
+    shadowColor: '#5BBD68',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   supportItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   supportText: {
     flex: 1,
     fontSize: 16,
-    color: colors.text.primary,
+    color: '#000000',
     fontFamily: typography.fonts.medium,
     marginLeft: 16,
   },
@@ -921,6 +922,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+    backgroundColor: '#FFFFFF',
   },
   logoutIcon: {
     marginRight: 8,
@@ -932,7 +934,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(0, 0, 0, 0.5)',
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: typography.fonts.regular,
@@ -944,7 +946,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
     marginTop: 8,
   },
@@ -955,7 +957,7 @@ const styles = StyleSheet.create({
   },
   emptyChartText: {
     fontSize: 16,
-    color: colors.text.secondary,
+    color: '#666666',
     fontFamily: typography.fonts.medium,
     marginTop: 12,
   },
