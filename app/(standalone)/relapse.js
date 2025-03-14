@@ -68,9 +68,9 @@ const RelapseScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" />
       
-      {/* White background */}
+      {/* Off-white background */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={{flex: 1, backgroundColor: '#FFFFFF'}} />
+        <View style={{flex: 1, backgroundColor: '#F8F9FA'}} />
       </View>
       
       {/* Header */}
@@ -138,7 +138,7 @@ const RelapseScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -148,6 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: '#F8F9FA',
   },
   closeButton: {
     width: 40,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reasonInput: {
-    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     color: '#333333',
@@ -210,6 +211,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: 'rgba(76, 175, 80, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   resetButton: {
     height: 56,
@@ -246,6 +252,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(76, 175, 80, 0.2)',
     backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   cancelButtonText: {
     color: '#4CAF50',

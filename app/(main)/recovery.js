@@ -143,12 +143,7 @@ const RecoveryScreen = () => {
       
       {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
-        <LinearGradient
-          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
-          style={{flex: 1}}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 0.6 }}
-        />
+        <View style={{flex: 1, backgroundColor: '#FCFCFC'}} />
       </View>
       
       {/* Header with title */}
@@ -231,10 +226,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 24,
     borderRadius: 16,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: '#FFFFFF',
     padding: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.2)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabButton: {
     flex: 1,
@@ -244,11 +242,13 @@ const styles = StyleSheet.create({
   },
   activeTabButton: {
     backgroundColor: '#FFFFFF',
-    shadowColor: 'rgba(76, 175, 80, 0.3)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.2)',
   },
   tabText: {
     fontSize: 15,

@@ -549,9 +549,9 @@ const MainScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* Solid background instead of gradient */}
+      {/* Off-white background instead of pure white */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={{flex: 1, backgroundColor: '#FFFFFF'}} />
+        <View style={{flex: 1, backgroundColor: '#F8F9FA'}} />
       </View>
       
       {/* Pledge Modal */}
@@ -923,6 +923,7 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -1076,9 +1077,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: 12,
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 1,
     shadowRadius: 4,
     elevation: 3,
     position: 'relative',
@@ -1245,9 +1246,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 1,
     shadowRadius: 4,
     elevation: 3,
   },

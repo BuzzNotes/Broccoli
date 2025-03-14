@@ -367,12 +367,7 @@ const CommunityScreen = () => {
       
       {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
-        <LinearGradient
-          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
-          style={{flex: 1}}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 0.6 }}
-        />
+        <View style={{flex: 1, backgroundColor: '#FCFCFC'}} />
       </View>
       
       {/* Header with title */}
