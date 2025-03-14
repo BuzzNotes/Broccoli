@@ -344,9 +344,9 @@ const MainScreen = () => {
   
   // Handle refresh button press in
   const handleRefreshPressIn = () => {
-    refreshButtonScale.value = withSpring(0.92, {
-      damping: 10,
-      stiffness: 200,
+    refreshButtonScale.value = withSpring(0.9, {
+      damping: 12,
+      stiffness: 220,
     });
   };
   
@@ -699,6 +699,10 @@ const MainScreen = () => {
                     <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
                     <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
                   </SvgGradient>
+                  <SvgGradient id="resetButtonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#F5F5F5" stopOpacity="1" />
+                  </SvgGradient>
                 </Defs>
                 
                 {/* Outer glow effect with animation */}
@@ -738,14 +742,23 @@ const MainScreen = () => {
                   transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
                 />
                 
-                {/* Center Icon Container with improved shadow */}
+                {/* Center button shadow */}
+                <Circle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={STROKE_WIDTH * 1.85}
+                  fill="rgba(0, 0, 0, 0.03)"
+                  stroke="transparent"
+                />
+                
+                {/* Center Icon Container with improved design */}
                 <Circle
                   cx={CIRCLE_SIZE / 2}
                   cy={CIRCLE_SIZE / 2}
                   r={STROKE_WIDTH * 1.8}
-                  fill="url(#buttonGradient)"
-                  stroke="rgba(76, 175, 80, 0.15)"
-                  strokeWidth={2}
+                  fill="url(#resetButtonGradient)"
+                  stroke="rgba(76, 175, 80, 0.2)"
+                  strokeWidth={1}
                 />
               </Svg>
               
@@ -758,7 +771,7 @@ const MainScreen = () => {
                 activeOpacity={0.9}
               >
                 <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
-                  <Ionicons name="refresh" size={28} color="#4CAF50" />
+                  <Ionicons name="refresh" size={22} color="#4CAF50" />
                 </Animated.View>
               </TouchableOpacity>
             </Animated.View>
@@ -1028,16 +1041,9 @@ const styles = StyleSheet.create({
     width: STROKE_WIDTH * 3.6,
     height: STROKE_WIDTH * 3.6,
     borderRadius: STROKE_WIDTH * 1.8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.2)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.1)',
   },
   sectionHeader: {
     marginBottom: 15,
