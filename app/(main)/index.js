@@ -10,7 +10,8 @@ import {
   Platform,
   StatusBar,
   TouchableOpacity,
-  Modal
+  Modal,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -24,7 +25,9 @@ import Animated, {
   withSpring, 
   withTiming,
   withRepeat,
-  interpolate
+  interpolate,
+  Easing,
+  useAnimatedProps
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieAnimation from '../../src/components/LottieAnimation';
@@ -34,8 +37,13 @@ import SecondsFlipClock from '../../src/components/SecondsFlipClock';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 import TimerDisplay from '../../src/components/TimerDisplay';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
+const CIRCLE_SIZE = width * 0.35;
+const STROKE_WIDTH = 8;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const MainScreen = () => {
   const insets = useSafeAreaInsets();
@@ -242,7 +250,7 @@ const MainScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* White background instead of green gradient */}
+      {/* White background */}
       <View style={StyleSheet.absoluteFill}>
         <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
       </View>
@@ -258,7 +266,7 @@ const MainScreen = () => {
           <View style={styles.modalContent}>
             {/* Modal Header with Gradient */}
             <LinearGradient
-              colors={['#5BBD68', '#45925A']}
+              colors={['#4CAF50', '#388E3C']}
               style={styles.modalHeaderGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -286,35 +294,35 @@ const MainScreen = () => {
                 </Text>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="brain" size={24} color="#5BBD68" style={styles.pledgeIcon} />
+                  <Ionicons name="brain" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Improved mental clarity and cognitive function
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="heart" size={24} color="#5BBD68" style={styles.pledgeIcon} />
+                  <Ionicons name="heart" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Better physical health and respiratory function
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="cash" size={24} color="#5BBD68" style={styles.pledgeIcon} />
+                  <Ionicons name="cash" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Financial savings that add up over time
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="people" size={24} color="#5BBD68" style={styles.pledgeIcon} />
+                  <Ionicons name="people" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Stronger relationships and social connections
                   </Text>
                 </View>
                 
                 <View style={styles.pledgePoint}>
-                  <Ionicons name="trophy" size={24} color="#5BBD68" style={styles.pledgeIcon} />
+                  <Ionicons name="trophy" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Sense of accomplishment and self-control
                   </Text>
@@ -329,7 +337,7 @@ const MainScreen = () => {
                 >
                   <Animated.View style={[StyleSheet.absoluteFill, rainbowAnimatedStyle]}>
                     <LinearGradient
-                      colors={['#FF5F6D', '#FFC371', '#4FA65B', '#00C9FF', '#9D50BB', '#FF5F6D']}
+                      colors={['#4CAF50', '#388E3C', '#2E7D32', '#1B5E20', '#4CAF50']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={{ width: 400, height: '100%' }}
@@ -369,92 +377,126 @@ const MainScreen = () => {
         scrollEventThrottle={16}
       >
         {/* Timer Label - Above Timer */}
-        <Text style={[styles.timerLabel, { marginTop: insets.top + 35, marginBottom: 16 }]}>
+        <Text style={[styles.timerLabel, { marginTop: insets.top + 60, marginBottom: 16 }]}>
           You've been cannabis-free for:
         </Text>
         
-        {/* New Timer Display */}
-        <TimerDisplay 
-          timeElapsed={timeElapsed}
-          onReset={handleReset}
-        />
+        {/* Timer Display */}
+        <View style={styles.timerContainer}>
+          <View style={styles.timeValues}>
+            <View style={styles.timeUnit}>
+              <Text style={styles.timeValue}>{timeElapsed.hours}</Text>
+              <Text style={styles.timeLabel}>hours</Text>
+            </View>
+            
+            <View style={styles.timeUnit}>
+              <Text style={styles.timeValue}>{timeElapsed.minutes}</Text>
+              <Text style={styles.timeLabel}>minutes</Text>
+            </View>
+            
+            <View style={styles.timeUnit}>
+              <Text style={styles.timeValue}>{timeElapsed.seconds}</Text>
+              <Text style={styles.timeLabel}>seconds</Text>
+            </View>
+          </View>
+          
+          <View style={styles.circleContainer}>
+            <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svg}>
+              {/* Background Circle */}
+              <Circle
+                cx={CIRCLE_SIZE / 2}
+                cy={CIRCLE_SIZE / 2}
+                r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
+                stroke="#E8F5E9"
+                strokeWidth={STROKE_WIDTH}
+                fill="transparent"
+              />
+              
+              {/* Progress Circle */}
+              <AnimatedCircle
+                cx={CIRCLE_SIZE / 2}
+                cy={CIRCLE_SIZE / 2}
+                r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
+                stroke="#4CAF50"
+                strokeWidth={STROKE_WIDTH}
+                strokeLinecap="round"
+                fill="transparent"
+                strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)}`}
+                strokeDashoffset={timeElapsed.seconds * (2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)) / 60}
+                transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
+              />
+              
+              {/* Center Icon */}
+              <View style={styles.centerIcon}>
+                <Ionicons name="refresh" size={24} color="#4CAF50" />
+              </View>
+            </Svg>
+          </View>
+        </View>
         
         {/* Motivational Text */}
-        <View style={[styles.timerSubLabel, { marginTop: 12, marginBottom: 32 }]}>
-          <Ionicons name="leaf" size={14} color="#5BBD68" style={styles.leafIcon} />
-          <Text style={styles.timerLabelText}>Keep going, you're doing great!</Text>
+        <View style={styles.motivationalContainer}>
+          <Ionicons name="leaf" size={16} color="#4CAF50" style={styles.leafIcon} />
+          <Text style={styles.motivationalText}>Keep going, you're doing great!</Text>
         </View>
         
-        {/* Action Buttons - Fixed rounded corners */}
-        <View style={styles.buttonContainer}>
-          {['meditate', 'pledge', 'journal', 'more'].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={styles.actionButton}
-              activeOpacity={0.8}
-              onPress={() => handleButtonPress(type)}
-            >
-              <LinearGradient
-                colors={['rgba(91, 189, 104, 0.2)', 'rgba(91, 189, 104, 0.1)']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              />
-              <Ionicons 
-                name={
-                  type === 'meditate' ? 'leaf' : 
-                  type === 'pledge' ? 'heart' : 
-                  type === 'journal' ? 'book' : 'grid'
-                } 
-                size={24} 
-                color="#5BBD68" 
-              />
-              <Text style={styles.buttonText}>
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* Action Buttons */}
+        <View style={styles.buttonGrid}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.8}
+            onPress={() => handleButtonPress('meditate')}
+          >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="leaf" size={26} color="#4CAF50" />
+            </View>
+            <Text style={styles.buttonText}>Meditate</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.8}
+            onPress={() => handleButtonPress('pledge')}
+          >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="heart" size={26} color="#4CAF50" />
+            </View>
+            <Text style={styles.buttonText}>Pledge</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.8}
+            onPress={() => handleButtonPress('journal')}
+          >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="book" size={26} color="#4CAF50" />
+            </View>
+            <Text style={styles.buttonText}>Journal</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.8}
+            onPress={() => handleButtonPress('more')}
+          >
+            <View style={styles.buttonIconContainer}>
+              <Ionicons name="grid" size={26} color="#4CAF50" />
+            </View>
+            <Text style={styles.buttonText}>More</Text>
+          </TouchableOpacity>
         </View>
         
-        {/* Stats Cards - Refined with depth */}
+        {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <LinearGradient
-              colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-              style={[StyleSheet.absoluteFill, styles.cardGradient]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
             <Text style={styles.statLabel}>Money Saved</Text>
             <Text style={styles.statValue}>$120</Text>
           </View>
           
           <View style={styles.statCard}>
-            <LinearGradient
-              colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-              style={[StyleSheet.absoluteFill, styles.cardGradient]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
             <Text style={styles.statLabel}>Best Streak</Text>
             <Text style={styles.statValue}>7 days</Text>
-          </View>
-        </View>
-        
-        {/* Reason Card - Refined with depth */}
-        <View style={styles.reasonCard}>
-          <LinearGradient
-            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-            style={[StyleSheet.absoluteFill, styles.cardGradient]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <Text style={styles.reasonPrompt}>Your reason for quitting:</Text>
-          <Text style={styles.reasonText}>"To improve my mental clarity and save money for travel."</Text>
-          
-          <View style={styles.streakContainer}>
-            <Ionicons name="trophy" size={18} color="#FFD700" />
-            <Text style={styles.bestStreak}>Current streak: 3 days</Text>
           </View>
         </View>
       </ScrollView>
@@ -485,7 +527,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 120, // Reduced padding for better spacing
+    paddingBottom: 120,
   },
   headerContainer: {
     width: '100%',
@@ -513,191 +555,122 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     letterSpacing: 1,
   },
-  animationContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    width: '100%',
-  },
-  timerInsideLottie: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    width: '90%',
-    display: 'flex',
-    flexDirection: 'column',
-    paddingVertical: 15,
-    transform: [{ translateY: 5 }],
-  },
   timerLabel: {
-    fontSize: 24, // Slightly smaller for better hierarchy
+    fontSize: 24,
     color: '#000000',
     fontFamily: typography.fonts.bold,
     textAlign: 'center',
     marginHorizontal: 20,
     letterSpacing: 0.5,
   },
-  humanReadableTime: {
-    fontSize: 72,
+  timerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 10,
+  },
+  timeValues: {
+    flex: 1,
+    marginRight: 20,
+  },
+  timeUnit: {
+    marginBottom: 20,
+  },
+  timeValue: {
+    fontSize: 80,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    textAlign: 'left',
-    letterSpacing: 1,
     lineHeight: 80,
-    marginBottom: 8,
   },
-  largeSecondsText: {
-    fontSize: 90,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
-    textAlign: 'left',
+  timeLabel: {
+    fontSize: 16,
+    color: '#666666',
+    fontFamily: typography.fonts.regular,
   },
-  secondsBoxContainer: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    transform: [{ scale: 1.0 }],
+  circleContainer: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  timerSubLabel: {
+  svg: {
+    position: 'absolute',
+  },
+  centerIcon: {
+    position: 'absolute',
+    top: CIRCLE_SIZE / 2 - 12,
+    left: CIRCLE_SIZE / 2 - 12,
+  },
+  motivationalContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', // Center the motivational text
+    justifyContent: 'center',
+    marginBottom: 30,
   },
   leafIcon: {
-    marginRight: 6,
+    marginRight: 8,
   },
-  timerLabelText: {
-    fontSize: 14,
+  motivationalText: {
+    fontSize: 16,
     color: '#666666',
     fontFamily: typography.fonts.medium,
   },
-  resetButton: {
-    overflow: 'hidden',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
-    marginTop: 10,
-    width: '40%',
-    backgroundColor: '#FFFFFF',
-  },
-  resetButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  resetIcon: {
-    marginRight: 6,
-  },
-  resetButtonText: {
-    fontSize: 13,
-    color: '#5BBD68',
-    fontFamily: typography.fonts.medium,
-  },
-  buttonContainer: {
+  buttonGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 32, // Reduced margin
-    marginHorizontal: -6,
+    marginBottom: 30,
+    paddingHorizontal: 0,
+    marginTop: 20,
+    marginHorizontal: 10,
   },
   actionButton: {
-    width: (width - 72) / 4,
+    width: '22%',
     aspectRatio: 1,
-    borderRadius: 20,
-    margin: 6,
-    alignItems: 'center',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingVertical: 10,
+  },
+  buttonIconContainer: {
+    width: 75,
+    height: 75,
+    borderRadius: 37.5,
+    backgroundColor: 'rgba(76, 175, 80, 0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   buttonText: {
-    color: '#000000',
-    fontSize: 12,
-    marginTop: 8,
-    fontFamily: typography.fonts.bold,
+    fontSize: 15,
+    color: '#333333',
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
+    marginTop: 5,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20, // Reduced margin
+    marginBottom: 20,
+    marginTop: 10,
   },
   statCard: {
     flex: 1,
+    backgroundColor: '#F8F8F8',
     borderRadius: 20,
     padding: 20,
     marginHorizontal: 6,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  cardGradient: {
-    borderRadius: 20,
   },
   statLabel: {
     fontSize: 14,
     color: '#666666',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: 24, // Reduced from 28
+    fontSize: 24,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-  },
-  reasonCard: {
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20, // Reduced margin
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  reasonPrompt: {
-    fontSize: 15,
-    color: '#666666',
-    marginBottom: 12,
-  },
-  reasonText: {
-    fontSize: 16, // Reduced from 18
-    color: '#000000',
-    fontFamily: typography.fonts.regular,
-    marginBottom: 20,
-    fontStyle: 'italic',
-  },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bestStreak: {
-    fontSize: 15,
-    color: '#000000',
-    marginLeft: 8,
   },
   panicButton: {
     position: 'absolute',
@@ -730,17 +703,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: '15%', // Leave top 15% of screen uncovered
+    paddingTop: '15%',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: '95%',
-    maxHeight: '85%', // Take up 85% of screen height
+    maxHeight: '85%',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    shadowColor: '#5BBD68',
+    borderColor: 'rgba(76, 175, 80, 0.4)',
+    shadowColor: '#4CAF50',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -749,10 +722,11 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 20,
     width: '100%',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(91, 189, 104, 0.3)',
+    borderBottomColor: 'rgba(76, 175, 80, 0.3)',
   },
   modalTitle: {
     fontSize: 22,
@@ -762,7 +736,6 @@ const styles = StyleSheet.create({
   },
   modalCloseButton: {
     padding: 8,
-    marginLeft: 12,
   },
   modalScrollView: {
     maxHeight: '75%',
@@ -776,7 +749,7 @@ const styles = StyleSheet.create({
   },
   pledgeTitle: {
     fontSize: 28,
-    color: '#000000',
+    color: '#333333',
     fontFamily: typography.fonts.bold,
     marginBottom: 24,
     textAlign: 'center',
@@ -825,63 +798,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(79, 166, 91, 0.3)',
+    borderBottomColor: 'rgba(76, 175, 80, 0.3)',
     width: '100%',
-  },
-  resetIconButton: {
-    width: 50,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  horizontalContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-    width: '100%',
-    paddingHorizontal: 5,
-  },
-  lottieContainer: {
-    width: '38%',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingRight: 0,
-  },
-  timerContainer: {
-    width: '62%',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    padding: 10,
-    paddingLeft: 10,
-    paddingRight: 25,
-  },
-  timeUnitsContainer: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    width: '100%',
-  },
-  timeUnitWrapper: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  timeUnitValue: {
-    fontSize: 65,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
-  },
-  timeUnitLabel: {
-    fontSize: 16,
-    color: '#666666',
-    fontFamily: typography.fonts.medium,
-    marginTop: -5,
-    textAlign: 'center',
   },
 });
 
