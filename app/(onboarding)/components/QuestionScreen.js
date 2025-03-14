@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../styles/colors';
 import * as Haptics from 'expo-haptics';
 import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
+import { typography } from '../../styles/typography';
 
 const QuestionScreen = ({ 
   question, 
@@ -142,21 +143,21 @@ const QuestionScreen = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Main Background Gradient */}
-      <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Overlay Gradient */}
-      <LinearGradient
-        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
-        style={styles.overlayGradient}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      
+      {/* Green gradient background */}
+      <View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
 
       {/* Back Button */}
       <Pressable onPress={handleBack} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={28} color="white" />
+        <Ionicons name="chevron-back" size={28} color="#4CAF50" />
       </Pressable>
 
       {/* Progress Indicator - Now absolutely positioned */}
@@ -179,7 +180,7 @@ const QuestionScreen = ({
             }
           ]}>
             <LinearGradient
-              colors={[colors.gradients.primary.start, colors.gradients.primary.end]}
+              colors={['#4CAF50', '#388E3C']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -214,9 +215,16 @@ const QuestionScreen = ({
                 onPress={() => handleOptionSelect(option, index)}
                 disabled={isNavigating}
               >
+                <LinearGradient
+                  colors={['#4CAF50', '#388E3C']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  borderRadius={16}
+                />
                 <Text style={styles.optionText}>{option}</Text>
                 <View style={styles.optionIcon}>
-                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+                  <Ionicons name="chevron-forward" size={20} color="white" />
                 </View>
               </Pressable>
             </Animated.View>
@@ -230,16 +238,6 @@ const QuestionScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.dark,
-  },
-  overlayGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '53%',
-    opacity: 0.8,
-    zIndex: 1,
   },
   backButton: {
     position: 'absolute',
@@ -249,11 +247,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(76, 175, 80, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
   },
   progressContainer: {
     position: 'absolute',
@@ -265,11 +268,11 @@ const styles = StyleSheet.create({
     height: 50,
   },
   progressText: {
-    color: colors.text.primary,
+    color: '#333333',
     fontSize: 16,
     marginBottom: 12,
     textAlign: 'center',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
     opacity: 0.8,
   },
   progressBar: {
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
     borderRadius: 4,
   },
   progressFill: {
@@ -299,11 +302,14 @@ const styles = StyleSheet.create({
   },
   questionText: {
     fontSize: 32,
-    color: colors.text.primary,
+    color: '#333333',
     textAlign: 'center',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
     marginBottom: 40,
     lineHeight: 42,
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   optionsContainer: {
     padding: 20,
@@ -312,37 +318,43 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   optionButton: {
+    width: '100%',
+    height: 70,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
   },
   optionButtonPressed: {
+    opacity: 0.9,
     transform: [{ scale: 0.98 }],
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   optionButtonDisabled: {
     opacity: 0.7,
   },
   optionText: {
     flex: 1,
-    fontSize: 18,
-    color: colors.text.primary,
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 20,
+    color: 'white',
+    fontFamily: typography.fonts.bold,
+    marginVertical: 12,
   },
   optionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   contentContainer: {
     flex: 1,

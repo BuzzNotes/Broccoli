@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, StatusBar, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,8 @@ import * as Haptics from 'expo-haptics';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { typography } from '../../styles/typography';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CircularProgress = ({ percentage }) => {
   const size = 160;
@@ -20,15 +22,15 @@ const CircularProgress = ({ percentage }) => {
       <Svg width={size} height={size}>
         <Defs>
           <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#4FA65B" stopOpacity="1" />
-            <Stop offset="1" stopColor="#45E994" stopOpacity="1" />
+            <Stop offset="0" stopColor="#4CAF50" stopOpacity="1" />
+            <Stop offset="1" stopColor="#388E3C" stopOpacity="1" />
           </SvgGradient>
         </Defs>
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255,255,255,0.1)"
+          stroke="rgba(76, 175, 80, 0.2)"
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -53,19 +55,19 @@ const CircularProgress = ({ percentage }) => {
 };
 
 const BarChart = ({ userScore, averageScore }) => {
-  const barHeight = 200;
-  const userBarHeight = (userScore / 100) * barHeight;
-  const avgBarHeight = (averageScore / 100) * barHeight;
-
   return (
     <View style={styles.chartContainer}>
       <View style={styles.barContainer}>
-        <View style={[styles.bar, { height: userBarHeight, backgroundColor: '#FF4B4B' }]} />
-        <Text style={styles.barLabel}>Your Score</Text>
+        <View style={styles.barWrapper}>
+          <View style={[styles.bar, { height: 150 * (userScore / 100), backgroundColor: '#FF4B4B' }]} />
+        </View>
+        <Text style={styles.barLabel}>Your{'\n'}Score</Text>
         <Text style={styles.barValue}>{userScore}%</Text>
       </View>
       <View style={styles.barContainer}>
-        <View style={[styles.bar, { height: avgBarHeight, backgroundColor: '#4FA65B' }]} />
+        <View style={styles.barWrapper}>
+          <View style={[styles.bar, { height: 150 * (averageScore / 100), backgroundColor: '#4CAF50' }]} />
+        </View>
         <Text style={styles.barLabel}>Average</Text>
         <Text style={styles.barValue}>{averageScore}%</Text>
       </View>
@@ -74,6 +76,7 @@ const BarChart = ({ userScore, averageScore }) => {
 };
 
 const FinalAnalysis = () => {
+  const insets = useSafeAreaInsets();
   const { answers } = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -198,15 +201,15 @@ const FinalAnalysis = () => {
   // Get a dynamic result message based on the user's score
   const getResultMessage = (score) => {
     if (score >= 80) {
-      return "Your responses indicate a severe\ndependence on cannabis*";
+      return "Your responses indicate a severe dependence on cannabis*";
     } else if (score >= 60) {
-      return "Your responses indicate a significant\ndependence on cannabis*";
+      return "Your responses indicate a significant dependence on cannabis*";
     } else if (score >= 40) {
-      return "Your responses indicate a moderate\ndependence on cannabis*";
+      return "Your responses indicate a moderate dependence on cannabis*";
     } else if (score >= 20) {
-      return "Your responses indicate a mild\ndependence on cannabis*";
+      return "Your responses indicate a mild dependence on cannabis*";
     } else {
-      return "Your responses indicate a minimal\ndependence on cannabis*";
+      return "Your responses indicate a minimal dependence on cannabis*";
     }
   };
 
@@ -222,12 +225,18 @@ const FinalAnalysis = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#0A0A1A', '#1A1A2E']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+        
+        {/* Green gradient background */}
+        <View style={StyleSheet.absoluteFill}>
+          <LinearGradient
+            colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+            style={{flex: 1}}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 0.6 }}
+          />
+        </View>
+        
         <View style={styles.loadingContainer}>
           <CircularProgress percentage={progress} />
           <Text style={styles.calculatingText}>Calculating</Text>
@@ -239,38 +248,59 @@ const FinalAnalysis = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#0A0A1A', '#1A1A2E']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      
+      {/* Green gradient background */}
+      <View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Analysis Complete</Text>
-          <Ionicons name="sparkles" size={24} color="white" style={styles.twinkle} />
-        </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent, 
+          { paddingBottom: insets.bottom + 80 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Analysis Complete</Text>
+            <Ionicons name="sparkles" size={28} color="#4CAF50" style={styles.twinkle} />
+          </View>
 
-        <Text style={styles.subtitle}>We've got some news to break to you...</Text>
+          <Text style={styles.subtitle}>We've got some news to break to you...</Text>
 
-        <Text style={styles.resultText}>
-          {getResultMessage(userScore)}
-        </Text>
+          <View style={styles.resultCard}>
+            <Text style={styles.resultText}>
+              {getResultMessage(userScore)}
+            </Text>
+          </View>
 
-        <BarChart userScore={userScore} averageScore={averageScore} />
+          <View style={styles.chartCard}>
+            <BarChart userScore={userScore} averageScore={averageScore} />
 
-        <Text style={[
-          styles.comparisonText, 
-          { color: difference <= 0 ? '#4FA65B' : '#FF4B4B' }
-        ]}>
-          {getComparisonText(difference)}
-        </Text>
+            <Text style={[
+              styles.comparisonText, 
+              { color: difference <= 0 ? '#4CAF50' : '#FF4B4B' }
+            ]}>
+              {getComparisonText(difference)}
+            </Text>
+          </View>
 
-        <Text style={styles.disclaimer}>
-          * This result is an indication only, not a medical diagnosis. For a definitive assessment, please contact your healthcare provider.
-        </Text>
-
+          <Text style={styles.disclaimer}>
+            * This result is an indication only, not a medical diagnosis. For a definitive assessment, please contact your healthcare provider.
+          </Text>
+        </Animated.View>
+      </ScrollView>
+      
+      {/* Fixed continue button at bottom */}
+      <View style={[styles.buttonContainer, { paddingBottom: insets.bottom || 20 }]}>
         <Pressable 
           style={({ pressed }) => [
             styles.continueButton,
@@ -278,10 +308,17 @@ const FinalAnalysis = () => {
           ]}
           onPress={handleContinue}
         >
+          <LinearGradient
+            colors={['#4CAF50', '#388E3C']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            borderRadius={16}
+          />
           <Text style={styles.buttonText}>Learn about cannabis</Text>
           <Ionicons name="arrow-forward" size={20} color="white" />
         </Pressable>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -289,7 +326,13 @@ const FinalAnalysis = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A1A',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -298,28 +341,29 @@ const styles = StyleSheet.create({
   },
   calculatingText: {
     fontSize: 32,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
     marginTop: 32,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   understandingText: {
     fontSize: 20,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#666666',
     marginTop: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    fontFamily: typography.fonts.medium,
+    textShadowColor: 'rgba(76, 175, 80, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   progressShadow: {
-    shadowColor: '#000',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
     shadowOffset: {
       width: 0,
       height: 6,
     },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
@@ -334,107 +378,159 @@ const styles = StyleSheet.create({
   },
   percentageText: {
     fontSize: 42,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   content: {
-    flex: 1,
-    padding: 20,
     alignItems: 'center',
   },
   titleContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 40,
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 12,
     position: 'relative',
   },
   title: {
-    fontSize: 32,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 36,
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
+    letterSpacing: 0.5,
   },
   twinkle: {
     position: 'absolute',
-    right: -28,
+    right: -36,
     top: -4,
     opacity: 0.9,
   },
   subtitle: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 40,
+    fontSize: 20,
+    color: '#666666',
+    marginBottom: 30,
+    fontFamily: typography.fonts.medium,
+    textAlign: 'center',
+  },
+  resultCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    marginBottom: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.08)',
+    alignItems: 'center',
   },
   resultText: {
-    fontSize: 24,
-    color: 'white',
+    fontSize: 28,
+    color: '#333333',
     textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 32,
+    fontFamily: typography.fonts.bold,
+    lineHeight: 38,
+  },
+  chartCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 28,
+    paddingVertical: 36,
+    width: '100%',
+    marginBottom: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.08)',
+    alignItems: 'center',
   },
   chartContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    height: 240,
     width: '100%',
-    gap: 40,
-    marginBottom: 20,
+    gap: 80,
+    marginBottom: 30,
   },
   barContainer: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
+  },
+  barWrapper: {
+    height: 150,
+    justifyContent: 'flex-end',
+    marginBottom: 16,
   },
   bar: {
     width: '100%',
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: 12,
   },
   barLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    marginBottom: 4,
+    color: '#666666',
+    fontSize: 16,
+    marginBottom: 6,
+    fontFamily: typography.fonts.medium,
+    textAlign: 'center',
   },
   barValue: {
-    color: 'white',
-    fontSize: 18,
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333333',
+    fontSize: 24,
+    fontFamily: typography.fonts.bold,
   },
   comparisonText: {
-    fontSize: 20,
-    color: '#FF4B4B',
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 40,
+    fontSize: 24,
+    fontFamily: typography.fonts.bold,
+    marginTop: 10,
+    textAlign: 'center',
   },
   disclaimer: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    color: '#666666',
     textAlign: 'center',
-    marginBottom: 40,
     paddingHorizontal: 20,
+    fontFamily: typography.fonts.regular,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'transparent',
   },
   continueButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
     gap: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
+    width: '100%',
+    justifyContent: 'center',
+    height: 56,
   },
   continueButtonPressed: {
+    opacity: 0.9,
     transform: [{ scale: 0.98 }],
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   buttonText: {
     fontSize: 18,
     color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
   },
 });
 

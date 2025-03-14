@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Dimensions, Animated, StatusBar } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
+import { typography } from '../styles/typography';
 
 const { width, height } = Dimensions.get('window');
 
@@ -103,23 +104,23 @@ const WelcomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Main Background Gradient */}
-      <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Overlay Gradient */}
-      <LinearGradient
-        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
-        style={styles.overlayGradient}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      
+      {/* Green gradient background */}
+      <View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
 
       <Animated.View style={[styles.content, { opacity: fadeContentAnim }]}>
         <View style={styles.header}>
           <Animated.View style={[styles.iconContainer, { opacity: fadeIconAnim }]}>
             <LinearGradient
-              colors={['#5BCD6B', '#025A5C']}
+              colors={['#4CAF50', '#388E3C']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -134,26 +135,25 @@ const WelcomeScreen = () => {
           </Animated.Text>
         </View>
 
-        <Animated.View style={{ opacity: fadeButtonAnim, width: '100%' }}>
+        <Animated.View style={[{ opacity: fadeButtonAnim, width: '100%' }, styles.buttonContainer]}>
           <Pressable 
             style={({ pressed }) => [
-              styles.startButton,
-              pressed && styles.startButtonPressed
+              styles.primaryButton,
+              pressed && styles.buttonPressed
             ]}
             onPress={handleStart}
             disabled={isNavigating}
           >
             <LinearGradient
-              colors={['rgba(79, 166, 91, 0.8)', 'rgba(2, 90, 92, 0.5)']}
+              colors={['#4CAF50', '#388E3C']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
+              borderRadius={16}
             />
-            <View style={styles.buttonContent}>
-              <Text style={styles.buttonText}>Begin Assessment</Text>
-              <View style={styles.iconContainer2}>
-                <Ionicons name="arrow-forward" size={18} color="white" />
-              </View>
+            <Text style={styles.primaryButtonText}>Begin Assessment</Text>
+            <View style={styles.buttonIcon}>
+              <Ionicons name="arrow-forward" size={18} color="white" />
             </View>
           </Pressable>
         </Animated.View>
@@ -165,15 +165,6 @@ const WelcomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  overlayGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '53%',
-    opacity: 0.8,
-    zIndex: 1,
   },
   content: {
     flex: 1,
@@ -192,14 +183,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     overflow: 'hidden',
-    shadowColor: '#5BCD6B',
+    shadowColor: '#4CAF50',
     shadowOffset: {
       width: 0,
       height: 0,
@@ -212,68 +203,73 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 38,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 46,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 18,
-    color: 'rgba(255,255,255,0.9)',
+    color: '#666666',
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
     lineHeight: 28,
     maxWidth: '90%',
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowColor: 'rgba(76, 175, 80, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  startButton: {
-    flexDirection: 'row',
+  buttonContainer: {
+    marginBottom: 30,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+  },
+  primaryButton: {
+    width: '100%',
+    height: 56,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
-    shadowColor: 'rgba(79, 166, 91, 0.6)',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  startButtonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
-  },
-  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  buttonText: {
+  primaryButtonText: {
     fontSize: 18,
     color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
+    textAlign: 'center',
   },
-  iconContainer2: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  secondaryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    color: '#4CAF50',
+    fontFamily: typography.fonts.semibold,
+    textAlign: 'center',
+  },
+  buttonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  buttonIcon: {
+    marginLeft: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
 });
 

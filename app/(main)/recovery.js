@@ -37,35 +37,17 @@ const RecoveryScreen = () => {
           <View style={styles.tabContent}>
             <View style={styles.statsContainer}>
               <View style={styles.statCard}>
-                <LinearGradient
-                  colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-                  style={[StyleSheet.absoluteFill, styles.cardGradient]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                />
                 <Text style={styles.statLabel}>Current Streak</Text>
                 <Text style={styles.statValue}>7 days</Text>
               </View>
               
               <View style={styles.statCard}>
-                <LinearGradient
-                  colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-                  style={[StyleSheet.absoluteFill, styles.cardGradient]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                />
                 <Text style={styles.statLabel}>Money Saved</Text>
                 <Text style={styles.statValue}>$120</Text>
               </View>
             </View>
             
             <View style={styles.milestoneCard}>
-              <LinearGradient
-                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-                style={[StyleSheet.absoluteFill, styles.cardGradient]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
               <Text style={styles.cardTitle}>Next Milestone</Text>
               <View style={styles.milestoneProgress}>
                 <View style={styles.progressBar}>
@@ -76,23 +58,17 @@ const RecoveryScreen = () => {
             </View>
             
             <View style={styles.benefitsCard}>
-              <LinearGradient
-                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-                style={[StyleSheet.absoluteFill, styles.cardGradient]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
               <Text style={styles.cardTitle}>Benefits You're Experiencing</Text>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                 <Text style={styles.benefitText}>Improved lung function</Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                 <Text style={styles.benefitText}>Better sleep quality</Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={24} color="#5BBD68" />
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                 <Text style={styles.benefitText}>Increased mental clarity</Text>
               </View>
             </View>
@@ -105,7 +81,7 @@ const RecoveryScreen = () => {
               <Text style={styles.journalTitle}>My Recovery Journal</Text>
               <TouchableOpacity style={styles.addButton}>
                 <LinearGradient
-                  colors={['#5BBD68', '#45925A']}
+                  colors={['#4CAF50', '#388E3C']}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -115,7 +91,7 @@ const RecoveryScreen = () => {
             </View>
             
             <View style={styles.emptyJournal}>
-              <Ionicons name="book-outline" size={64} color="#5BBD68" />
+              <Ionicons name="book-outline" size={64} color="#4CAF50" />
               <Text style={styles.emptyText}>No journal entries yet</Text>
               <Text style={styles.emptySubtext}>Start documenting your recovery journey</Text>
             </View>
@@ -125,39 +101,33 @@ const RecoveryScreen = () => {
         return (
           <View style={styles.tabContent}>
             <View style={styles.resourceCard}>
-              <LinearGradient
-                colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-                style={[StyleSheet.absoluteFill, styles.cardGradient]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-              />
               <Text style={styles.cardTitle}>Helpful Resources</Text>
               
               <TouchableOpacity style={styles.resourceItem}>
-                <Ionicons name="document-text" size={32} color="#5BBD68" />
+                <Ionicons name="document-text" size={32} color="#4CAF50" />
                 <View style={styles.resourceInfo}>
                   <Text style={styles.resourceTitle}>Cannabis Withdrawal Guide</Text>
                   <Text style={styles.resourceDesc}>Learn what to expect during withdrawal</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
+                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.resourceItem}>
-                <Ionicons name="people" size={32} color="#5BBD68" />
+                <Ionicons name="people" size={32} color="#4CAF50" />
                 <View style={styles.resourceInfo}>
                   <Text style={styles.resourceTitle}>Support Groups</Text>
                   <Text style={styles.resourceDesc}>Connect with others on the same journey</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
+                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.resourceItem}>
-                <Ionicons name="fitness" size={32} color="#5BBD68" />
+                <Ionicons name="fitness" size={32} color="#4CAF50" />
                 <View style={styles.resourceInfo}>
                   <Text style={styles.resourceTitle}>Healthy Habits Guide</Text>
                   <Text style={styles.resourceDesc}>Replace cannabis with positive activities</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#5BBD68" />
+                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
               </TouchableOpacity>
             </View>
           </View>
@@ -169,22 +139,32 @@ const RecoveryScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* White background */}
+      {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
+      
+      {/* Header with title */}
+      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+        <View style={styles.headerContent}>
+          <Text style={styles.screenTitle}>Recovery</Text>
+        </View>
       </View>
       
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 20 }
+          { paddingTop: insets.top + 70 }
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.screenTitle}>Recovery</Text>
-        
         {/* Tab Navigation */}
         <View style={styles.tabContainer}>
           {['progress', 'journal', 'resources'].map((tab) => (
@@ -218,26 +198,43 @@ const RecoveryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingBottom: 150,
+  },
+  headerContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 10,
+    backgroundColor: 'transparent',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
   },
   screenTitle: {
-    fontSize: 32,
+    fontSize: 24,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    marginBottom: 24,
+    letterSpacing: 0.5,
   },
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 24,
     borderRadius: 16,
-    backgroundColor: 'rgba(91, 189, 104, 0.1)',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     padding: 4,
     borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.2)',
+    borderColor: 'rgba(76, 175, 80, 0.2)',
   },
   tabButton: {
     flex: 1,
@@ -247,19 +244,19 @@ const styles = StyleSheet.create({
   },
   activeTabButton: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#5BBD68',
+    shadowColor: 'rgba(76, 175, 80, 0.3)',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666666',
     fontFamily: typography.fonts.medium,
   },
   activeTabText: {
-    color: '#5BBD68',
+    color: '#4CAF50',
     fontFamily: typography.fonts.bold,
   },
   tabContent: {
@@ -269,30 +266,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
+    marginHorizontal: -6,
   },
   statCard: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 20,
     marginHorizontal: 6,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  cardGradient: {
-    borderRadius: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   statLabel: {
     fontSize: 14,
     color: '#666666',
-    marginBottom: 12,
+    marginBottom: 8,
+    fontFamily: typography.fonts.regular,
   },
   statValue: {
     fontSize: 24,
@@ -300,19 +292,15 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.bold,
   },
   milestoneCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   cardTitle: {
     fontSize: 18,
@@ -325,14 +313,14 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: 'rgba(91, 189, 104, 0.2)',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
     borderRadius: 4,
     marginBottom: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#5BBD68',
+    backgroundColor: '#4CAF50',
     borderRadius: 4,
   },
   milestoneText: {
@@ -341,19 +329,15 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.medium,
   },
   benefitsCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   benefitItem: {
     flexDirection: 'row',
@@ -384,7 +368,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#5BBD68',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -394,6 +378,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   emptyText: {
     fontSize: 18,
@@ -408,19 +401,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   resourceCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
-    position: 'relative',
-    shadowColor: '#5BBD68',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   resourceItem: {
     flexDirection: 'row',

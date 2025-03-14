@@ -10,6 +10,7 @@ import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 import { StatusBar } from 'expo-status-bar';
 import { TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { typography } from '../styles/typography';
 
 // Use require for static assets
 const appleIcon = require('../../assets/icons/apple.png');
@@ -133,19 +134,17 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       
-      {/* Main Background Gradient */}
-      <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Overlay Gradient */}
-      <LinearGradient
-        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
-        style={styles.overlayGradient}
-      />
+      {/* Green gradient background */}
+      <View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
 
       <SafeAreaView style={styles.contentContainer}>
         {/* Main App Button */}
@@ -154,14 +153,14 @@ const LoginScreen = () => {
           onPress={handleGoToMain}
           disabled={isLoading}
         >
-          <Ionicons name="home-outline" size={24} color="white" />
+          <Ionicons name="home-outline" size={24} color="#4CAF50" />
         </TouchableOpacity>
 
         {/* Logo Section */}
         <Animated.View style={[styles.header, { opacity: fadeLogoAnim }]}>
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={['#5BCD6B', '#025A5C']}
+              colors={['#4CAF50', '#388E3C']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -177,7 +176,7 @@ const LoginScreen = () => {
         {/* Global loading indicator */}
         {isAuthenticating && (
           <View style={styles.globalLoadingContainer}>
-            <ActivityIndicator size="large" color="#5BCD6B" />
+            <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>
               Signing you in...
             </Text>
@@ -192,9 +191,16 @@ const LoginScreen = () => {
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
+            <LinearGradient
+              colors={['#4CAF50', '#388E3C']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              borderRadius={16}
+            />
             <Image
               source={googleIcon}
-              style={styles.buttonIcon}
+              style={[styles.buttonIcon, {tintColor: 'white'}]}
             />
             <Text style={styles.buttonText}>
               {googleLoading ? 'Signing in with Google...' : 'Continue with Google'}
@@ -209,6 +215,13 @@ const LoginScreen = () => {
               onPress={handleAppleSignIn}
               disabled={isLoading}
             >
+              <LinearGradient
+                colors={['#4CAF50', '#388E3C']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                borderRadius={16}
+              />
               <Image
                 source={appleIcon}
                 style={[styles.appleButtonIcon, { tintColor: 'white' }]}
@@ -226,6 +239,13 @@ const LoginScreen = () => {
             onPress={handleEmailSignIn}
             disabled={isLoading}
           >
+            <LinearGradient
+              colors={['#4CAF50', '#388E3C']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              borderRadius={16}
+            />
             <Ionicons name="mail-outline" size={24} color="white" style={styles.buttonIcon} />
             <Text style={styles.buttonText}>Continue with Email</Text>
           </TouchableOpacity>
@@ -254,21 +274,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  overlayGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '53%',
-    opacity: 0.8,
-    zIndex: 1,
-  },
   contentContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    zIndex: 2, // Higher than overlay gradient
+    zIndex: 2,
   },
   header: {
     alignItems: 'center',
@@ -282,8 +293,18 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     overflow: 'hidden',
+    shadowColor: '#4CAF50',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   logoImage: {
     width: 50,
@@ -292,22 +313,23 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 38,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 46,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 18,
-    color: 'rgba(255,255,255,0.9)',
+    color: '#666666',
+    fontFamily: typography.fonts.medium,
     textAlign: 'center',
     lineHeight: 28,
     maxWidth: '90%',
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowColor: 'rgba(76, 175, 80, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -318,15 +340,18 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   authButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
   },
   buttonIcon: {
     width: 24,
@@ -339,9 +364,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
+    textAlign: 'center',
   },
   skipContainer: {
     alignItems: 'center',
@@ -353,8 +379,8 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#4CAF50',
+    fontFamily: typography.fonts.semibold,
   },
   mainAppButton: {
     position: 'absolute',
@@ -363,12 +389,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(76, 175, 80, 0.1)',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
   },
   globalLoadingContainer: {
     position: 'absolute',
@@ -378,20 +409,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     zIndex: 10,
   },
   loadingText: {
     fontSize: 18,
-    color: 'white',
+    color: '#333333',
     marginTop: 16,
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.bold,
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF3B30',
     textAlign: 'center',
     marginTop: 16,
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontFamily: typography.fonts.semibold,
   },
 });
 

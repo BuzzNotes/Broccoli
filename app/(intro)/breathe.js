@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Animated, SafeAreaView, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
+import { typography } from '../styles/typography';
 
 const BreatheScreen = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -95,17 +96,17 @@ const BreatheScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Main Background Gradient */}
-      <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Overlay Gradient */}
-      <LinearGradient
-        colors={['rgba(79, 166, 91, 0.6)', 'rgba(79, 166, 91, 0)']}
-        style={styles.overlayGradient}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      
+      {/* Green gradient background */}
+      <View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
+          style={{flex: 1}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 0.6 }}
+        />
+      </View>
 
       <View style={styles.content}>
         <Animated.View
@@ -117,7 +118,7 @@ const BreatheScreen = () => {
             },
           ]}
         >
-          <Ionicons name="leaf-outline" size={48} color="rgba(255,255,255,0.8)" />
+          <Ionicons name="leaf-outline" size={48} color="#4CAF50" />
         </Animated.View>
 
         <View style={styles.textContainer}>
@@ -138,15 +139,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  overlayGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '53%',
-    opacity: 0.8,
-    zIndex: 1,
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -157,13 +149,13 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    shadowColor: '#5BCD6B',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.2)',
+    shadowColor: '#4CAF50',
     shadowOffset: {
       width: 0,
       height: 0,
@@ -180,9 +172,12 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 28,
-    color: 'white',
-    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333333',
+    fontFamily: typography.fonts.bold,
     textAlign: 'center',
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

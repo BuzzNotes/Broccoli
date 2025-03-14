@@ -37,13 +37,15 @@ import SecondsFlipClock from '../../src/components/SecondsFlipClock';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 import TimerDisplay from '../../src/components/TimerDisplay';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
-const CIRCLE_SIZE = width * 0.35;
-const STROKE_WIDTH = 8;
+const CIRCLE_SIZE = width * 0.55;
+const STROKE_WIDTH = 14;
+const PULSE_DURATION = 2000;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const MainScreen = () => {
   const insets = useSafeAreaInsets();
@@ -52,6 +54,7 @@ const MainScreen = () => {
 
   // Timer State
   const [timeElapsed, setTimeElapsed] = useState({
+    days: 0,
     hours: 0,
     minutes: 0,
     seconds: 0
@@ -63,8 +66,18 @@ const MainScreen = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
   
-  // Animation values for rainbow button
+  // Animation values
   const rainbowAnimation = useSharedValue(0);
+  const progressAnimation = useSharedValue(0);
+  const refreshIconRotation = useSharedValue(0);
+  const pulseAnimation = useSharedValue(0);
+  const glowOpacity = useSharedValue(0.3);
+  const refreshButtonScale = useSharedValue(1);
+  const timeValueOpacity = useSharedValue(1);
+  const meditateButtonScale = useSharedValue(1);
+  const pledgeButtonScale = useSharedValue(1);
+  const journalButtonScale = useSharedValue(1);
+  const moreButtonScale = useSharedValue(1);
   
   // Start rainbow animation when modal is shown
   useEffect(() => {
@@ -78,36 +91,160 @@ const MainScreen = () => {
     }
   }, [showPledgeModal]);
 
+  // Start pulse animation for the circle
+  useEffect(() => {
+    pulseAnimation.value = 0;
+    pulseAnimation.value = withRepeat(
+      withTiming(1, { 
+        duration: PULSE_DURATION,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+      -1, // Infinite repeat
+      true // Reverse
+    );
+    
+    glowOpacity.value = withRepeat(
+      withTiming(0.6, { 
+        duration: PULSE_DURATION * 1.5,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
+      -1, // Infinite repeat
+      true // Reverse
+    );
+  }, []);
+
   // Format time for display
   const formatTime = (value) => {
     return value < 10 ? `0${value}` : `${value}`;
   };
   
-  // Format time for human-readable display
-  const formatTimeForDisplay = () => {
-    let formattedTime = '';
+  // Get formatted time units based on elapsed time
+  const getFormattedTimeUnits = () => {
+    const totalSeconds = timeElapsed.seconds;
+    const totalMinutes = timeElapsed.minutes;
+    const totalHours = timeElapsed.hours;
+    const totalDays = timeElapsed.days;
     
-    if (timeElapsed.days > 0) {
-      formattedTime += `${timeElapsed.days}d `;
+    // Less than 1 minute: show only seconds
+    if (totalMinutes === 0 && totalHours === 0 && totalDays === 0) {
+      return [
+        {
+          value: formatTime(totalSeconds),
+          label: 'seconds'
+        }
+      ];
     }
     
-    if (timeElapsed.hours > 0 || timeElapsed.days > 0) {
-      formattedTime += `${timeElapsed.hours}h `;
+    // Less than 1 hour: show minutes and seconds
+    if (totalHours === 0 && totalDays === 0) {
+      return [
+        {
+          value: formatTime(totalMinutes),
+          label: 'minutes'
+        },
+        {
+          value: formatTime(totalSeconds),
+          label: 'seconds'
+        }
+      ];
     }
     
-    formattedTime += `${timeElapsed.minutes}m`;
+    // Less than 24 hours: show hours, minutes, seconds
+    if (totalDays === 0) {
+      return [
+        {
+          value: formatTime(totalHours),
+          label: 'hours'
+        },
+        {
+          value: formatTime(totalMinutes),
+          label: 'minutes'
+        },
+        {
+          value: formatTime(totalSeconds),
+          label: 'seconds'
+        }
+      ];
+    }
     
-    return formattedTime;
-  };
-  
-  // Determine if we should show seconds separately
-  const shouldShowSecondsOnly = () => {
-    return timeElapsed.hours === 0 && timeElapsed.minutes === 0;
-  };
-  
-  // Determine if we should show seconds as a smaller box
-  const shouldShowSecondsBox = () => {
-    return timeElapsed.hours === 0 || timeElapsed.minutes > 0;
+    // Less than 7 days: show days, hours, minutes
+    if (totalDays < 7) {
+      return [
+        {
+          value: totalDays,
+          label: 'days'
+        },
+        {
+          value: formatTime(totalHours),
+          label: 'hours'
+        },
+        {
+          value: formatTime(totalMinutes),
+          label: 'minutes'
+        }
+      ];
+    }
+    
+    // Less than 30 days: show weeks, days, hours
+    const weeks = Math.floor(totalDays / 7);
+    const remainingDays = totalDays % 7;
+    
+    if (totalDays < 30) {
+      return [
+        {
+          value: weeks,
+          label: 'weeks'
+        },
+        {
+          value: remainingDays,
+          label: 'days'
+        },
+        {
+          value: formatTime(totalHours),
+          label: 'hours'
+        }
+      ];
+    }
+    
+    // Less than 365 days: show months, weeks, days
+    const months = Math.floor(totalDays / 30);
+    const remainingWeeks = Math.floor((totalDays % 30) / 7);
+    
+    if (totalDays < 365) {
+      return [
+        {
+          value: months,
+          label: 'months'
+        },
+        {
+          value: remainingWeeks,
+          label: 'weeks'
+        },
+        {
+          value: remainingDays % 7,
+          label: 'days'
+        }
+      ];
+    }
+    
+    // More than 365 days: show years, months, weeks
+    const years = Math.floor(totalDays / 365);
+    const remainingMonths = Math.floor((totalDays % 365) / 30);
+    
+    return [
+      {
+        value: years,
+        label: 'years'
+      },
+      {
+        value: remainingMonths,
+        label: 'months'
+      },
+      {
+        value: remainingWeeks,
+        label: 'weeks'
+      }
+    ];
   };
   
   // Initialize timer
@@ -123,11 +260,17 @@ const MainScreen = () => {
       const currentTime = new Date().getTime();
       const elapsedMs = currentTime - startTime;
       
-      const hours = Math.floor(elapsedMs / (1000 * 60 * 60));
-      const minutes = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000);
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalDays = Math.floor(totalHours / 24);
       
-      setTimeElapsed({ hours, minutes, seconds });
+      const seconds = totalSeconds % 60;
+      const minutes = totalMinutes % 60;
+      const hours = totalHours % 24;
+      const days = totalDays;
+      
+      setTimeElapsed({ days, hours, minutes, seconds });
       
       return startTime;
     } catch (error) {
@@ -147,11 +290,17 @@ const MainScreen = () => {
           const currentTime = new Date().getTime();
           const elapsedMs = currentTime - startTime;
           
-          const hours = Math.floor(elapsedMs / (1000 * 60 * 60));
-          const minutes = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
-          const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000);
+          const totalSeconds = Math.floor(elapsedMs / 1000);
+          const totalMinutes = Math.floor(totalSeconds / 60);
+          const totalHours = Math.floor(totalMinutes / 60);
+          const totalDays = Math.floor(totalHours / 24);
           
-          setTimeElapsed({ hours, minutes, seconds });
+          const seconds = totalSeconds % 60;
+          const minutes = totalMinutes % 60;
+          const hours = totalHours % 24;
+          const days = totalDays;
+          
+          setTimeElapsed({ days, hours, minutes, seconds });
         }, 1000);
       }
     };
@@ -165,6 +314,95 @@ const MainScreen = () => {
     };
   }, []);
 
+  // Update time values with animation
+  useEffect(() => {
+    // Flash animation for time values when seconds change
+    timeValueOpacity.value = 0.7;
+    timeValueOpacity.value = withTiming(1, {
+      duration: 300,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    // Update progress animation
+    progressAnimation.value = withTiming(timeElapsed.seconds / 60, {
+      duration: 500,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+  }, [timeElapsed.seconds]);
+  
+  // Rotate refresh icon on press
+  const handleRefreshPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    refreshIconRotation.value = withTiming(refreshIconRotation.value + 360, {
+      duration: 800,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    // Call the reset handler
+    handleReset();
+  };
+  
+  // Handle refresh button press in
+  const handleRefreshPressIn = () => {
+    refreshButtonScale.value = withSpring(0.92, {
+      damping: 10,
+      stiffness: 200,
+    });
+  };
+  
+  // Handle refresh button press out
+  const handleRefreshPressOut = () => {
+    refreshButtonScale.value = withSpring(1, {
+      damping: 15,
+      stiffness: 150,
+    });
+  };
+  
+  // Animated style for refresh icon
+  const refreshIconStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${refreshIconRotation.value}deg` }]
+    };
+  });
+  
+  // Animated style for refresh button
+  const refreshButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: refreshButtonScale.value }]
+    };
+  });
+  
+  // Animated props for the progress circle
+  const progressCircleProps = useAnimatedProps(() => {
+    const circumference = 2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2);
+    return {
+      strokeDashoffset: circumference * (1 - progressAnimation.value),
+    };
+  });
+  
+  // Animated style for the pulse effect
+  const pulseStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: interpolate(
+        pulseAnimation.value,
+        [0, 1],
+        [1, 1.05]
+      )}],
+      opacity: interpolate(
+        pulseAnimation.value,
+        [0, 1],
+        [1, 0.8]
+      )
+    };
+  });
+  
+  // Animated style for the glow effect
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowOpacity.value
+    };
+  });
+
   const handleReset = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(standalone)/relapse');
@@ -172,24 +410,42 @@ const MainScreen = () => {
 
   const handleButtonPress = (type) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    logoScale.value = withSpring(1.1, { damping: 10, stiffness: 100 }, () => {
-      logoScale.value = withSpring(1);
-    });
     
+    // Add button press animation based on type
+    let buttonScale;
     if (type === 'meditate') {
+      buttonScale = meditateButtonScale;
       router.push('/(standalone)/meditate');
     } else if (type === 'pledge') {
-      // Navigate to the pledge screen instead of showing the modal
+      buttonScale = pledgeButtonScale;
       router.push('/(standalone)/pledge');
     } else if (type === 'journal') {
-      // Navigate to recovery page with journal tab active
+      buttonScale = journalButtonScale;
       router.push({
         pathname: '/(main)/recovery',
         params: { initialTab: 'journal' }
       });
     } else if (type === 'more') {
+      buttonScale = moreButtonScale;
       // Handle more options
     }
+    
+    // Animate the button with a more pronounced effect
+    buttonScale.value = withSpring(0.92, { 
+      damping: 8, 
+      stiffness: 300,
+      mass: 0.5
+    }, () => {
+      buttonScale.value = withSpring(1, { 
+        damping: 12, 
+        stiffness: 200,
+        mass: 0.8
+      });
+    });
+    
+    logoScale.value = withSpring(1.1, { damping: 10, stiffness: 100 }, () => {
+      logoScale.value = withSpring(1);
+    });
   };
 
   // Handle pledge confirmation
@@ -246,13 +502,56 @@ const MainScreen = () => {
     };
   });
 
+  // Animated style for time values
+  const timeValueStyle = useAnimatedStyle(() => {
+    return {
+      opacity: timeValueOpacity.value
+    };
+  });
+
+  // Animated styles for action buttons
+  const meditateButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: meditateButtonScale.value }]
+    };
+  });
+  
+  const pledgeButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pledgeButtonScale.value }]
+    };
+  });
+  
+  const journalButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: journalButtonScale.value }]
+    };
+  });
+  
+  const moreButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: moreButtonScale.value }]
+    };
+  });
+
+  // Calculate brain rewiring progress (0-100%)
+  const calculateBrainProgress = () => {
+    // 90 days in total for 100% brain rewiring
+    const totalDays = 90;
+    const currentDays = timeElapsed.days;
+    
+    // Cap at 100%
+    const progress = Math.min(currentDays / totalDays, 1) * 100;
+    return Math.floor(progress);
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* White background */}
+      {/* Solid background instead of gradient */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={{backgroundColor: '#FFFFFF', flex: 1}} />
+        <View style={{flex: 1, backgroundColor: '#FFFFFF'}} />
       </View>
       
       {/* Pledge Modal */}
@@ -360,7 +659,7 @@ const MainScreen = () => {
       )}
       
       {/* Header with Logo in top left */}
-      <View style={[styles.headerContainer, { top: insets.top + 10 }]}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.logoContainer}>
           <Animated.Image 
             source={require('../../assets/images/broccoli-logo.png')}
@@ -371,150 +670,238 @@ const MainScreen = () => {
       </View>
       
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 70, paddingBottom: 150 }]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Timer Label - Above Timer */}
-        <Text style={[styles.timerLabel, { marginTop: insets.top + 60, marginBottom: 16 }]}>
-          You've been cannabis-free for:
-        </Text>
-        
-        {/* Timer Display */}
+        {/* Timer Display - Removed white box container */}
         <View style={styles.timerContainer}>
-          <View style={styles.timeValues}>
-            <View style={styles.timeUnit}>
-              <Text style={styles.timeValue}>{timeElapsed.hours}</Text>
-              <Text style={styles.timeLabel}>hours</Text>
-            </View>
-            
-            <View style={styles.timeUnit}>
-              <Text style={styles.timeValue}>{timeElapsed.minutes}</Text>
-              <Text style={styles.timeLabel}>minutes</Text>
-            </View>
-            
-            <View style={styles.timeUnit}>
-              <Text style={styles.timeValue}>{timeElapsed.seconds}</Text>
-              <Text style={styles.timeLabel}>seconds</Text>
-            </View>
+          {/* Circle Progress */}
+          <View style={styles.circleWrapper}>
+            <Animated.View style={[styles.circleContainer, pulseStyle]}>
+              <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svg}>
+                <Defs>
+                  <SvgGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#4CAF50" stopOpacity="1" />
+                    <Stop offset="50%" stopColor="#2E7D32" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#1B5E20" stopOpacity="1" />
+                  </SvgGradient>
+                  <SvgGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#D7EAD9" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#B7D9B9" stopOpacity="0.8" />
+                  </SvgGradient>
+                  <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.3" />
+                    <Stop offset="100%" stopColor="#4CAF50" stopOpacity="0" />
+                  </SvgGradient>
+                  <SvgGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
+                  </SvgGradient>
+                </Defs>
+                
+                {/* Outer glow effect with animation */}
+                <Animated.View style={glowStyle}>
+                  <Circle
+                    cx={CIRCLE_SIZE / 2}
+                    cy={CIRCLE_SIZE / 2}
+                    r={(CIRCLE_SIZE - STROKE_WIDTH) / 2 + 10}
+                    stroke="url(#glowGradient)"
+                    strokeWidth={20}
+                    fill="transparent"
+                  />
+                </Animated.View>
+                
+                {/* Background Circle with subtle gradient */}
+                <Circle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
+                  stroke="url(#bgGradient)"
+                  strokeWidth={STROKE_WIDTH}
+                  fill="transparent"
+                  strokeLinecap="round"
+                />
+                
+                {/* Progress Circle with gradient */}
+                <AnimatedCircle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
+                  stroke="url(#progressGradient)"
+                  strokeWidth={STROKE_WIDTH}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)}`}
+                  animatedProps={progressCircleProps}
+                  transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
+                />
+                
+                {/* Center Icon Container with improved shadow */}
+                <Circle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={STROKE_WIDTH * 1.8}
+                  fill="url(#buttonGradient)"
+                  stroke="rgba(76, 175, 80, 0.15)"
+                  strokeWidth={2}
+                />
+              </Svg>
+              
+              {/* Center Icon with Animation */}
+              <TouchableOpacity 
+                style={styles.refreshButton}
+                onPress={handleRefreshPress}
+                onPressIn={handleRefreshPressIn}
+                onPressOut={handleRefreshPressOut}
+                activeOpacity={0.9}
+              >
+                <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
+                  <Ionicons name="refresh" size={28} color="#4CAF50" />
+                </Animated.View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
           
-          <View style={styles.circleContainer}>
-            <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svg}>
-              {/* Background Circle */}
-              <Circle
-                cx={CIRCLE_SIZE / 2}
-                cy={CIRCLE_SIZE / 2}
-                r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
-                stroke="#E8F5E9"
-                strokeWidth={STROKE_WIDTH}
-                fill="transparent"
-              />
-              
-              {/* Progress Circle */}
-              <AnimatedCircle
-                cx={CIRCLE_SIZE / 2}
-                cy={CIRCLE_SIZE / 2}
-                r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
-                stroke="#4CAF50"
-                strokeWidth={STROKE_WIDTH}
-                strokeLinecap="round"
-                fill="transparent"
-                strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)}`}
-                strokeDashoffset={timeElapsed.seconds * (2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)) / 60}
-                transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
-              />
-              
-              {/* Center Icon */}
-              <View style={styles.centerIcon}>
-                <Ionicons name="refresh" size={24} color="#4CAF50" />
-              </View>
-            </Svg>
+          {/* Timer Label */}
+          <Text style={styles.timerLabel}>
+            You've been cannabis-free for:
+          </Text>
+          
+          {/* Horizontal Time Units */}
+          <View style={styles.horizontalTimeRow}>
+            {(() => {
+              const timeUnits = getFormattedTimeUnits();
+              return (
+                <>
+                  {timeUnits.map((unit, index) => (
+                    <View key={unit.label} style={styles.timeUnit}>
+                      <View style={styles.timeValueContainer}>
+                        <Animated.Text style={[styles.timeValue, timeValueStyle]}>
+                          {unit.value}
+                        </Animated.Text>
+                      </View>
+                      <Text style={styles.timeLabel}>{unit.label}</Text>
+                    </View>
+                  ))}
+                </>
+              );
+            })()}
           </View>
         </View>
         
-        {/* Motivational Text */}
-        <View style={styles.motivationalContainer}>
-          <Ionicons name="leaf" size={16} color="#4CAF50" style={styles.leafIcon} />
-          <Text style={styles.motivationalText}>Keep going, you're doing great!</Text>
+        {/* Brain Rewiring Progress Bar */}
+        <View style={styles.brainProgressContainer}>
+          <TouchableOpacity
+            style={styles.brainProgressCard}
+            activeOpacity={0.9}
+          >
+            <View style={styles.brainProgressHeader}>
+              <Text style={styles.brainProgressTitle}>Brain Healing</Text>
+              <Text style={styles.brainProgressPercent}>{calculateBrainProgress()}%</Text>
+            </View>
+            
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { width: `${calculateBrainProgress()}%` }
+                  ]} 
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Quick Actions Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
         </View>
         
         {/* Action Buttons */}
         <View style={styles.buttonGrid}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            activeOpacity={0.8}
-            onPress={() => handleButtonPress('meditate')}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="leaf" size={26} color="#4CAF50" />
-            </View>
-            <Text style={styles.buttonText}>Meditate</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            activeOpacity={0.8}
-            onPress={() => handleButtonPress('pledge')}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="heart" size={26} color="#4CAF50" />
-            </View>
-            <Text style={styles.buttonText}>Pledge</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            activeOpacity={0.8}
-            onPress={() => handleButtonPress('journal')}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="book" size={26} color="#4CAF50" />
-            </View>
-            <Text style={styles.buttonText}>Journal</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            activeOpacity={0.8}
-            onPress={() => handleButtonPress('more')}
-          >
-            <View style={styles.buttonIconContainer}>
-              <Ionicons name="grid" size={26} color="#4CAF50" />
-            </View>
-            <Text style={styles.buttonText}>More</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Money Saved</Text>
-            <Text style={styles.statValue}>$120</Text>
+          <View style={styles.buttonRow}>
+            <Animated.View style={[meditateButtonStyle, styles.buttonWrapper]}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                activeOpacity={0.7}
+                onPress={() => handleButtonPress('meditate')}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons name="leaf-outline" size={20} color="#4CAF50" />
+                </View>
+                <Text style={styles.buttonText}>Meditate</Text>
+                <View style={styles.buttonArrow}>
+                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+            
+            <Animated.View style={[pledgeButtonStyle, styles.buttonWrapper]}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                activeOpacity={0.7}
+                onPress={() => handleButtonPress('pledge')}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons name="heart-outline" size={20} color="#4CAF50" />
+                </View>
+                <Text style={styles.buttonText}>Pledge</Text>
+                <View style={styles.buttonArrow}>
+                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
           
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Best Streak</Text>
-            <Text style={styles.statValue}>7 days</Text>
+          <View style={styles.buttonRow}>
+            <Animated.View style={[journalButtonStyle, styles.buttonWrapper]}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                activeOpacity={0.7}
+                onPress={() => handleButtonPress('journal')}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons name="book-outline" size={20} color="#4CAF50" />
+                </View>
+                <Text style={styles.buttonText}>Journal</Text>
+                <View style={styles.buttonArrow}>
+                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+            
+            <Animated.View style={[moreButtonStyle, styles.buttonWrapper]}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                activeOpacity={0.7}
+                onPress={() => handleButtonPress('more')}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <Ionicons name="grid-outline" size={20} color="#4CAF50" />
+                </View>
+                <Text style={styles.buttonText}>More</Text>
+                <View style={styles.buttonArrow}>
+                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         </View>
       </ScrollView>
 
       {/* Sticky Panic Button */}
       <TouchableOpacity 
-        style={[styles.panicButton, { bottom: insets.bottom + 80 }]} 
-        activeOpacity={0.9}
+        style={[styles.panicButton, { bottom: insets.bottom + 70 }]} 
+        activeOpacity={0.7}
         onPress={handlePanicButtonPress}
       >
-        <LinearGradient
-          colors={['#FF3B30', '#CC2D25']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <Ionicons name="alert-circle" size={18} color="#FFF" style={styles.panicIcon} />
-        <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
+        <View style={styles.panicButtonInner}>
+          <Ionicons name="alert-circle" size={18} color="#FF3B30" style={styles.panicIcon} />
+          <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -523,180 +910,191 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120,
+    paddingHorizontal: 20,
+    paddingBottom: 150,
   },
   headerContainer: {
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingLeft: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     position: 'absolute',
     left: 0,
+    top: 0,
     zIndex: 10,
+    backgroundColor: 'transparent',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 10,
   },
   logo: {
-    width: 35,
-    height: 35,
+    width: 38,
+    height: 38,
     resizeMode: 'contain',
   },
   logoText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    marginLeft: 8,
+    marginLeft: 10,
     letterSpacing: 1,
   },
+  timerContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    marginTop: 10,
+  },
   timerLabel: {
-    fontSize: 24,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
+    fontSize: 14,
+    color: '#555555',
+    fontFamily: typography.fonts.medium,
+    marginTop: 32,
+    marginBottom: 16,
     textAlign: 'center',
-    marginHorizontal: 20,
     letterSpacing: 0.5,
   },
-  timerContainer: {
+  horizontalTimeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 20,
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 16,
     paddingHorizontal: 10,
   },
-  timeValues: {
-    flex: 1,
-    marginRight: 20,
-  },
   timeUnit: {
-    marginBottom: 20,
+    alignItems: 'center',
+    marginHorizontal: 12,
+    minWidth: 80,
+    position: 'relative',
+  },
+  timeValueContainer: {
+    position: 'relative',
+    alignSelf: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+    minWidth: 90,
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   timeValue: {
-    fontSize: 80,
+    fontSize: 68,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    lineHeight: 80,
+    lineHeight: 76,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(76, 175, 80, 0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
+    textAlign: 'center',
   },
   timeLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
-    fontFamily: typography.fonts.regular,
+    fontFamily: typography.fonts.medium,
+    marginTop: 4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  circleWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 0,
+    marginBottom: 0,
   },
   circleContainer: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   svg: {
     position: 'absolute',
   },
-  centerIcon: {
-    position: 'absolute',
-    top: CIRCLE_SIZE / 2 - 12,
-    left: CIRCLE_SIZE / 2 - 12,
-  },
-  motivationalContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  refreshButton: {
+    width: STROKE_WIDTH * 3.6,
+    height: STROKE_WIDTH * 3.6,
+    borderRadius: STROKE_WIDTH * 1.8,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
-    marginBottom: 30,
+    alignItems: 'center',
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.1)',
   },
-  leafIcon: {
-    marginRight: 8,
+  sectionHeader: {
+    marginBottom: 15,
+    marginTop: 10,
   },
-  motivationalText: {
-    fontSize: 16,
-    color: '#666666',
-    fontFamily: typography.fonts.medium,
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: typography.fonts.bold,
+    color: '#333333',
+    marginLeft: 5,
   },
   buttonGrid: {
+    marginBottom: 20,
+    marginHorizontal: 0,
+  },
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
-    paddingHorizontal: 0,
-    marginTop: 20,
-    marginHorizontal: 10,
+    marginBottom: 12,
+  },
+  buttonWrapper: {
+    width: '48.5%',
   },
   actionButton: {
-    width: '22%',
-    aspectRatio: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
+    width: '100%',
+    height: 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingVertical: 10,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 12,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
   },
   buttonIconContainer: {
-    width: 75,
-    height: 75,
-    borderRadius: 37.5,
-    backgroundColor: 'rgba(76, 175, 80, 0.03)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: 10,
   },
   buttonText: {
     fontSize: 15,
     color: '#333333',
     fontFamily: typography.fonts.medium,
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  statCard: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 6,
   },
-  statLabel: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 24,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
-  },
-  panicButton: {
-    position: 'absolute',
-    left: 50,
-    right: 50,
-    height: 50,
-    borderRadius: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-    overflow: 'hidden',
-  },
-  panicIcon: {
-    marginRight: 8,
-    fontSize: 18,
-  },
-  panicButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: typography.fonts.bold,
-    letterSpacing: 1,
+  buttonArrow: {
+    marginLeft: 'auto',
+    paddingRight: 2,
   },
   modalOverlay: {
     flex: 1,
@@ -800,6 +1198,85 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(76, 175, 80, 0.3)',
     width: '100%',
+  },
+  panicButton: {
+    position: 'absolute',
+    left: 50,
+    right: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 59, 48, 0.08)',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+    shadowColor: 'rgba(255, 59, 48, 0.3)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  panicButtonInner: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panicIcon: {
+    marginRight: 10,
+  },
+  panicButtonText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
+    letterSpacing: 1,
+  },
+  brainProgressContainer: {
+    marginBottom: 25,
+    paddingHorizontal: 5,
+  },
+  brainProgressCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  brainProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  brainProgressTitle: {
+    fontSize: 16,
+    fontFamily: typography.fonts.semibold,
+    color: '#333333',
+  },
+  brainProgressPercent: {
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
+    color: '#4CAF50',
+  },
+  progressBarContainer: {
+    height: 12,
+    width: '100%',
+    marginBottom: 4,
+  },
+  progressBarBackground: {
+    height: '100%',
+    width: '100%',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 6,
   },
 });
 
