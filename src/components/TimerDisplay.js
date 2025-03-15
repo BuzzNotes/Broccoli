@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video } from 'expo-av';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import Animated, { 
   useSharedValue, 
@@ -85,12 +86,22 @@ const TimerDisplay = ({ timeElapsed, onReset }) => {
           onPressOut={handlePressOut}
           style={styles.pressable}
         >
+          {/* Video Background */}
+          <Video
+            source={require('../../app/Backgrounds/UpdatedBackground.mp4')}
+            style={[StyleSheet.absoluteFill, { width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2 }]}
+            resizeMode="cover"
+            isLooping
+            shouldPlay
+            isMuted
+          />
+
           <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={[styles.svg, { transform: [{ rotate: '0deg' }] }]}>
             <Defs>
               <SvgGradient id="circleGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor="#1A5032" />
-                <Stop offset="0.5" stopColor="#236B42" />
-                <Stop offset="1" stopColor="#2C8652" />
+                <Stop offset="0" stopColor="rgba(26, 80, 50, 0.1)" />
+                <Stop offset="0.5" stopColor="rgba(35, 107, 66, 0.1)" />
+                <Stop offset="1" stopColor="rgba(44, 134, 82, 0.1)" />
               </SvgGradient>
               <SvgGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1">
                 <Stop offset="0" stopColor="#5BCD6B" />
@@ -237,6 +248,8 @@ const styles = StyleSheet.create({
   pressable: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: CIRCLE_SIZE / 2,
   },
   svg: {
     position: 'absolute',
