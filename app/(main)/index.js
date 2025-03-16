@@ -60,11 +60,23 @@ const MainScreen = () => {
     seconds: 0
   });
 
+  // Store timer interval ref
+  const timerIntervalRef = useRef(null);
+
   // UI State
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showPledgeModal, setShowPledgeModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
+  const [showTimeAdjustModal, setShowTimeAdjustModal] = useState(false);
+  const [adjustedTime, setAdjustedTime] = useState({
+    years: '0',
+    months: '0',
+    weeks: '0',
+    days: '0',
+    hours: '0',
+    minutes: '0'
+  });
   
   // Animation values
   const rainbowAnimation = useSharedValue(0);
@@ -247,16 +259,23 @@ const MainScreen = () => {
     ];
   };
   
-  // Initialize timer
-  const initializeTimer = async () => {
+  // Setup timer function
+  const setupTimer = async (startTimeOverride = null) => {
+    // Clear existing interval if any
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+
     try {
-      const startTimeStr = await AsyncStorage.getItem('streakStartTime');
+      const startTimeStr = startTimeOverride || await AsyncStorage.getItem('streakStartTime');
       if (!startTimeStr) {
         router.replace('/(standalone)/start-streak');
         return null;
       }
       
       const startTime = parseInt(startTimeStr, 10);
+      
+      // Initial update
       const currentTime = new Date().getTime();
       const elapsedMs = currentTime - startTime;
       
@@ -272,44 +291,39 @@ const MainScreen = () => {
       
       setTimeElapsed({ days, hours, minutes, seconds });
       
+      // Setup interval
+      timerIntervalRef.current = setInterval(() => {
+        const currentTime = new Date().getTime();
+        const elapsedMs = currentTime - startTime;
+        
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
+        const totalDays = Math.floor(totalHours / 24);
+        
+        const seconds = totalSeconds % 60;
+        const minutes = totalMinutes % 60;
+        const hours = totalHours % 24;
+        const days = totalDays;
+        
+        setTimeElapsed({ days, hours, minutes, seconds });
+      }, 1000);
+
       return startTime;
     } catch (error) {
-      console.error('Error initializing timer:', error);
+      console.error('Error setting up timer:', error);
       return null;
     }
   };
 
+  // Initialize timer on mount
   useEffect(() => {
-    let timerInterval;
-    
-    const setupTimer = async () => {
-      const startTime = await initializeTimer();
-      
-      if (startTime) {
-        timerInterval = setInterval(() => {
-          const currentTime = new Date().getTime();
-          const elapsedMs = currentTime - startTime;
-          
-          const totalSeconds = Math.floor(elapsedMs / 1000);
-          const totalMinutes = Math.floor(totalSeconds / 60);
-          const totalHours = Math.floor(totalMinutes / 60);
-          const totalDays = Math.floor(totalHours / 24);
-          
-          const seconds = totalSeconds % 60;
-          const minutes = totalMinutes % 60;
-          const hours = totalHours % 24;
-          const days = totalDays;
-          
-          setTimeElapsed({ days, hours, minutes, seconds });
-        }, 1000);
-      }
-    };
-    
     setupTimer();
     
+    // Cleanup interval on unmount
     return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
       }
     };
   }, []);
@@ -545,6 +559,76 @@ const MainScreen = () => {
     return Math.floor(progress);
   };
 
+  // Calculate lung recovery progress (0-100%)
+  const calculateLungProgress = () => {
+    // 30 days for significant lung recovery
+    const totalDays = 30;
+    const currentDays = timeElapsed.days;
+    
+    // Cap at 100%
+    const progress = Math.min(currentDays / totalDays, 1) * 100;
+    return Math.floor(progress);
+  };
+
+  // Calculate sleep recovery progress (0-100%)
+  const calculateSleepProgress = () => {
+    // 14 days for sleep pattern normalization
+    const totalDays = 14;
+    const currentDays = timeElapsed.days;
+    
+    // Cap at 100%
+    const progress = Math.min(currentDays / totalDays, 1) * 100;
+    return Math.floor(progress);
+  };
+
+  // Handle time adjustment
+  const handleTimeAdjust = async () => {
+    const now = new Date();
+    const years = parseInt(adjustedTime.years, 10) || 0;
+    const months = parseInt(adjustedTime.months, 10) || 0;
+    const weeks = parseInt(adjustedTime.weeks, 10) || 0;
+    const days = parseInt(adjustedTime.days, 10) || 0;
+    const hours = parseInt(adjustedTime.hours, 10) || 0;
+    const minutes = parseInt(adjustedTime.minutes, 10) || 0;
+
+    // Calculate total milliseconds
+    const totalMs = (
+      years * 365 * 24 * 60 * 60 * 1000 +
+      months * 30 * 24 * 60 * 60 * 1000 +
+      weeks * 7 * 24 * 60 * 60 * 1000 +
+      days * 24 * 60 * 60 * 1000 +
+      hours * 60 * 60 * 1000 +
+      minutes * 60 * 1000
+    );
+
+    const adjustedTimeMs = now.getTime() - totalMs;
+    await AsyncStorage.setItem('streakStartTime', adjustedTimeMs.toString());
+    
+    // Restart timer with new start time
+    await setupTimer(adjustedTimeMs.toString());
+    
+    setShowTimeAdjustModal(false);
+    setAdjustedTime({
+      years: '0',
+      months: '0',
+      weeks: '0',
+      days: '0',
+      hours: '0',
+      minutes: '0'
+    });
+  };
+
+  // Handle individual time unit changes
+  const handleTimeUnitChange = (unit, value) => {
+    // Only allow numbers and empty string
+    if (value === '' || /^\d+$/.test(value)) {
+      setAdjustedTime(prev => ({
+        ...prev,
+        [unit]: value
+      }));
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
@@ -553,6 +637,67 @@ const MainScreen = () => {
       <View style={StyleSheet.absoluteFill}>
         <View style={{flex: 1, backgroundColor: '#F8F9FA'}} />
       </View>
+      
+      {/* Time Adjust Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showTimeAdjustModal}
+        onRequestClose={() => setShowTimeAdjustModal(false)}
+      >
+        <View style={styles.timeAdjustModalOverlay}>
+          <View style={styles.timeAdjustModalContent}>
+            <Text style={styles.timeAdjustModalTitle}>Adjust Time</Text>
+            <ScrollView style={styles.timeUnitsScrollView}>
+              {[
+                { label: 'Years', key: 'years' },
+                { label: 'Months', key: 'months' },
+                { label: 'Weeks', key: 'weeks' },
+                { label: 'Days', key: 'days' },
+                { label: 'Hours', key: 'hours' },
+                { label: 'Minutes', key: 'minutes' }
+              ].map((unit) => (
+                <View key={unit.key} style={styles.timeUnitInputRow}>
+                  <Text style={styles.timeUnitLabel}>{unit.label}</Text>
+                  <TextInput
+                    style={styles.timeAdjustInput}
+                    value={adjustedTime[unit.key]}
+                    onChangeText={(value) => handleTimeUnitChange(unit.key, value)}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor="#999"
+                    maxLength={4}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.timeAdjustButtonRow}>
+              <TouchableOpacity 
+                style={[styles.modalTimeAdjustButton, styles.timeAdjustCancelButton]}
+                onPress={() => {
+                  setShowTimeAdjustModal(false);
+                  setAdjustedTime({
+                    years: '0',
+                    months: '0',
+                    weeks: '0',
+                    days: '0',
+                    hours: '0',
+                    minutes: '0'
+                  });
+                }}
+              >
+                <Text style={[styles.timeAdjustButtonText, styles.timeAdjustCancelText]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalTimeAdjustButton, styles.timeAdjustConfirmButton]}
+                onPress={handleTimeAdjust}
+              >
+                <Text style={[styles.timeAdjustButtonText, styles.timeAdjustConfirmText]}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       
       {/* Pledge Modal */}
       <Modal
@@ -667,6 +812,12 @@ const MainScreen = () => {
           />
           <Text style={styles.logoText}>BROCCOLI</Text>
         </View>
+        <TouchableOpacity
+          style={styles.timeAdjustButton}
+          onPress={() => setShowTimeAdjustModal(true)}
+        >
+          <Ionicons name="time-outline" size={20} color="#4CAF50" />
+        </TouchableOpacity>
       </View>
       
       <ScrollView
@@ -827,6 +978,54 @@ const MainScreen = () => {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Lung Recovery Progress Bar */}
+        <View style={styles.brainProgressContainer}>
+          <TouchableOpacity
+            style={styles.brainProgressCard}
+            activeOpacity={0.9}
+          >
+            <View style={styles.brainProgressHeader}>
+              <Text style={styles.brainProgressTitle}>Lung Recovery</Text>
+              <Text style={styles.brainProgressPercent}>{calculateLungProgress()}%</Text>
+            </View>
+            
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { width: `${calculateLungProgress()}%` }
+                  ]} 
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Sleep Recovery Progress Bar */}
+        <View style={styles.brainProgressContainer}>
+          <TouchableOpacity
+            style={styles.brainProgressCard}
+            activeOpacity={0.9}
+          >
+            <View style={styles.brainProgressHeader}>
+              <Text style={styles.brainProgressTitle}>Sleep Recovery</Text>
+              <Text style={styles.brainProgressPercent}>{calculateSleepProgress()}%</Text>
+            </View>
+            
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { width: `${calculateSleepProgress()}%` }
+                  ]} 
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
         
         {/* Quick Actions Section */}
         <View style={styles.sectionHeader}>
@@ -932,7 +1131,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     width: '100%',
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 12,
@@ -1284,6 +1483,89 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#4CAF50',
     borderRadius: 6,
+  },
+  timeAdjustModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeAdjustModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    padding: 20,
+    width: '90%',
+    maxWidth: 350,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  timeAdjustModalTitle: {
+    fontSize: 18,
+    fontFamily: typography.fonts.bold,
+    color: '#333',
+    marginBottom: 15,
+  },
+  timeUnitsScrollView: {
+    width: '100%',
+    maxHeight: 300,
+  },
+  timeUnitInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 12,
+  },
+  timeUnitLabel: {
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
+    color: '#333',
+    width: '30%',
+  },
+  timeAdjustInput: {
+    width: '65%',
+    height: 45,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    fontFamily: typography.fonts.medium,
+  },
+  timeAdjustButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalTimeAdjustButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  timeAdjustCancelButton: {
+    backgroundColor: '#F5F5F5',
+  },
+  timeAdjustConfirmButton: {
+    backgroundColor: '#4CAF50',
+  },
+  timeAdjustButtonText: {
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
+  },
+  timeAdjustCancelText: {
+    color: '#666',
+  },
+  timeAdjustConfirmText: {
+    color: '#FFF',
   },
 });
 
