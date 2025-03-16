@@ -125,7 +125,7 @@ const SecondsFlipClock = ({ seconds }) => {
     <View style={styles.container}>
       <View style={styles.secondsContainer}>
         <LinearGradient
-          colors={['rgba(20, 60, 37, 0.9)', 'rgba(26, 80, 50, 0.9)']}
+          colors={['#4CAF50', '#388E3C']}
           style={styles.secondsBackground}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -149,10 +149,6 @@ const SecondsFlipClock = ({ seconds }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -160,12 +156,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(91, 189, 104, 0.4)',
+    borderColor: 'rgba(76, 175, 80, 0.4)',
   },
   secondsBackground: {
     position: 'absolute',
@@ -173,17 +169,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   digitsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 32,
+    height: 30,
   },
   digitContainer: {
-    width: 16,
-    height: 32,
+    width: 15,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -197,18 +193,11 @@ const styles = StyleSheet.create({
   },
   digitText: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: typography.fonts.bold,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-  label: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 2,
-    opacity: 0.8,
   },
 });
 
