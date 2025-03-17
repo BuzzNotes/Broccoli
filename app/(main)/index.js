@@ -165,9 +165,95 @@ const MainScreen = () => {
     let largeUnits = [];
     let smallUnits = [];
     
-    // CASE 1: Less than 1 day - show hours and minutes in large, seconds in small
+    // CASE 1: Less than 1 day
     if (totalDays === 0) {
+      // If less than 1 minute, show hours, minutes, and seconds in large units
+      if (totalMinutes === 0) {
+        largeUnits = [
+          {
+            value: totalHours,
+            label: totalHours === 1 ? 'hour' : 'hours'
+          },
+          {
+            value: totalMinutes,
+            label: totalMinutes === 1 ? 'minute' : 'minutes'
+          },
+          {
+            value: totalSeconds,
+            label: totalSeconds === 1 ? 'second' : 'seconds'
+          }
+        ];
+        
+        // Filter out zero values only if we have at least one non-zero value
+        const nonZeroUnits = largeUnits.filter(unit => unit.value > 0);
+        if (nonZeroUnits.length > 0) {
+          largeUnits = nonZeroUnits;
+        } else {
+          // If all units are zero, show at least minutes and seconds
+          largeUnits = [
+            {
+              value: 0,
+              label: 'minutes'
+            },
+            {
+              value: 0,
+              label: 'seconds'
+            }
+          ];
+        }
+        
+        // No small units when less than 1 minute
+        smallUnits = [];
+      } 
+      // If 1+ minutes but less than 1 day, show hours and minutes in large units, seconds in small units
+      else {
+        largeUnits = [
+          {
+            value: totalHours,
+            label: totalHours === 1 ? 'hour' : 'hours'
+          },
+          {
+            value: totalMinutes,
+            label: totalMinutes === 1 ? 'minute' : 'minutes'
+          }
+        ];
+        
+        // Filter out zero values only if we have at least one non-zero value
+        const nonZeroUnits = largeUnits.filter(unit => unit.value > 0);
+        if (nonZeroUnits.length > 0) {
+          largeUnits = nonZeroUnits;
+        } else {
+          // This should never happen, but just in case
+          largeUnits = [
+            {
+              value: 0,
+              label: 'minutes'
+            }
+          ];
+        }
+        
+        // Show seconds in the small units (green section)
+        smallUnits = [
+          {
+            value: totalSeconds,
+            label: 's'
+          }
+        ];
+      }
+      
+      return {
+        largeUnits,
+        smallUnits
+      };
+    }
+    
+    // CASE 2: 1+ days but less than 7 days - show days, hours, minutes in large
+    if (totalDays < 7) {
       largeUnits = [
+        {
+          value: totalDays,
+          label: totalDays === 1 ? 'day' : 'days'
+        },
         {
           value: totalHours,
           label: totalHours === 1 ? 'hour' : 'hours'
@@ -178,17 +264,6 @@ const MainScreen = () => {
         }
       ];
       
-      // Filter out zero values
-      largeUnits = largeUnits.filter(unit => unit.value > 0);
-      
-      // If all large units are zero, show at least minutes
-      if (largeUnits.length === 0) {
-        largeUnits = [{
-          value: 0,
-          label: 'minutes'
-        }];
-      }
-      
       smallUnits = [
         {
           value: timeElapsed.seconds,
@@ -202,40 +277,7 @@ const MainScreen = () => {
       };
     }
     
-    // CASE 2: 1+ days but less than 7 days - show days and hours in large, minutes and seconds in small
-    if (totalDays < 7) {
-      largeUnits = [
-        {
-          value: totalDays,
-          label: totalDays === 1 ? 'day' : 'days'
-        },
-        {
-          value: totalHours,
-          label: totalHours === 1 ? 'hour' : 'hours'
-        }
-      ];
-      
-      // Filter out zero values
-      largeUnits = largeUnits.filter(unit => unit.value > 0);
-      
-      smallUnits = [
-        {
-          value: timeElapsed.minutes,
-          label: 'm'
-        },
-        {
-          value: timeElapsed.seconds,
-          label: 's'
-        }
-      ];
-      
-      return {
-        largeUnits,
-        smallUnits
-      };
-    }
-    
-    // CASE 3: 1+ weeks but less than 30 days - show weeks and days in large, hours, minutes, seconds in small
+    // CASE 3: 1+ weeks but less than 30 days - show weeks, days, hours in large
     if (totalDays < 30) {
       largeUnits = [
         {
@@ -252,9 +294,6 @@ const MainScreen = () => {
         }
       ];
       
-      // Filter out zero values
-      largeUnits = largeUnits.filter(unit => unit.value > 0);
-      
       smallUnits = [
         {
           value: timeElapsed.minutes,
@@ -272,7 +311,7 @@ const MainScreen = () => {
       };
     }
     
-    // CASE 4: 1+ months but less than 365 days - show months, weeks, days in large (keeping to 3 max)
+    // CASE 4: 1+ months but less than 365 days - show months, weeks, days in large
     if (totalDays < 365) {
       largeUnits = [
         {
@@ -289,17 +328,6 @@ const MainScreen = () => {
         }
       ];
       
-      // Filter out zero values
-      largeUnits = largeUnits.filter(unit => unit.value > 0);
-      
-      // If we have less than 3 units after filtering and there are hours, add hours
-      if (largeUnits.length < 3 && totalHours > 0) {
-        largeUnits.push({
-          value: totalHours,
-          label: totalHours === 1 ? 'hour' : 'hours'
-        });
-      }
-      
       smallUnits = [
         {
           value: timeElapsed.hours,
@@ -315,41 +343,32 @@ const MainScreen = () => {
         }
       ];
       
-      // If hours is already in large units, remove it from small units
-      if (largeUnits.some(unit => unit.label.includes('hour'))) {
-        smallUnits = smallUnits.slice(1);
-      }
-      
       return {
         largeUnits,
         smallUnits
       };
     }
     
-    // CASE 5: 1+ years - limit to 3 units in large display (years, months, weeks)
-    // and move days to small units
+    // CASE 5: 1+ years - show years, months, weeks in large
     largeUnits = [
       {
         value: years,
         label: years === 1 ? 'year' : 'years'
       },
       {
-        value: monthsAfterYears > 0 ? monthsAfterYears : 0,
+        value: monthsAfterYears,
         label: monthsAfterYears === 1 ? 'month' : 'months'
       },
       {
-        value: weeksAfterMonthsAndYears > 0 ? weeksAfterMonthsAndYears : 0,
+        value: weeksAfterMonthsAndYears,
         label: weeksAfterMonthsAndYears === 1 ? 'week' : 'weeks'
       }
     ];
     
-    // Filter out zero values
-    largeUnits = largeUnits.filter(unit => unit.value > 0);
-    
     smallUnits = [
       {
         value: daysAfterAll,
-        label: daysAfterAll === 1 ? 'd' : 'd'
+        label: 'd'
       },
       {
         value: timeElapsed.hours,
@@ -365,9 +384,14 @@ const MainScreen = () => {
       }
     ];
     
-    // If days is zero, remove it from small units
-    if (daysAfterAll === 0) {
-      smallUnits = smallUnits.slice(1);
+    // Remove zero values from small units only if they're at the beginning
+    while (smallUnits.length > 0 && smallUnits[0].value === 0) {
+      smallUnits.shift();
+    }
+    
+    // Ensure we have at least one small unit
+    if (smallUnits.length === 0) {
+      smallUnits = [{ value: 0, label: 's' }];
     }
     
     return {
@@ -822,15 +846,19 @@ const MainScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* Off-white background instead of pure white */}
-      <View style={StyleSheet.absoluteFill}>
+      {/* Background gradient that stays at the top */}
+      <View style={styles.backgroundGradient}>
         <LinearGradient
-          colors={['#EDF7ED', '#F5FAF5', '#FBFEFB']}
-          style={{flex: 1}}
+          colors={['#A5D6A7', '#E8F5E9', '#F5F5F5']}
+          style={{height: 250}}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 1 }}
+          locations={[0, 0.7, 1]}
         />
       </View>
+      
+      {/* Light gray background for the rest of the screen */}
+      <View style={[StyleSheet.absoluteFill, {backgroundColor: '#F5F5F5', zIndex: -2}]} />
       
       {/* Time Adjust Modal */}
       <Modal
@@ -1000,17 +1028,14 @@ const MainScreen = () => {
       {/* Header with Logo in top left */}
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.logoContainer}>
-          <Animated.Image 
-            source={require('../../assets/images/broccoli-logo.png')}
-            style={[styles.logo, logoAnimatedStyle]}
-          />
-          <Text style={styles.logoText}>BROCCOLI</Text>
+          <Text style={styles.logoEmoji}>🌿</Text>
+          <Text style={styles.logoText}>T-BREAK</Text>
         </View>
         <TouchableOpacity
           style={styles.timeAdjustButton}
           onPress={() => setShowTimeAdjustModal(true)}
         >
-          <Ionicons name="time-outline" size={20} color="#4CAF50" />
+          <Ionicons name="time-outline" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
       
@@ -1020,13 +1045,18 @@ const MainScreen = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* User Greeting - Hardcoded for testing */}
-        <Text style={styles.userGreeting}>Hello, Rob</Text>
+        {/* User Greeting - Enhanced styling with emoji */}
+        <Text style={styles.userGreeting}>Hello, Rob 👋</Text>
         
         {/* Timer Display - Modified to show time unit labels next to the values */}
         <View style={styles.timerContainer}>
           {/* Timer Content Box */}
           <View style={styles.timerContentBox}>
+            {/* Title Bar */}
+            <View style={styles.timerTitleBar}>
+              <Text style={styles.timerTitle}>Sobriety Tracker</Text>
+            </View>
+            
             {/* Top section with circle */}
             <View style={styles.timerTopSection}>
               {/* Timer circle */}
@@ -1044,12 +1074,17 @@ const MainScreen = () => {
                         <Stop offset="100%" stopColor="#C8E6C9" stopOpacity="0.8" />
                       </SvgGradient>
                       <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.25" />
+                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.3" />
                         <Stop offset="100%" stopColor="#4CAF50" stopOpacity="0" />
                       </SvgGradient>
                       <SvgGradient id="resetButtonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                         <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
                         <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
+                      </SvgGradient>
+                      <SvgGradient id="shimmerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="rgba(255, 255, 255, 0)" />
+                        <Stop offset="50%" stopColor="rgba(255, 255, 255, 0.3)" />
+                        <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
                       </SvgGradient>
                     </Defs>
                     
@@ -1058,9 +1093,9 @@ const MainScreen = () => {
                       <Circle
                         cx={CIRCLE_SIZE * 0.35}
                         cy={CIRCLE_SIZE * 0.35}
-                        r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2 + 10}
+                        r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2 + 12}
                         stroke="url(#glowGradient)"
-                        strokeWidth={20}
+                        strokeWidth={24}
                         fill="transparent"
                       />
                     </Animated.View>
@@ -1076,6 +1111,18 @@ const MainScreen = () => {
                       strokeLinecap="round"
                     />
                     
+                    {/* Shimmer effect overlay */}
+                    <Circle
+                      cx={CIRCLE_SIZE * 0.35}
+                      cy={CIRCLE_SIZE * 0.35}
+                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
+                      stroke="url(#shimmerGradient)"
+                      strokeWidth={STROKE_WIDTH}
+                      fill="transparent"
+                      strokeLinecap="round"
+                      opacity={0.4}
+                    />
+                    
                     {/* Progress Circle with gradient */}
                     <AnimatedCircle
                       cx={CIRCLE_SIZE * 0.35}
@@ -1089,29 +1136,10 @@ const MainScreen = () => {
                       animatedProps={progressCircleProps}
                       transform={`rotate(-90 ${CIRCLE_SIZE * 0.35} ${CIRCLE_SIZE * 0.35})`}
                     />
-                    
-                    {/* Center button shadow */}
-                    <Circle
-                      cx={CIRCLE_SIZE * 0.35}
-                      cy={CIRCLE_SIZE * 0.35}
-                      r={STROKE_WIDTH * 1.85}
-                      fill="rgba(0, 0, 0, 0.02)"
-                      stroke="transparent"
-                    />
-                    
-                    {/* Center Icon Container with improved design */}
-                    <Circle
-                      cx={CIRCLE_SIZE * 0.35}
-                      cy={CIRCLE_SIZE * 0.35}
-                      r={STROKE_WIDTH * 1.8}
-                      fill="url(#resetButtonGradient)"
-                      stroke="rgba(76, 175, 80, 0.15)"
-                      strokeWidth={1}
-                    />
                   </Svg>
                   
-                  {/* Center Icon with Animation */}
-            <TouchableOpacity
+                  {/* Center Emoji without container */}
+                  <TouchableOpacity
                     style={styles.refreshButton}
                     onPress={handleRefreshPress}
                     onPressIn={handleRefreshPressIn}
@@ -1119,7 +1147,7 @@ const MainScreen = () => {
                     activeOpacity={0.9}
                   >
                     <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
-                      <Ionicons name="refresh" size={22} color="#4CAF50" />
+                      <Ionicons name="refresh" size={28} color="#43A047" />
                     </Animated.View>
                   </TouchableOpacity>
                 </Animated.View>
@@ -1146,10 +1174,10 @@ const MainScreen = () => {
                       if (largeUnits.length === 0) {
                         return (
                           <View style={styles.mainTimeUnit}>
-                            <Text style={styles.timeUnitValue} numberOfLines={1} adjustsFontSizeToFit>
-                              0
+                            <Text style={styles.timeUnitInline}>
+                              <Text style={styles.timeUnitValue}>0</Text>
+                              <Text style={styles.timeUnitLabelInline}>min</Text>
                             </Text>
-                            <Text style={styles.timeUnitLabel}>minutes</Text>
                           </View>
                         );
                       }
@@ -1161,19 +1189,22 @@ const MainScreen = () => {
                               styles.largeUnitItem,
                               largeUnits.length <= 2 ? styles.largeUnitItemWide : {}
                             ]}>
-                              <Text 
-                                style={styles.timeUnitValue} 
-                                numberOfLines={1} 
-                                adjustsFontSizeToFit
-                              >
-                                {unit.value}
-              </Text>
-                              <Text style={styles.timeUnitLabel}>
-                                {unit.label}
+                              <Text style={styles.timeUnitInline}>
+                                <Text style={styles.timeUnitValue}>{unit.value}</Text>
+                                <Text style={styles.timeUnitLabelInline}>
+                                  {unit.label === 'hours' || unit.label === 'hour' ? ' hour' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'minutes' || unit.label === 'minute' ? ' min' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'seconds' || unit.label === 'second' ? ' sec' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'days' || unit.label === 'day' ? ' day' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'weeks' || unit.label === 'week' ? ' week' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'months' || unit.label === 'month' ? ' month' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'years' || unit.label === 'year' ? ' year' + (unit.value !== 1 ? 's' : '') : 
+                                   ' ' + unit.label}
+                                </Text>
                               </Text>
                             </View>
-          ))}
-        </View>
+                          ))}
+                        </View>
                       );
                     })()}
                   </View>
@@ -1239,6 +1270,11 @@ const MainScreen = () => {
           </View>
         </View>
         
+        {/* Recovery Section Title */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recovery</Text>
+        </View>
+        
         {/* Brain Rewiring Progress Bar */}
         <View style={styles.brainProgressContainer}>
           <TouchableOpacity
@@ -1246,7 +1282,7 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiColumn}>
+              <View style={styles.headerWithEmojiRow}>
                 <Text style={styles.headerEmoji}>🧠</Text>
                 <Text style={styles.brainProgressTitle}>Brain Healing</Text>
               </View>
@@ -1273,7 +1309,7 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiColumn}>
+              <View style={styles.headerWithEmojiRow}>
                 <Text style={styles.headerEmoji}>🫁</Text>
                 <Text style={styles.brainProgressTitle}>Lung Recovery</Text>
               </View>
@@ -1300,7 +1336,7 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiColumn}>
+              <View style={styles.headerWithEmojiRow}>
                 <Text style={styles.headerEmoji}>😴</Text>
                 <Text style={styles.brainProgressTitle}>Sleep Recovery</Text>
               </View>
@@ -1423,78 +1459,93 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
   },
-  logo: {
-    width: 38,
-    height: 38,
-    resizeMode: 'contain',
+  logoEmoji: {
+    fontSize: 30,
+    
   },
   logoText: {
     fontSize: 18,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    marginLeft: 10,
+    marginLeft: 3,
     letterSpacing: 1,
   },
   timerContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 10,
+    marginBottom: 0,
+    marginTop: 0,
     width: '100%',
     paddingHorizontal: 0,
   },
   timerContentBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 16,
     padding: 0,
     width: '100%',
     alignItems: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 25,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 4,
     marginTop: 0,
     borderWidth: 0,
     marginHorizontal: 0,
     overflow: 'hidden',
     position: 'relative',
   },
+  timerTitleBar: {
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    alignItems: 'center',
+  },
+  timerTitle: {
+    fontSize: 16,
+    fontFamily: typography.fonts.semibold,
+    color: '#222222',
+    letterSpacing: 0.5,
+  },
   timerTopSection: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: 32,
-    paddingBottom: 16,
+    paddingTop: 28,
+    paddingBottom: 20,
     marginTop: 0,
   },
   timerDivider: {
-    width: '92%',
+    width: '85%',
     height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-    marginBottom: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    marginBottom: 16,
+    marginTop: 6,
   },
   timerLabel: {
-    fontSize: 16,
-    color: '#444444',
-    fontFamily: typography.fonts.medium,
-    marginTop: 10,
+    fontSize: 17,
+    color: '#333333',
+    fontFamily: typography.fonts.semibold,
+    marginTop: 14,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
   circleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 0,
+    marginBottom: 12,
+    marginTop: 6,
   },
   circleContainer: {
-    width: CIRCLE_SIZE * 0.7,
-    height: CIRCLE_SIZE * 0.7,
+    width: CIRCLE_SIZE * 0.75,
+    height: CIRCLE_SIZE * 0.75,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: 'rgba(76, 175, 80, 0.1)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: 'rgba(76, 175, 80, 0.15)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 6,
   },
   svg: {
     position: 'absolute',
@@ -1502,9 +1553,10 @@ const styles = StyleSheet.create({
   mainTimeDisplayScroll: {
     flexGrow: 0,
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 20,
+    marginTop: 4,
   },
   mainTimeDisplay: {
     flexDirection: 'row',
@@ -1512,107 +1564,119 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 0,
     flexWrap: 'nowrap',
-    paddingHorizontal: 5,
+    paddingHorizontal: 2,
   },
   mainTimeUnit: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   largeUnitsContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'nowrap',
     width: '100%',
-    paddingHorizontal: 5,
+    paddingHorizontal: 2,
     overflow: 'hidden',
   },
   largeUnitItem: {
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginHorizontal: 8,
-    minWidth: 72,
-    maxWidth: 100,
+    justifyContent: 'center',
+    marginHorizontal: 3,
+    minWidth: 65,
+    maxWidth: 150,
   },
   largeUnitItemWide: {
-    minWidth: 95,
+    minWidth: 85,
+  },
+  timeUnitInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'nowrap',
   },
   timeUnitValue: {
-    fontSize: 60,
+    fontSize: 46,
     color: '#222222',
     fontFamily: typography.fonts.bold,
     textAlign: 'center',
     adjustsFontSizeToFit: true,
     numberOfLines: 1,
     includeFontPadding: false,
-    textShadowColor: 'rgba(76, 175, 80, 0.05)',
+    textShadowColor: 'rgba(76, 175, 80, 0.08)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
     letterSpacing: -0.5,
-    lineHeight: 64,
+    lineHeight: 50,
     marginBottom: 2,
   },
-  timeUnitLabel: {
-    fontSize: 14,
-    color: '#888888',
+  timeUnitLabelInline: {
+    fontSize: 18,
+    color: '#777777',
     fontFamily: typography.fonts.medium,
-    textAlign: 'center',
-    textTransform: 'lowercase',
-    includeFontPadding: false,
-    adjustsFontSizeToFit: true,
-    numberOfLines: 1,
-    letterSpacing: 0.2,
+    marginLeft: 1,
+    marginBottom: 4,
+    flexShrink: 1,
   },
   secondsBoxContainer: {
     marginBottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 4,
     width: '100%',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    overflow: 'hidden',
   },
   smallUnitsGradient: {
     borderRadius: 0,
     overflow: 'hidden',
     borderWidth: 0,
     width: '100%',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   smallUnitsDisplay: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.25)',
   },
   smallUnitsText: {
     textAlign: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   smallUnitValue: {
     fontSize: 19,
     color: '#FFFFFF',
     fontFamily: typography.fonts.bold,
-    textShadowColor: 'rgba(0, 0, 0, 0.12)',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
   smallUnitLabel: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#FFFFFF',
     fontFamily: typography.fonts.medium,
     opacity: 0.9,
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 0,
-    marginRight: 10,
+    marginRight: 8,
   },
   smallUnitSpacer: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
     marginRight: 6,
     marginLeft: 4,
   },
@@ -1623,17 +1687,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+    position: 'absolute',
+  },
+  resetEmoji: {
+    fontSize: 28,
+    textAlign: 'center',
+    marginBottom: 0,
+    color: '#43A047',
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2,
   },
   sectionHeader: {
-    marginBottom: 22,
-    marginTop: 15,
+    marginBottom: 12,
+    marginTop: 12,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontFamily: typography.fonts.bold,
-    color: '#333333',
+    fontSize: 18,
+    fontFamily: typography.fonts.semibold,
+    color: '#000000',
     marginLeft: 5,
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   buttonGrid: {
     marginBottom: 20,
@@ -1650,18 +1725,19 @@ const styles = StyleSheet.create({
     width: '48.5%',
     height: 68,
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: 16,
     paddingRight: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 18,
-    elevation: 4,
-    borderWidth: 0,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   buttonInnerContainer: {
     flexDirection: 'row',
@@ -1766,7 +1842,6 @@ const styles = StyleSheet.create({
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
-    shadowRadius: 5,
     elevation: 6,
   },
   pledgeButtonText: {
@@ -1815,20 +1890,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   brainProgressContainer: {
-    marginBottom: 12,
+    marginBottom: 8,
     width: '100%',
   },
   brainProgressCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 16,
-    paddingTop: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.06)',
-    shadowOffset: { width: 0, height: 6 },
+    borderRadius: 16,
+    padding: 14,
+    paddingTop: 14,
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 18,
-    elevation: 5,
-    borderWidth: 0,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
     width: '100%',
     position: 'relative',
   },
@@ -1836,12 +1912,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     paddingTop: 0,
-    paddingRight: 8,
+    paddingRight: 4,
   },
   brainProgressTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: typography.fonts.semibold,
     color: '#444444',
   },
@@ -1947,11 +2023,15 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   userGreeting: {
-    fontSize: 30,
+    fontSize: 34,
     fontFamily: typography.fonts.bold,
-    color: '#333333',
-    marginBottom: 18,
+    color: '#000000',
+    marginBottom: 24,
     paddingHorizontal: 5,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.05)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   swipeableContainer: {
     width: '100%',
@@ -1972,17 +2052,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   startDateText: {
-    fontSize: 18,
+    fontSize: 19,
     fontFamily: typography.fonts.medium,
     color: '#444444',
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: 30,
   },
   swipeIndicatorContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 8,
     marginTop: 4,
   },
@@ -1991,7 +2071,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#DDDDDD',
-    marginHorizontal: 4,
+    marginHorizontal: 5,
   },
   swipeIndicatorActive: {
     backgroundColor: '#4CAF50',
@@ -2023,17 +2103,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerWithEmojiColumn: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+  headerWithEmojiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingLeft: 2,
-    paddingRight: 8,
   },
   headerEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
-    paddingTop: 4,
-    paddingBottom: 4,
+    fontSize: 22,
+    marginRight: 8,
+  },
+  timeAdjustButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: -1,
   },
 });
 
