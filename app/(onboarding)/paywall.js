@@ -4,7 +4,11 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../../app/styles/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../../src/config/firebase';
+import { colors } from '../styles/colors';
+import { typography } from '../styles/typography';
 
 const SubscriptionOption = ({ isYearly, selected, onSelect }) => {
   const monthlyPrice = isYearly ? 3.33 : 12.99;
@@ -66,6 +70,23 @@ const PaywallScreen = () => {
   const handleStartJourney = async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Set onboarding completion flag in AsyncStorage
+      await AsyncStorage.setItem('onboardingCompleted', 'true');
+      
+      // Update Firestore document if user is authenticated
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          onboarding_completed: true,
+          questions_completed: true,
+          payment_completed: true,
+          onboarding_state: 'completed',
+          last_onboarding_completion: new Date().toISOString(),
+          selected_plan: selectedPlan // Save the selected plan
+        });
+      }
+      
       router.replace('/(main)');
     } catch (error) {
       console.error('Navigation error:', error);

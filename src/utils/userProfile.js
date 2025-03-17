@@ -388,32 +388,33 @@ export const createUserProfile = async (user, additionalData = {}) => {
  * @returns {Object} Object with isComplete boolean and missing fields array
  */
 export const isProfileComplete = (profile = {}) => {
-  // Check if we have a displayName
-  if (profile.displayName && profile.displayName.trim() !== '') {
+  // First check if onboarding is explicitly marked as completed
+  if (profile.onboarding_completed === true && profile.onboarding_state === 'completed') {
     return {
       isComplete: true,
       missingFields: []
     };
   }
   
-  // Check if we have at least firstName OR lastName
-  if ((profile.firstName && profile.firstName.trim() !== '') || 
-      (profile.lastName && profile.lastName.trim() !== '')) {
-    return {
-      isComplete: true,
-      missingFields: []
-    };
-  }
-  
-  // If we get here, we need both firstName and lastName
+  // If onboarding status isn't explicitly set, check for required fields
   const missingFields = [];
   
+  // Check name fields
   if (!profile.firstName || profile.firstName.trim() === '') {
     missingFields.push('firstName');
   }
   
   if (!profile.lastName || profile.lastName.trim() === '') {
     missingFields.push('lastName');
+  }
+  
+  // Check onboarding-specific fields
+  if (!profile.questions_completed) {
+    missingFields.push('questions_completed');
+  }
+  
+  if (!profile.payment_completed) {
+    missingFields.push('payment_completed');
   }
   
   return {

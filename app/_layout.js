@@ -116,6 +116,15 @@ export default function Layout() {
               }}
             />
 
+            {/* Onboarding Screens */}
+            <Stack.Screen 
+              name="(onboarding)"
+              options={{
+                animation: 'none',
+                presentation: 'card'
+              }}
+            />
+
             {/* Standalone Screens */}
             <Stack.Screen 
               name="(standalone)/start-streak"

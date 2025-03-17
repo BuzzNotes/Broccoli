@@ -98,14 +98,40 @@ export function AuthProvider({ children }) {
           
           // Store user data in AsyncStorage
           await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+          // Check onboarding state
+          const { isComplete, missingFields } = isProfileComplete(userProfile);
+          
+          // If profile is not complete, check what's missing
+          if (!isComplete) {
+            if (missingFields.includes('firstName') || missingFields.includes('lastName')) {
+              router.replace('/(auth)/complete-profile');
+            } else if (!userProfile.onboarding_completed || userProfile.onboarding_state !== 'completed') {
+              // For new users, go to good-news first
+              if (!userProfile.onboarding_state) {
+                router.replace('/(onboarding)/good-news');
+              } else {
+                // For users who started but didn't complete onboarding, go to their last state
+                router.replace('/(onboarding)/' + (userProfile.onboarding_state || 'good-news'));
+              }
+            } else {
+              router.replace('/(main)');
+            }
+          } else {
+            // If everything is complete, go to main screen
+            router.replace('/(main)');
+          }
         } catch (error) {
           console.error('Error fetching user profile:', error);
           setUser(user);
           await AsyncStorage.setItem('user', JSON.stringify(user));
+          // If there's an error, default to onboarding
+          router.replace('/(onboarding)/welcome');
         }
       } else {
         setUser(null);
         await AsyncStorage.removeItem('user');
+        router.replace('/(auth)/login');
       }
       setLoading(false);
     });
@@ -173,19 +199,7 @@ export function AuthProvider({ children }) {
           provider: 'google'
         });
 
-        // Check if profile is complete
-        const userProfile = await getUserProfile();
-        const { isComplete } = isProfileComplete(userProfile);
-
-        // Route based on profile completeness
-        if (!isComplete) {
-          router.push('/(auth)/complete-profile');
-        } else {
-          router.push('/(onboarding)/good-news');
-        }
-        
-        // Keep loading true during navigation
-        // The loading state will be reset by the onAuthStateChanged listener
+        // The auth state change listener will handle navigation
       })
       .catch(error => {
         console.error('Google Sign-In Credential Error:', error);
@@ -250,16 +264,7 @@ export function AuthProvider({ children }) {
             provider: 'google'
           });
           
-          // Check if profile is complete
-          const userProfile = await getUserProfile();
-          const { isComplete } = isProfileComplete(userProfile);
-          
-          // Route based on profile completeness
-          if (!isComplete) {
-            router.push('/(auth)/complete-profile');
-          } else {
-            router.push('/(onboarding)/good-news');
-          }
+          // The auth state change listener will handle navigation
         } catch (error) {
           console.error("Error with Firebase Google sign-in:", error);
           throw error;
@@ -386,20 +391,7 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // Check if profile is complete
-      const userProfile = await getUserProfile();
-      console.log("Final user profile after Apple sign-in:", JSON.stringify(userProfile));
-      const { isComplete } = isProfileComplete(userProfile);
-
-      // Route based on profile completeness
-      if (!isComplete) {
-        router.push('/(auth)/complete-profile');
-      } else {
-        router.push('/(onboarding)/good-news');
-      }
-      
-      // Keep loading true during navigation
-      // The loading state will be reset by the onAuthStateChanged listener
+      // The auth state change listener will handle navigation
     } catch (error) {
       console.error('Apple Sign-In Error:', error);
       // Reset loading state on error
@@ -463,32 +455,9 @@ export function AuthProvider({ children }) {
           email: email,
           provider: 'email',
         });
-        
-        // Get the newly created profile
-        userProfile = await getUserProfile();
       }
       
-      // Update the user state with profile data
-      const userData = {
-        ...userCredential.user,
-        profile: userProfile
-      };
-      
-      // Update the user state
-      setUser(userData);
-      
-      // Check if profile is complete
-      const { isComplete } = isProfileComplete(userProfile);
-      
-      // Route based on profile completeness
-      if (!isComplete) {
-        router.push('/(auth)/complete-profile');
-      } else {
-        router.push('/(onboarding)/good-news');
-      }
-      
-      // Keep loading true during navigation
-      // The loading state will be reset by the onAuthStateChanged listener
+      // The auth state change listener will handle navigation
     } catch (error) {
       console.error('Email Sign-In Error:', error);
       // Reset loading state on error
@@ -525,31 +494,7 @@ export function AuthProvider({ children }) {
         provider: 'email',
       });
 
-      // Get the user profile from Firestore
-      const userProfile = await getUserProfile();
-      
-      // Update the user state with profile data
-      const userData = {
-        ...userCredential.user,
-        profile: userProfile
-      };
-      
-      // Update the user state
-      setUser(userData);
-      
-      // Store user data in AsyncStorage
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      
-      // Check if profile is complete
-      const { isComplete } = isProfileComplete(userProfile);
-
-      // Route based on profile completeness
-      if (!isComplete) {
-        router.push('/(auth)/complete-profile');
-      } else {
-        router.push('/(onboarding)/good-news');
-      }
-
+      // The auth state change listener will handle navigation
       return userCredential.user;
     } catch (error) {
       console.error("Error in email signup:", error);

@@ -11,7 +11,8 @@ import {
   StatusBar,
   TouchableOpacity,
   Modal,
-  TextInput
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -38,6 +39,8 @@ import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 import TimerDisplay from '../../src/components/TimerDisplay';
 import Svg, { Circle, Path, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { auth, db } from '../../src/config/firebase';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.55;
@@ -91,6 +94,9 @@ const MainScreen = () => {
   const journalButtonScale = useSharedValue(1);
   const moreButtonScale = useSharedValue(1);
   
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   // Start rainbow animation when modal is shown
   useEffect(() => {
     if (showPledgeModal) {
@@ -269,30 +275,25 @@ const MainScreen = () => {
     try {
       const startTimeStr = startTimeOverride || await AsyncStorage.getItem('streakStartTime');
       if (!startTimeStr) {
+        console.log('No streak start time found');
         router.replace('/(standalone)/start-streak');
         return null;
       }
       
       const startTime = parseInt(startTimeStr, 10);
       
+      // Validate start time
+      if (isNaN(startTime) || startTime > new Date().getTime()) {
+        console.error('Invalid start time:', startTime);
+        await AsyncStorage.removeItem('streakStartTime');
+        router.replace('/(standalone)/start-streak');
+        return null;
+      }
+      
+      console.log('Setting up timer with start time:', new Date(startTime).toISOString());
+      
       // Initial update
-      const currentTime = new Date().getTime();
-      const elapsedMs = currentTime - startTime;
-      
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      const totalMinutes = Math.floor(totalSeconds / 60);
-      const totalHours = Math.floor(totalMinutes / 60);
-      const totalDays = Math.floor(totalHours / 24);
-      
-      const seconds = totalSeconds % 60;
-      const minutes = totalMinutes % 60;
-      const hours = totalHours % 24;
-      const days = totalDays;
-      
-      setTimeElapsed({ days, hours, minutes, seconds });
-      
-      // Setup interval
-      timerIntervalRef.current = setInterval(() => {
+      const updateTimer = () => {
         const currentTime = new Date().getTime();
         const elapsedMs = currentTime - startTime;
         
@@ -307,7 +308,13 @@ const MainScreen = () => {
         const days = totalDays;
         
         setTimeElapsed({ days, hours, minutes, seconds });
-      }, 1000);
+      };
+      
+      // Initial update
+      updateTimer();
+      
+      // Setup interval
+      timerIntervalRef.current = setInterval(updateTimer, 1000);
 
       return startTime;
     } catch (error) {
@@ -417,9 +424,34 @@ const MainScreen = () => {
     };
   });
 
-  const handleReset = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/(standalone)/relapse');
+  const handleReset = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Save the relapse time
+      const relapseTime = new Date().getTime();
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('streakStartTime', relapseTime.toString());
+      
+      // Save to Firestore if user is authenticated
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          streak_start_time: relapseTime,
+          last_sync_time: relapseTime,
+          relapse_history: arrayUnion({
+            timestamp: relapseTime,
+            previous_streak: timeElapsed
+          })
+        });
+      }
+      
+      // Navigate to relapse screen
+      router.push('/(standalone)/relapse');
+    } catch (error) {
+      console.error('Error saving relapse time:', error);
+    }
   };
 
   const handleButtonPress = (type) => {
@@ -581,41 +613,231 @@ const MainScreen = () => {
     return Math.floor(progress);
   };
 
-  // Handle time adjustment
+  // Sync timer with Firestore
+  const syncTimerWithFirestore = async () => {
+    try {
+      if (!auth.currentUser) return;
+
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      const localStartTime = await AsyncStorage.getItem('streakStartTime');
+      const now = new Date().getTime();
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // If database has a start time
+        if (userData.streak_start_time) {
+          const dbStartTime = userData.streak_start_time;
+          const localTimeNum = localStartTime ? parseInt(localStartTime, 10) : 0;
+          
+          // Use the earlier start time (longer streak)
+          if (!localStartTime || dbStartTime < localTimeNum) {
+            console.log('Using database streak time');
+            await AsyncStorage.setItem('streakStartTime', dbStartTime.toString());
+            await setupTimer(dbStartTime.toString());
+          } else if (localTimeNum < dbStartTime) {
+            console.log('Local streak time is earlier, updating database');
+            await updateDoc(userDocRef, {
+              streak_start_time: localTimeNum,
+              last_sync_time: now
+            });
+          }
+        }
+        // If database has no start time but local does
+        else if (localStartTime) {
+          console.log('Saving local streak time to database');
+          await updateDoc(userDocRef, {
+            streak_start_time: parseInt(localStartTime, 10),
+            last_sync_time: now
+          });
+        }
+      } else {
+        // Create user document if it doesn't exist
+        if (localStartTime) {
+          console.log('Creating new user document with streak time');
+          await setDoc(userDocRef, {
+            streak_start_time: parseInt(localStartTime, 10),
+            last_sync_time: now,
+            onboarding_completed: true,
+            questions_completed: true,
+            payment_completed: true,
+            relapse_history: []
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing timer:', error);
+    }
+  };
+
+  // Check auth and onboarding status
+  const checkAuthAndOnboarding = async () => {
+    try {
+      console.log('Checking auth and onboarding status...');
+      
+      if (!auth.currentUser) {
+        console.log('No authenticated user found, redirecting to sign-in');
+        router.replace('/(auth)/sign-in');
+        return;
+      }
+
+      console.log('User is authenticated, checking Firestore document...');
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      
+      try {
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          console.log('User document does not exist, creating new document');
+          // Check if user has completed onboarding in AsyncStorage
+          const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+          const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+          
+          // Create the user document with onboarding state
+          await setDoc(userDocRef, {
+            streak_start_time: streakStartTime ? parseInt(streakStartTime, 10) : null,
+            last_sync_time: new Date().getTime(),
+            onboarding_completed: onboardingCompleted === 'true',
+            questions_completed: onboardingCompleted === 'true',
+            payment_completed: onboardingCompleted === 'true',
+            onboarding_state: onboardingCompleted === 'true' ? 'completed' : 'pending'
+          });
+
+          if (onboardingCompleted !== 'true') {
+            console.log('Onboarding not completed, redirecting to onboarding');
+            router.replace('/(onboarding)/welcome');
+            return;
+          }
+        } else {
+          console.log('User document exists, checking onboarding status...');
+          const userData = userDoc.data();
+          
+          // If onboarding is not completed in Firestore
+          if (!userData.onboarding_completed || userData.onboarding_state !== 'completed') {
+            // Check if it's completed in AsyncStorage as backup
+            const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+            
+            if (onboardingCompleted === 'true') {
+              // Update Firestore to mark onboarding as completed
+              console.log('Updating Firestore with completed onboarding status');
+              await updateDoc(userDocRef, {
+                onboarding_completed: true,
+                questions_completed: true,
+                payment_completed: true,
+                onboarding_state: 'completed'
+              });
+            } else {
+              console.log('Onboarding not completed, redirecting to onboarding');
+              router.replace('/(onboarding)/welcome');
+              return;
+            }
+          }
+        }
+
+        // Sync timer data between local storage and database
+        console.log('Checking timer data...');
+        await syncTimerWithFirestore();
+
+        // Check if we need to start fresh
+        const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+        if (!streakStartTime) {
+          console.log('No streak start time found, redirecting to start-streak');
+          router.replace('/(standalone)/start-streak');
+          return;
+        }
+
+        console.log('Setting up timer...');
+        await setupTimer();
+        setIsLoading(false);
+
+      } catch (firestoreError) {
+        console.error('Firestore error:', firestoreError);
+        // If there's a Firestore error, check local storage as backup
+        const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+        const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+        
+        if (onboardingCompleted !== 'true') {
+          router.replace('/(onboarding)/welcome');
+          return;
+        }
+        
+        if (streakStartTime) {
+          console.log('Using local streak data due to Firestore error');
+          await setupTimer();
+          setIsLoading(false);
+        } else {
+          router.replace('/(standalone)/start-streak');
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in checkAuthAndOnboarding:', error);
+      setError(error.message);
+      setIsLoading(false);
+    }
+  };
+
+  // Add periodic sync
+  useEffect(() => {
+    checkAuthAndOnboarding();
+    
+    // Set up periodic sync every 5 minutes
+    const syncInterval = setInterval(syncTimerWithFirestore, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(syncInterval);
+    };
+  }, []);
+
+  // Modify handleTimeAdjust to use Firebase
   const handleTimeAdjust = async () => {
-    const now = new Date();
-    const years = parseInt(adjustedTime.years, 10) || 0;
-    const months = parseInt(adjustedTime.months, 10) || 0;
-    const weeks = parseInt(adjustedTime.weeks, 10) || 0;
-    const days = parseInt(adjustedTime.days, 10) || 0;
-    const hours = parseInt(adjustedTime.hours, 10) || 0;
-    const minutes = parseInt(adjustedTime.minutes, 10) || 0;
+    try {
+      const now = new Date();
+      const years = parseInt(adjustedTime.years, 10) || 0;
+      const months = parseInt(adjustedTime.months, 10) || 0;
+      const weeks = parseInt(adjustedTime.weeks, 10) || 0;
+      const days = parseInt(adjustedTime.days, 10) || 0;
+      const hours = parseInt(adjustedTime.hours, 10) || 0;
+      const minutes = parseInt(adjustedTime.minutes, 10) || 0;
 
-    // Calculate total milliseconds
-    const totalMs = (
-      years * 365 * 24 * 60 * 60 * 1000 +
-      months * 30 * 24 * 60 * 60 * 1000 +
-      weeks * 7 * 24 * 60 * 60 * 1000 +
-      days * 24 * 60 * 60 * 1000 +
-      hours * 60 * 60 * 1000 +
-      minutes * 60 * 1000
-    );
+      const totalMs = (
+        years * 365 * 24 * 60 * 60 * 1000 +
+        months * 30 * 24 * 60 * 60 * 1000 +
+        weeks * 7 * 24 * 60 * 60 * 1000 +
+        days * 24 * 60 * 60 * 1000 +
+        hours * 60 * 60 * 1000 +
+        minutes * 60 * 1000
+      );
 
-    const adjustedTimeMs = now.getTime() - totalMs;
-    await AsyncStorage.setItem('streakStartTime', adjustedTimeMs.toString());
-    
-    // Restart timer with new start time
-    await setupTimer(adjustedTimeMs.toString());
-    
-    setShowTimeAdjustModal(false);
-    setAdjustedTime({
-      years: '0',
-      months: '0',
-      weeks: '0',
-      days: '0',
-      hours: '0',
-      minutes: '0'
-    });
+      const adjustedTimeMs = now.getTime() - totalMs;
+      
+      // Update both local storage and database
+      await AsyncStorage.setItem('streakStartTime', adjustedTimeMs.toString());
+      
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          streak_start_time: adjustedTimeMs,
+          last_sync_time: now.getTime()
+        });
+      }
+
+      await setupTimer(adjustedTimeMs.toString());
+      
+      setShowTimeAdjustModal(false);
+      setAdjustedTime({
+        years: '0',
+        months: '0',
+        weeks: '0',
+        days: '0',
+        hours: '0',
+        minutes: '0'
+      });
+    } catch (error) {
+      console.error('Error adjusting time:', error);
+    }
   };
 
   // Handle individual time unit changes
@@ -628,6 +850,55 @@ const MainScreen = () => {
       }));
     }
   };
+
+  useEffect(() => {
+    const initializeScreen = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Check if user is authenticated
+        if (!auth.currentUser) {
+          router.replace('/(auth)/login');
+          return;
+        }
+
+        // Initialize your data here
+        // ... rest of your initialization code ...
+
+      } catch (err) {
+        console.error('Error initializing screen:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeScreen();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Something went wrong</Text>
+        <Text style={styles.errorSubtext}>{error}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton}
+          onPress={() => router.replace('/(main)')}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -1566,6 +1837,42 @@ const styles = StyleSheet.create({
   },
   timeAdjustConfirmText: {
     color: '#FFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 20,
+    fontFamily: typography.fonts.bold,
+    color: '#333',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 16,
+    fontFamily: typography.fonts.regular,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
   },
 });
 

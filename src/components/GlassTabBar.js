@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../../app/styles/colors';
+import { colors } from '../styles/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const GlassTabBar = ({ state, descriptors, navigation }) => {
