@@ -294,9 +294,9 @@ const MainScreen = () => {
       
       // Initial update
       const updateTimer = () => {
-        const currentTime = new Date().getTime();
-        const elapsedMs = currentTime - startTime;
-        
+      const currentTime = new Date().getTime();
+      const elapsedMs = currentTime - startTime;
+      
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const totalMinutes = Math.floor(totalSeconds / 60);
         const totalHours = Math.floor(totalMinutes / 60);
@@ -448,7 +448,7 @@ const MainScreen = () => {
       }
       
       // Navigate to relapse screen
-      router.push('/(standalone)/relapse');
+    router.push('/(standalone)/relapse');
     } catch (error) {
       console.error('Error saving relapse time:', error);
     }
@@ -980,11 +980,11 @@ const MainScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             {/* Modal Header with Gradient */}
-            <LinearGradient
+      <LinearGradient
               colors={['#4CAF50', '#388E3C']}
               style={styles.modalHeaderGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>PLEDGE YOUR SOBRIETY</Text>
@@ -997,11 +997,11 @@ const MainScreen = () => {
                 </Pressable>
               </View>
             </LinearGradient>
-            
-            <ScrollView 
+      
+      <ScrollView
               style={styles.modalScrollView} 
               contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
             >
               <View style={styles.pledgeSection}>
                 <Text style={styles.pledgeTitle}>
@@ -1013,29 +1013,29 @@ const MainScreen = () => {
                   <Text style={styles.pledgeText}>
                     Improved mental clarity and cognitive function
                   </Text>
-                </View>
-                
+        </View>
+        
                 <View style={styles.pledgePoint}>
                   <Ionicons name="heart" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Better physical health and respiratory function
                   </Text>
-                </View>
-                
+        </View>
+        
                 <View style={styles.pledgePoint}>
                   <Ionicons name="cash" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Financial savings that add up over time
-                  </Text>
-                </View>
-                
+            </Text>
+          </View>
+          
                 <View style={styles.pledgePoint}>
                   <Ionicons name="people" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
                     Stronger relationships and social connections
                   </Text>
-                </View>
-                
+          </View>
+          
                 <View style={styles.pledgePoint}>
                   <Ionicons name="trophy" size={24} color="#4CAF50" style={styles.pledgeIcon} />
                   <Text style={styles.pledgeText}>
@@ -1051,9 +1051,9 @@ const MainScreen = () => {
                   onPress={handlePledgeConfirm}
                 >
                   <Animated.View style={[StyleSheet.absoluteFill, rainbowAnimatedStyle]}>
-                    <LinearGradient
+            <LinearGradient
                       colors={['#4CAF50', '#388E3C', '#2E7D32', '#1B5E20', '#4CAF50']}
-                      start={{ x: 0, y: 0 }}
+              start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={{ width: 400, height: '100%' }}
                     />
@@ -1062,7 +1062,7 @@ const MainScreen = () => {
                 </TouchableOpacity>
               </Animated.View>
             </ScrollView>
-          </View>
+        </View>
         </View>
       </Modal>
       
@@ -1083,7 +1083,7 @@ const MainScreen = () => {
           />
           <Text style={styles.logoText}>BROCCOLI</Text>
         </View>
-        <TouchableOpacity
+            <TouchableOpacity
           style={styles.timeAdjustButton}
           onPress={() => setShowTimeAdjustModal(true)}
         >
@@ -1195,7 +1195,7 @@ const MainScreen = () => {
                 <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
                   <Ionicons name="refresh" size={22} color="#4CAF50" />
                 </Animated.View>
-              </TouchableOpacity>
+            </TouchableOpacity>
             </Animated.View>
           </View>
           
@@ -1248,8 +1248,8 @@ const MainScreen = () => {
               </View>
             </View>
           </TouchableOpacity>
-        </View>
-
+          </View>
+          
         {/* Lung Recovery Progress Bar */}
         <View style={styles.brainProgressContainer}>
           <TouchableOpacity
@@ -1269,11 +1269,11 @@ const MainScreen = () => {
                     { width: `${calculateLungProgress()}%` }
                   ]} 
                 />
-              </View>
+          </View>
             </View>
           </TouchableOpacity>
         </View>
-
+        
         {/* Sleep Recovery Progress Bar */}
         <View style={styles.brainProgressContainer}>
           <TouchableOpacity
@@ -1383,7 +1383,7 @@ const MainScreen = () => {
       >
         <View style={styles.panicButtonInner}>
           <Ionicons name="alert-circle" size={18} color="#FF3B30" style={styles.panicIcon} />
-          <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
+        <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
         </View>
       </TouchableOpacity>
     </View>
