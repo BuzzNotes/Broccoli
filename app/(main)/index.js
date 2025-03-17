@@ -43,7 +43,7 @@ import { auth, db } from '../../src/config/firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 const { width, height } = Dimensions.get('window');
-const CIRCLE_SIZE = width * 0.55;
+const CIRCLE_SIZE = width * 0.65;
 const STROKE_WIDTH = 14;
 const PULSE_DURATION = 2000;
 
@@ -54,6 +54,9 @@ const MainScreen = () => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const logoScale = useSharedValue(1);
+  
+  // Add userName state
+  const [userName, setUserName] = useState('');
 
   // Timer State
   const [timeElapsed, setTimeElapsed] = useState({
@@ -94,9 +97,15 @@ const MainScreen = () => {
   const journalButtonScale = useSharedValue(1);
   const moreButtonScale = useSharedValue(1);
   
+  // Loading and error states
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Swipeable view states
+  const [showStartDate, setShowStartDate] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const swipeAnim = useSharedValue(0);
+  
   // Start rainbow animation when modal is shown
   useEffect(() => {
     if (showPledgeModal) {
@@ -131,138 +140,271 @@ const MainScreen = () => {
     );
   }, []);
 
-  // Format time for display
+  // Format time for display - removing the leading zeros
   const formatTime = (value) => {
-    return value < 10 ? `0${value}` : `${value}`;
+    return `${value}`;
   };
   
-  // Get formatted time units based on elapsed time
+  // Modify the getFormattedTimeUnits function to not use formatTime for small units
   const getFormattedTimeUnits = () => {
     const totalSeconds = timeElapsed.seconds;
     const totalMinutes = timeElapsed.minutes;
     const totalHours = timeElapsed.hours;
     const totalDays = timeElapsed.days;
     
-    // Less than 1 minute: show only seconds
-    if (totalMinutes === 0 && totalHours === 0 && totalDays === 0) {
-      return [
-        {
-          value: formatTime(totalSeconds),
-          label: 'seconds'
-        }
-      ];
-    }
+    // Calculate weeks, months, years for display
+    const weeks = Math.floor(totalDays / 7);
+    const remainingDaysAfterWeeks = totalDays % 7;
     
-    // Less than 1 hour: show minutes and seconds
-    if (totalHours === 0 && totalDays === 0) {
-      return [
-        {
-          value: formatTime(totalMinutes),
-          label: 'minutes'
-        },
-        {
-          value: formatTime(totalSeconds),
-          label: 'seconds'
-        }
-      ];
-    }
+    const months = Math.floor(totalDays / 30);
+    const remainingDaysAfterMonths = totalDays % 30;
+    const weeksAfterMonths = Math.floor(remainingDaysAfterMonths / 7);
+    const daysAfterWeeksAndMonths = remainingDaysAfterMonths % 7;
     
-    // Less than 24 hours: show hours, minutes, seconds
+    const years = Math.floor(totalDays / 365);
+    const remainingDaysAfterYears = totalDays % 365;
+    const monthsAfterYears = Math.floor(remainingDaysAfterYears / 30);
+    const remainingDaysAfterMonths2 = remainingDaysAfterYears % 30;
+    const weeksAfterMonthsAndYears = Math.floor(remainingDaysAfterMonths2 / 7);
+    const daysAfterAll = remainingDaysAfterMonths2 % 7;
+    
+    // Create separate arrays for large units and small units
+    let largeUnits = [];
+    let smallUnits = [];
+    
+    // CASE 1: Less than 1 day
     if (totalDays === 0) {
-      return [
-        {
-          value: formatTime(totalHours),
-          label: 'hours'
-        },
-        {
-          value: formatTime(totalMinutes),
-          label: 'minutes'
-        },
-        {
-          value: formatTime(totalSeconds),
-          label: 'seconds'
+      // If less than 1 minute, show hours, minutes, and seconds in large units
+      if (totalMinutes === 0) {
+        largeUnits = [
+          {
+            value: totalHours,
+            label: totalHours === 1 ? 'hour' : 'hours'
+          },
+          {
+            value: totalMinutes,
+            label: totalMinutes === 1 ? 'minute' : 'minutes'
+          },
+          {
+            value: totalSeconds,
+            label: totalSeconds === 1 ? 'second' : 'seconds'
+          }
+        ];
+        
+        // Filter out zero values only if we have at least one non-zero value
+        const nonZeroUnits = largeUnits.filter(unit => unit.value > 0);
+        if (nonZeroUnits.length > 0) {
+          largeUnits = nonZeroUnits;
+        } else {
+          // If all units are zero, show at least minutes and seconds
+          largeUnits = [
+            {
+              value: 0,
+              label: 'minutes'
+            },
+            {
+              value: 0,
+              label: 'seconds'
+            }
+          ];
         }
-      ];
+        
+        // No small units when less than 1 minute
+        smallUnits = [];
+      } 
+      // If 1+ minutes but less than 1 day, show hours and minutes in large units, seconds in small units
+      else {
+        largeUnits = [
+          {
+            value: totalHours,
+            label: totalHours === 1 ? 'hour' : 'hours'
+          },
+          {
+            value: totalMinutes,
+            label: totalMinutes === 1 ? 'minute' : 'minutes'
+          }
+        ];
+        
+        // Filter out zero values only if we have at least one non-zero value
+        const nonZeroUnits = largeUnits.filter(unit => unit.value > 0);
+        if (nonZeroUnits.length > 0) {
+          largeUnits = nonZeroUnits;
+        } else {
+          // This should never happen, but just in case
+          largeUnits = [
+            {
+              value: 0,
+              label: 'minutes'
+            }
+          ];
+        }
+        
+        // Show seconds in the small units (green section)
+        smallUnits = [
+          {
+            value: totalSeconds,
+            label: 's'
+          }
+        ];
+      }
+      
+      return {
+        largeUnits,
+        smallUnits
+      };
     }
     
-    // Less than 7 days: show days, hours, minutes
+    // CASE 2: 1+ days but less than 7 days - show days, hours, minutes in large
     if (totalDays < 7) {
-      return [
+      largeUnits = [
         {
           value: totalDays,
-          label: 'days'
+          label: totalDays === 1 ? 'day' : 'days'
         },
         {
-          value: formatTime(totalHours),
-          label: 'hours'
+          value: totalHours,
+          label: totalHours === 1 ? 'hour' : 'hours'
         },
         {
-          value: formatTime(totalMinutes),
-          label: 'minutes'
+          value: totalMinutes,
+          label: totalMinutes === 1 ? 'minute' : 'minutes'
         }
       ];
+      
+      smallUnits = [
+        {
+          value: timeElapsed.seconds,
+          label: 's'
+        }
+      ];
+      
+      return {
+        largeUnits,
+        smallUnits
+      };
     }
     
-    // Less than 30 days: show weeks, days, hours
-    const weeks = Math.floor(totalDays / 7);
-    const remainingDays = totalDays % 7;
-    
+    // CASE 3: 1+ weeks but less than 30 days - show weeks, days, hours in large
     if (totalDays < 30) {
-      return [
+      largeUnits = [
         {
           value: weeks,
-          label: 'weeks'
+          label: weeks === 1 ? 'week' : 'weeks'
         },
         {
-          value: remainingDays,
-          label: 'days'
+          value: remainingDaysAfterWeeks,
+          label: remainingDaysAfterWeeks === 1 ? 'day' : 'days'
         },
         {
-          value: formatTime(totalHours),
-          label: 'hours'
+          value: totalHours,
+          label: totalHours === 1 ? 'hour' : 'hours'
         }
       ];
+      
+      smallUnits = [
+        {
+          value: timeElapsed.minutes,
+          label: 'm'
+        },
+        {
+          value: timeElapsed.seconds,
+          label: 's'
+        }
+      ];
+      
+      return {
+        largeUnits,
+        smallUnits
+      };
     }
     
-    // Less than 365 days: show months, weeks, days
-    const months = Math.floor(totalDays / 30);
-    const remainingWeeks = Math.floor((totalDays % 30) / 7);
-    
+    // CASE 4: 1+ months but less than 365 days - show months, weeks, days in large
     if (totalDays < 365) {
-      return [
+      largeUnits = [
         {
           value: months,
-          label: 'months'
+          label: months === 1 ? 'month' : 'months'
         },
         {
-          value: remainingWeeks,
-          label: 'weeks'
+          value: weeksAfterMonths,
+          label: weeksAfterMonths === 1 ? 'week' : 'weeks'
         },
         {
-          value: remainingDays % 7,
-          label: 'days'
+          value: daysAfterWeeksAndMonths,
+          label: daysAfterWeeksAndMonths === 1 ? 'day' : 'days'
         }
       ];
+      
+      smallUnits = [
+        {
+          value: timeElapsed.hours,
+          label: 'h'
+        },
+        {
+          value: timeElapsed.minutes,
+          label: 'm'
+        },
+        {
+          value: timeElapsed.seconds,
+          label: 's'
+        }
+      ];
+      
+      return {
+        largeUnits,
+        smallUnits
+      };
     }
     
-    // More than 365 days: show years, months, weeks
-    const years = Math.floor(totalDays / 365);
-    const remainingMonths = Math.floor((totalDays % 365) / 30);
-    
-    return [
+    // CASE 5: 1+ years - show years, months, weeks in large
+    largeUnits = [
       {
         value: years,
-        label: 'years'
+        label: years === 1 ? 'year' : 'years'
       },
       {
-        value: remainingMonths,
-        label: 'months'
+        value: monthsAfterYears,
+        label: monthsAfterYears === 1 ? 'month' : 'months'
       },
       {
-        value: remainingWeeks,
-        label: 'weeks'
+        value: weeksAfterMonthsAndYears,
+        label: weeksAfterMonthsAndYears === 1 ? 'week' : 'weeks'
       }
     ];
+    
+    smallUnits = [
+      {
+        value: daysAfterAll,
+        label: 'd'
+      },
+      {
+        value: timeElapsed.hours,
+        label: 'h'
+      },
+      {
+        value: timeElapsed.minutes,
+        label: 'm'
+      },
+      {
+        value: timeElapsed.seconds,
+        label: 's'
+      }
+    ];
+    
+    // Remove zero values from small units only if they're at the beginning
+    while (smallUnits.length > 0 && smallUnits[0].value === 0) {
+      smallUnits.shift();
+    }
+    
+    // Ensure we have at least one small unit
+    if (smallUnits.length === 0) {
+      smallUnits = [{ value: 0, label: 's' }];
+    }
+    
+    return {
+      largeUnits,
+      smallUnits
+    };
   };
   
   // Setup timer function
@@ -292,40 +434,60 @@ const MainScreen = () => {
       
       console.log('Setting up timer with start time:', new Date(startTime).toISOString());
       
+      // Set the start date for display
+      const startDateObj = new Date(startTime);
+      setStartDate(startDateObj);
+      
       // Initial update
       const updateTimer = () => {
       const currentTime = new Date().getTime();
       const elapsedMs = currentTime - startTime;
       
-        const totalSeconds = Math.floor(elapsedMs / 1000);
-        const totalMinutes = Math.floor(totalSeconds / 60);
-        const totalHours = Math.floor(totalMinutes / 60);
-        const totalDays = Math.floor(totalHours / 24);
-        
-        const seconds = totalSeconds % 60;
-        const minutes = totalMinutes % 60;
-        const hours = totalHours % 24;
-        const days = totalDays;
-        
-        setTimeElapsed({ days, hours, minutes, seconds });
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalDays = Math.floor(totalHours / 24);
+      
+      const seconds = totalSeconds % 60;
+      const minutes = totalMinutes % 60;
+      const hours = totalHours % 24;
+      const days = totalDays;
+      
+      setTimeElapsed({ days, hours, minutes, seconds });
+      
+      // Setup interval
+      timerIntervalRef.current = setInterval(() => {
+          const currentTime = new Date().getTime();
+          const elapsedMs = currentTime - startTime;
+          
+          const totalSeconds = Math.floor(elapsedMs / 1000);
+          const totalMinutes = Math.floor(totalSeconds / 60);
+          const totalHours = Math.floor(totalMinutes / 60);
+          const totalDays = Math.floor(totalHours / 24);
+          
+          const seconds = totalSeconds % 60;
+          const minutes = totalMinutes % 60;
+          const hours = totalHours % 24;
+          const days = totalDays;
+          
+          setTimeElapsed({ days, hours, minutes, seconds });
+        }, 1000);
       };
       
       // Initial update
       updateTimer();
       
-      // Setup interval
-      timerIntervalRef.current = setInterval(updateTimer, 1000);
-
       return startTime;
     } catch (error) {
       console.error('Error setting up timer:', error);
       return null;
-    }
-  };
-
+      }
+    };
+    
   // Initialize timer on mount
   useEffect(() => {
     setupTimer();
+    loadUserName();
     
     // Cleanup interval on unmount
     return () => {
@@ -337,18 +499,24 @@ const MainScreen = () => {
 
   // Update time values with animation
   useEffect(() => {
-    // Flash animation for time values when seconds change
-    timeValueOpacity.value = 0.7;
-    timeValueOpacity.value = withTiming(1, {
-      duration: 300,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-    
-    // Update progress animation
-    progressAnimation.value = withTiming(timeElapsed.seconds / 60, {
-      duration: 500,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
+    // Reset animation to 0 when seconds are 0 (start of minute) or animate based on current seconds
+    if (timeElapsed.seconds === 0) {
+      // At the start of each minute, reset to 0 first
+      progressAnimation.value = 0;
+      // Then after a tiny delay to ensure the reset is visible, start animation for the new minute
+      setTimeout(() => {
+        progressAnimation.value = withTiming(0.01, {
+          duration: 300,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        });
+      }, 50);
+    } else {
+      // During the minute, animate smoothly based on current second
+      progressAnimation.value = withTiming(timeElapsed.seconds / 60, {
+        duration: 500,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+    }
   }, [timeElapsed.seconds]);
   
   // Rotate refresh icon on press
@@ -395,9 +563,10 @@ const MainScreen = () => {
   
   // Animated props for the progress circle
   const progressCircleProps = useAnimatedProps(() => {
-    const circumference = 2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2);
+    const circumference = 2 * Math.PI * ((CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2);
+    const strokeDashoffset = circumference * (1 - progressAnimation.value);
     return {
-      strokeDashoffset: circumference * (1 - progressAnimation.value),
+      strokeDashoffset: strokeDashoffset,
     };
   });
   
@@ -851,31 +1020,65 @@ const MainScreen = () => {
     }
   };
 
-  useEffect(() => {
-    const initializeScreen = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Check if user is authenticated
-        if (!auth.currentUser) {
-          router.replace('/(auth)/login');
-          return;
-        }
-
-        // Initialize your data here
-        // ... rest of your initialization code ...
-
-      } catch (err) {
-        console.error('Error initializing screen:', err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+  // Add this function to load the user name from AsyncStorage
+  const loadUserName = async () => {
+    try {
+      const name = await AsyncStorage.getItem('userName');
+      if (name) {
+        setUserName(name);
       }
-    };
+    } catch (error) {
+      console.error('Error loading user name:', error);
+    }
+  };
 
-    initializeScreen();
-  }, []);
+  // Add a function to handle swipe gesture
+  const handleSwipe = (direction) => {
+    if (direction === 'left' && !showStartDate) {
+      // Swipe left to show start date
+      swipeAnim.value = withTiming(1, { duration: 300 });
+      setShowStartDate(true);
+    } else if (direction === 'right' && showStartDate) {
+      // Swipe right to show timer
+      swipeAnim.value = withTiming(0, { duration: 300 });
+      setShowStartDate(false);
+    }
+  };
+
+  // Create animated styles for the swipeable views
+  const timerViewStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: interpolate(swipeAnim.value, [0, 1], [0, -width]) }
+      ],
+      opacity: interpolate(swipeAnim.value, [0, 0.5], [1, 0])
+    };
+  });
+
+  const startDateViewStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: interpolate(swipeAnim.value, [0, 1], [width, 0]) }
+      ],
+      opacity: interpolate(swipeAnim.value, [0.5, 1], [0, 1])
+    };
+  });
+
+  // Format the start date for display
+  const formatStartDate = () => {
+    if (!startDate) return 'Unknown start date';
+    
+    const options = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    
+    return `Started on:\n${startDate.toLocaleDateString(undefined, options)}`;
+  };
 
   if (isLoading) {
     return (
@@ -904,10 +1107,19 @@ const MainScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* Off-white background instead of pure white */}
-      <View style={StyleSheet.absoluteFill}>
-        <View style={{flex: 1, backgroundColor: '#F8F9FA'}} />
+      {/* Background gradient that stays at the top */}
+      <View style={styles.backgroundGradient}>
+        <LinearGradient
+          colors={['#A5D6A7', '#E8F5E9', '#F5F5F5']}
+          style={{height: 250}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          locations={[0, 0.7, 1]}
+        />
       </View>
+      
+      {/* Light gray background for the rest of the screen */}
+      <View style={[StyleSheet.absoluteFill, {backgroundColor: '#F5F5F5', zIndex: -2}]} />
       
       {/* Time Adjust Modal */}
       <Modal
@@ -1077,17 +1289,14 @@ const MainScreen = () => {
       {/* Header with Logo in top left */}
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.logoContainer}>
-          <Animated.Image 
-            source={require('../../assets/images/broccoli-logo.png')}
-            style={[styles.logo, logoAnimatedStyle]}
-          />
-          <Text style={styles.logoText}>BROCCOLI</Text>
+          <Text style={styles.logoEmoji}>🌿</Text>
+          <Text style={styles.logoText}>T-BREAK</Text>
         </View>
             <TouchableOpacity
           style={styles.timeAdjustButton}
           onPress={() => setShowTimeAdjustModal(true)}
         >
-          <Ionicons name="time-outline" size={20} color="#4CAF50" />
+          <Ionicons name="time-outline" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
       
@@ -1097,133 +1306,234 @@ const MainScreen = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Timer Display - Removed white box container */}
+        {/* User Greeting - Enhanced styling with emoji */}
+        <Text style={styles.userGreeting}>Hello, Rob 👋</Text>
+        
+        {/* Timer Display - Modified to show time unit labels next to the values */}
         <View style={styles.timerContainer}>
-          {/* Circle Progress */}
-          <View style={styles.circleWrapper}>
-            <Animated.View style={[styles.circleContainer, pulseStyle]}>
-              <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svg}>
-                <Defs>
-                  <SvgGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#4CAF50" stopOpacity="1" />
-                    <Stop offset="50%" stopColor="#2E7D32" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#1B5E20" stopOpacity="1" />
-                  </SvgGradient>
-                  <SvgGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#D7EAD9" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#B7D9B9" stopOpacity="0.8" />
-                  </SvgGradient>
-                  <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.3" />
-                    <Stop offset="100%" stopColor="#4CAF50" stopOpacity="0" />
-                  </SvgGradient>
-                  <SvgGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
-                  </SvgGradient>
-                  <SvgGradient id="resetButtonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#F5F5F5" stopOpacity="1" />
-                  </SvgGradient>
-                </Defs>
-                
-                {/* Outer glow effect with animation */}
-                <Animated.View style={glowStyle}>
-                  <Circle
-                    cx={CIRCLE_SIZE / 2}
-                    cy={CIRCLE_SIZE / 2}
-                    r={(CIRCLE_SIZE - STROKE_WIDTH) / 2 + 10}
-                    stroke="url(#glowGradient)"
-                    strokeWidth={20}
-                    fill="transparent"
-                  />
+          {/* Timer Content Box */}
+          <View style={styles.timerContentBox}>
+            {/* Title Bar */}
+            <View style={styles.timerTitleBar}>
+              <Text style={styles.timerTitle}>Sobriety Tracker</Text>
+            </View>
+            
+            {/* Top section with circle */}
+            <View style={styles.timerTopSection}>
+              {/* Timer circle */}
+              <View style={styles.circleWrapper}>
+                <Animated.View style={[styles.circleContainer, pulseStyle]}>
+                  <Svg width={CIRCLE_SIZE * 0.7} height={CIRCLE_SIZE * 0.7} style={styles.svg}>
+                    <Defs>
+                      <SvgGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="1" />
+                        <Stop offset="50%" stopColor="#2E7D32" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#1B5E20" stopOpacity="1" />
+                      </SvgGradient>
+                      <SvgGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#E8F5E9" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#C8E6C9" stopOpacity="0.8" />
+                      </SvgGradient>
+                      <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.3" />
+                        <Stop offset="100%" stopColor="#4CAF50" stopOpacity="0" />
+                      </SvgGradient>
+                      <SvgGradient id="resetButtonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
+                      </SvgGradient>
+                      <SvgGradient id="shimmerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="rgba(255, 255, 255, 0)" />
+                        <Stop offset="50%" stopColor="rgba(255, 255, 255, 0.3)" />
+                        <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+                      </SvgGradient>
+                    </Defs>
+                    
+                    {/* Outer glow effect with animation */}
+                    <Animated.View style={glowStyle}>
+                      <Circle
+                        cx={CIRCLE_SIZE * 0.35}
+                        cy={CIRCLE_SIZE * 0.35}
+                        r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2 + 12}
+                        stroke="url(#glowGradient)"
+                        strokeWidth={24}
+                        fill="transparent"
+                      />
+                    </Animated.View>
+                    
+                    {/* Background Circle with subtle gradient */}
+                    <Circle
+                      cx={CIRCLE_SIZE * 0.35}
+                      cy={CIRCLE_SIZE * 0.35}
+                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
+                      stroke="url(#bgGradient)"
+                      strokeWidth={STROKE_WIDTH}
+                      fill="transparent"
+                      strokeLinecap="round"
+                    />
+                    
+                    {/* Shimmer effect overlay */}
+                    <Circle
+                      cx={CIRCLE_SIZE * 0.35}
+                      cy={CIRCLE_SIZE * 0.35}
+                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
+                      stroke="url(#shimmerGradient)"
+                      strokeWidth={STROKE_WIDTH}
+                      fill="transparent"
+                      strokeLinecap="round"
+                      opacity={0.4}
+                    />
+                    
+                    {/* Progress Circle with gradient */}
+                    <AnimatedCircle
+                      cx={CIRCLE_SIZE * 0.35}
+                      cy={CIRCLE_SIZE * 0.35}
+                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
+                      stroke="url(#progressGradient)"
+                      strokeWidth={STROKE_WIDTH}
+                      strokeLinecap="round"
+                      fill="transparent"
+                      strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2)}`}
+                      animatedProps={progressCircleProps}
+                      transform={`rotate(-90 ${CIRCLE_SIZE * 0.35} ${CIRCLE_SIZE * 0.35})`}
+                    />
+                  </Svg>
+                  
+                  {/* Center Emoji without container */}
+                  <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={handleRefreshPress}
+                    onPressIn={handleRefreshPressIn}
+                    onPressOut={handleRefreshPressOut}
+                    activeOpacity={0.9}
+                  >
+                    <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
+                      <Ionicons name="refresh" size={28} color="#43A047" />
+                    </Animated.View>
+                  </TouchableOpacity>
                 </Animated.View>
-                
-                {/* Background Circle with subtle gradient */}
-                <Circle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
-                  stroke="url(#bgGradient)"
-                  strokeWidth={STROKE_WIDTH}
-                  fill="transparent"
-                  strokeLinecap="round"
-                />
-                
-                {/* Progress Circle with gradient */}
-                <AnimatedCircle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={(CIRCLE_SIZE - STROKE_WIDTH) / 2}
-                  stroke="url(#progressGradient)"
-                  strokeWidth={STROKE_WIDTH}
-                  strokeLinecap="round"
-                  fill="transparent"
-                  strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE - STROKE_WIDTH) / 2)}`}
-                  animatedProps={progressCircleProps}
-                  transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
-                />
-                
-                {/* Center button shadow */}
-                <Circle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={STROKE_WIDTH * 1.85}
-                  fill="rgba(0, 0, 0, 0.03)"
-                  stroke="transparent"
-                />
-                
-                {/* Center Icon Container with improved design */}
-                <Circle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={STROKE_WIDTH * 1.8}
-                  fill="url(#resetButtonGradient)"
-                  stroke="rgba(76, 175, 80, 0.2)"
-                  strokeWidth={1}
-                />
-              </Svg>
+              </View>
               
-              {/* Center Icon with Animation */}
-              <TouchableOpacity 
-                style={styles.refreshButton}
-                onPress={handleRefreshPress}
-                onPressIn={handleRefreshPressIn}
-                onPressOut={handleRefreshPressOut}
-                activeOpacity={0.9}
+              {/* Timer Label */}
+              <Text style={styles.timerLabel}>
+                You've been cannabis-free for:
+              </Text>
+            </View>
+            
+            {/* Divider */}
+            <View style={styles.timerDivider} />
+            
+            {/* Swipeable Container */}
+            <View style={styles.swipeableContainer}>
+              <Animated.View style={[styles.swipeableView, timerViewStyle]}>
+                {/* Main Time Display - Show large units (days and above) */}
+                <View style={styles.mainTimeDisplayScroll}>
+                  <View style={styles.mainTimeDisplay}>
+                    {(() => {
+                      const { largeUnits } = getFormattedTimeUnits();
+                      
+                      if (largeUnits.length === 0) {
+                        return (
+                          <View style={styles.mainTimeUnit}>
+                            <Text style={styles.timeUnitInline}>
+                              <Text style={styles.timeUnitValue}>0</Text>
+                              <Text style={styles.timeUnitLabelInline}>min</Text>
+                            </Text>
+                          </View>
+                        );
+                      }
+                      
+                      return (
+                        <View style={styles.largeUnitsContainer}>
+                          {largeUnits.map((unit, index) => (
+                            <View key={index} style={[
+                              styles.largeUnitItem,
+                              largeUnits.length <= 2 ? styles.largeUnitItemWide : {}
+                            ]}>
+                              <Text style={styles.timeUnitInline}>
+                                <Text style={styles.timeUnitValue}>{unit.value}</Text>
+                                <Text style={styles.timeUnitLabelInline}>
+                                  {unit.label === 'hours' || unit.label === 'hour' ? ' hour' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'minutes' || unit.label === 'minute' ? ' min' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'seconds' || unit.label === 'second' ? ' sec' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'days' || unit.label === 'day' ? ' day' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'weeks' || unit.label === 'week' ? ' week' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'months' || unit.label === 'month' ? ' month' + (unit.value !== 1 ? 's' : '') : 
+                                   unit.label === 'years' || unit.label === 'year' ? ' year' + (unit.value !== 1 ? 's' : '') : 
+                                   ' ' + unit.label}
+                                </Text>
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    })()}
+                  </View>
+                </View>
+              </Animated.View>
+              
+              <Animated.View style={[styles.swipeableView, styles.startDateView, startDateViewStyle]}>
+                <Text style={styles.startDateText}>{formatStartDate()}</Text>
+              </Animated.View>
+              
+              {/* Swipe Gesture Handlers */}
+              <View style={styles.swipeGestureArea}>
+                <TouchableOpacity 
+                  style={styles.swipeLeftButton} 
+                  onPress={() => handleSwipe('right')}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="chevron-back" size={20} color={!showStartDate ? "#CCCCCC" : "#4CAF50"} />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.swipeRightButton} 
+                  onPress={() => handleSwipe('left')}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={showStartDate ? "#CCCCCC" : "#4CAF50"} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Small Units Display (hours, minutes, seconds) */}
+            <View style={styles.secondsBoxContainer}>
+              <LinearGradient
+                colors={['#43A047', '#2E7D32']}
+                style={styles.smallUnitsGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
-                <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
-                  <Ionicons name="refresh" size={22} color="#4CAF50" />
-                </Animated.View>
-            </TouchableOpacity>
-            </Animated.View>
+                <View style={styles.smallUnitsDisplay}>
+                  {(() => {
+                    const { smallUnits } = getFormattedTimeUnits();
+                    
+                    return (
+                      <Text style={styles.smallUnitsText}>
+                        {smallUnits.map((unit, index) => (
+                          <React.Fragment key={index}>
+                            <Text style={styles.smallUnitValue}>{parseInt(unit.value, 10)}</Text>
+                            <Text style={styles.smallUnitLabel}>{unit.label}</Text>
+                            {index < smallUnits.length - 1 && <Text style={styles.smallUnitSpacer}> </Text>}
+                          </React.Fragment>
+                        ))}
+                      </Text>
+                    );
+                  })()}
+                </View>
+              </LinearGradient>
+            </View>
           </View>
           
-          {/* Timer Label */}
-          <Text style={styles.timerLabel}>
-            You've been cannabis-free for:
-          </Text>
-          
-          {/* Horizontal Time Units */}
-          <View style={styles.horizontalTimeRow}>
-            {(() => {
-              const timeUnits = getFormattedTimeUnits();
-              return (
-                <>
-                  {timeUnits.map((unit, index) => (
-                    <View key={unit.label} style={styles.timeUnit}>
-                      <View style={styles.timeValueContainer}>
-                        <Animated.Text style={[styles.timeValue, timeValueStyle]}>
-                          {unit.value}
-                        </Animated.Text>
-                      </View>
-                      <Text style={styles.timeLabel}>{unit.label}</Text>
-                    </View>
-                  ))}
-                </>
-              );
-            })()}
+          {/* Swipe Indicator - Moved outside the box */}
+          <View style={styles.swipeIndicatorContainer}>
+            <View style={[styles.swipeIndicatorDot, !showStartDate && styles.swipeIndicatorActive]} />
+            <View style={[styles.swipeIndicatorDot, showStartDate && styles.swipeIndicatorActive]} />
           </View>
+        </View>
+        
+        {/* Recovery Section Title */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recovery</Text>
         </View>
         
         {/* Brain Rewiring Progress Bar */}
@@ -1233,7 +1543,10 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <Text style={styles.brainProgressTitle}>Brain Healing</Text>
+              <View style={styles.headerWithEmojiRow}>
+                <Text style={styles.headerEmoji}>🧠</Text>
+                <Text style={styles.brainProgressTitle}>Brain Healing</Text>
+              </View>
               <Text style={styles.brainProgressPercent}>{calculateBrainProgress()}%</Text>
             </View>
             
@@ -1257,7 +1570,10 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <Text style={styles.brainProgressTitle}>Lung Recovery</Text>
+              <View style={styles.headerWithEmojiRow}>
+                <Text style={styles.headerEmoji}>🫁</Text>
+                <Text style={styles.brainProgressTitle}>Lung Recovery</Text>
+              </View>
               <Text style={styles.brainProgressPercent}>{calculateLungProgress()}%</Text>
             </View>
             
@@ -1281,7 +1597,10 @@ const MainScreen = () => {
             activeOpacity={0.9}
           >
             <View style={styles.brainProgressHeader}>
-              <Text style={styles.brainProgressTitle}>Sleep Recovery</Text>
+              <View style={styles.headerWithEmojiRow}>
+                <Text style={styles.headerEmoji}>😴</Text>
+                <Text style={styles.brainProgressTitle}>Sleep Recovery</Text>
+              </View>
               <Text style={styles.brainProgressPercent}>{calculateSleepProgress()}%</Text>
             </View>
             
@@ -1306,71 +1625,55 @@ const MainScreen = () => {
         {/* Action Buttons */}
         <View style={styles.buttonGrid}>
           <View style={styles.buttonRow}>
-            <Animated.View style={[meditateButtonStyle, styles.buttonWrapper]}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                activeOpacity={0.7}
-                onPress={() => handleButtonPress('meditate')}
-              >
-                <View style={styles.buttonIconContainer}>
-                  <Ionicons name="leaf-outline" size={20} color="#4CAF50" />
-                </View>
-                <Text style={styles.buttonText}>Meditate</Text>
-                <View style={styles.buttonArrow}>
-                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.7}
+              onPress={() => handleButtonPress('meditate')}
+            >
+              <View style={styles.buttonInnerContainer}>
+                <Text style={styles.buttonEmoji}>🧘</Text>
+                <Text style={styles.buttonText} numberOfLines={1}>Meditate</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+            </TouchableOpacity>
             
-            <Animated.View style={[pledgeButtonStyle, styles.buttonWrapper]}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                activeOpacity={0.7}
-                onPress={() => handleButtonPress('pledge')}
-              >
-                <View style={styles.buttonIconContainer}>
-                  <Ionicons name="heart-outline" size={20} color="#4CAF50" />
-                </View>
-                <Text style={styles.buttonText}>Pledge</Text>
-                <View style={styles.buttonArrow}>
-                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.7}
+              onPress={() => handleButtonPress('pledge')}
+            >
+              <View style={styles.buttonInnerContainer}>
+                <Text style={styles.buttonEmoji}>🙏</Text>
+                <Text style={styles.buttonText} numberOfLines={1}>Pledge</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+            </TouchableOpacity>
           </View>
           
           <View style={styles.buttonRow}>
-            <Animated.View style={[journalButtonStyle, styles.buttonWrapper]}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                activeOpacity={0.7}
-                onPress={() => handleButtonPress('journal')}
-              >
-                <View style={styles.buttonIconContainer}>
-                  <Ionicons name="book-outline" size={20} color="#4CAF50" />
-                </View>
-                <Text style={styles.buttonText}>Journal</Text>
-                <View style={styles.buttonArrow}>
-                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.7}
+              onPress={() => handleButtonPress('journal')}
+            >
+              <View style={styles.buttonInnerContainer}>
+                <Text style={styles.buttonEmoji}>📓</Text>
+                <Text style={styles.buttonText} numberOfLines={1}>Journal</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+            </TouchableOpacity>
             
-            <Animated.View style={[moreButtonStyle, styles.buttonWrapper]}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                activeOpacity={0.7}
-                onPress={() => handleButtonPress('more')}
-              >
-                <View style={styles.buttonIconContainer}>
-                  <Ionicons name="grid-outline" size={20} color="#4CAF50" />
-                </View>
-                <Text style={styles.buttonText}>More</Text>
-                <View style={styles.buttonArrow}>
-                  <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              activeOpacity={0.7}
+              onPress={() => handleButtonPress('more')}
+            >
+              <View style={styles.buttonInnerContainer}>
+                <Text style={styles.buttonEmoji}>⚙️</Text>
+                <Text style={styles.buttonText} numberOfLines={1}>More</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -1393,10 +1696,10 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'transparent',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 150,
   },
   headerContainer: {
@@ -1417,96 +1720,226 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
   },
-  logo: {
-    width: 38,
-    height: 38,
-    resizeMode: 'contain',
+  logoEmoji: {
+    fontSize: 30,
+    
   },
   logoText: {
     fontSize: 18,
     color: '#000000',
     fontFamily: typography.fonts.bold,
-    marginLeft: 10,
+    marginLeft: 3,
     letterSpacing: 1,
   },
   timerContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 0,
+    marginTop: 0,
+    width: '100%',
+    paddingHorizontal: 0,
+  },
+  timerContentBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 0,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+    marginTop: 0,
+    borderWidth: 0,
+    marginHorizontal: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  timerTitleBar: {
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    alignItems: 'center',
+  },
+  timerTitle: {
+    fontSize: 16,
+    fontFamily: typography.fonts.semibold,
+    color: '#222222',
+    letterSpacing: 0.5,
+  },
+  timerTopSection: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 28,
+    paddingBottom: 20,
+    marginTop: 0,
+  },
+  timerDivider: {
+    width: '85%',
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    marginBottom: 16,
+    marginTop: 6,
   },
   timerLabel: {
-    fontSize: 14,
-    color: '#555555',
-    fontFamily: typography.fonts.medium,
-    marginTop: 32,
-    marginBottom: 16,
+    fontSize: 17,
+    color: '#333333',
+    fontFamily: typography.fonts.semibold,
+    marginTop: 14,
     textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  horizontalTimeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 16,
-    paddingHorizontal: 10,
-  },
-  timeUnit: {
-    alignItems: 'center',
-    marginHorizontal: 12,
-    minWidth: 80,
-    position: 'relative',
-  },
-  timeValueContainer: {
-    position: 'relative',
-    alignSelf: 'center',
-    borderRadius: 12,
-    overflow: 'hidden',
-    minWidth: 90,
-    alignItems: 'center',
-    paddingHorizontal: 5,
-    paddingVertical: 4,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
-  },
-  timeValue: {
-    fontSize: 68,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
-    lineHeight: 76,
-    letterSpacing: -1,
-    textShadowColor: 'rgba(76, 175, 80, 0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 3,
-    textAlign: 'center',
-  },
-  timeLabel: {
-    fontSize: 14,
-    color: '#666666',
-    fontFamily: typography.fonts.medium,
-    marginTop: 4,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   circleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 0,
-    marginBottom: 0,
+    marginBottom: 12,
+    marginTop: 6,
   },
   circleContainer: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+    width: CIRCLE_SIZE * 0.75,
+    height: CIRCLE_SIZE * 0.75,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: 'rgba(76, 175, 80, 0.4)',
+    shadowColor: 'rgba(76, 175, 80, 0.15)',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
-    elevation: 8,
+    elevation: 6,
   },
   svg: {
     position: 'absolute',
+  },
+  mainTimeDisplayScroll: {
+    flexGrow: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    width: '100%',
+    marginBottom: 20,
+    marginTop: 4,
+  },
+  mainTimeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+    flexWrap: 'nowrap',
+    paddingHorizontal: 2,
+  },
+  mainTimeUnit: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  largeUnitsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'nowrap',
+    width: '100%',
+    paddingHorizontal: 2,
+    overflow: 'hidden',
+  },
+  largeUnitItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 3,
+    minWidth: 65,
+    maxWidth: 150,
+  },
+  largeUnitItemWide: {
+    minWidth: 85,
+  },
+  timeUnitInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'nowrap',
+  },
+  timeUnitValue: {
+    fontSize: 46,
+    color: '#222222',
+    fontFamily: typography.fonts.bold,
+    textAlign: 'center',
+    adjustsFontSizeToFit: true,
+    numberOfLines: 1,
+    includeFontPadding: false,
+    textShadowColor: 'rgba(76, 175, 80, 0.08)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+    letterSpacing: -0.5,
+    lineHeight: 50,
+    marginBottom: 2,
+  },
+  timeUnitLabelInline: {
+    fontSize: 18,
+    color: '#777777',
+    fontFamily: typography.fonts.medium,
+    marginLeft: 1,
+    marginBottom: 4,
+    flexShrink: 1,
+  },
+  secondsBoxContainer: {
+    marginBottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+    width: '100%',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    overflow: 'hidden',
+  },
+  smallUnitsGradient: {
+    borderRadius: 0,
+    overflow: 'hidden',
+    borderWidth: 0,
+    width: '100%',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  smallUnitsDisplay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  smallUnitsText: {
+    textAlign: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  smallUnitValue: {
+    fontSize: 19,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  smallUnitLabel: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.medium,
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 0,
+    marginRight: 8,
+  },
+  smallUnitSpacer: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginRight: 6,
+    marginLeft: 4,
   },
   refreshButton: {
     width: STROKE_WIDTH * 3.6,
@@ -1515,63 +1948,73 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+    position: 'absolute',
+  },
+  resetEmoji: {
+    fontSize: 28,
+    textAlign: 'center',
+    marginBottom: 0,
+    color: '#43A047',
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2,
   },
   sectionHeader: {
-    marginBottom: 15,
-    marginTop: 10,
+    marginBottom: 12,
+    marginTop: 12,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontFamily: typography.fonts.bold,
-    color: '#333333',
+    fontSize: 18,
+    fontFamily: typography.fonts.semibold,
+    color: '#000000',
     marginLeft: 5,
+    letterSpacing: 0.3,
   },
   buttonGrid: {
     marginBottom: 20,
-    marginHorizontal: 0,
+    marginTop: 10,
+    width: '100%',
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  buttonWrapper: {
-    width: '48.5%',
+    marginBottom: 16,
+    width: '100%',
   },
   actionButton: {
-    width: '100%',
-    height: 60,
+    width: '48.5%',
+    height: 68,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 12,
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    justifyContent: 'space-between',
+    paddingLeft: 16,
+    paddingRight: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 3,
-    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
-  buttonIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    justifyContent: 'center',
+  buttonInnerContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 10,
+    maxWidth: '80%',
+  },
+  buttonEmoji: {
+    fontSize: 20,
+    marginRight: 12,
   },
   buttonText: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#333333',
-    fontFamily: typography.fonts.medium,
-    flex: 1,
-  },
-  buttonArrow: {
-    marginLeft: 'auto',
-    paddingRight: 2,
+    fontFamily: typography.fonts.semibold,
+    letterSpacing: 0,
+    maxWidth: '70%',
   },
   modalOverlay: {
     flex: 1,
@@ -1660,7 +2103,6 @@ const styles = StyleSheet.create({
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
-    shadowRadius: 5,
     elevation: 6,
   },
   pledgeButtonText: {
@@ -1680,16 +2122,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 50,
     right: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 59, 48, 0.08)',
-    borderWidth: 2,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(255, 59, 48, 0.06)',
+    borderWidth: 1.5,
     borderColor: '#FF3B30',
-    shadowColor: 'rgba(255, 59, 48, 0.3)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: 'rgba(0, 0, 0, 0.12)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.9,
+    shadowRadius: 16,
+    elevation: 6,
     overflow: 'hidden',
   },
   panicButtonInner: {
@@ -1700,60 +2142,68 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   panicIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   panicButtonText: {
     color: '#FF3B30',
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: typography.fonts.bold,
     letterSpacing: 1,
   },
   brainProgressContainer: {
-    marginBottom: 25,
-    paddingHorizontal: 5,
+    marginBottom: 8,
+    width: '100%',
   },
   brainProgressCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 16,
+    padding: 14,
+    paddingTop: 14,
+    shadowColor: 'rgba(0, 0, 0, 0.04)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    width: '100%',
+    position: 'relative',
   },
   brainProgressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+    paddingTop: 0,
+    paddingRight: 4,
   },
   brainProgressTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: typography.fonts.semibold,
-    color: '#333333',
+    color: '#444444',
   },
   brainProgressPercent: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: typography.fonts.bold,
-    color: '#4CAF50',
+    color: '#3AAF3C',
   },
   progressBarContainer: {
-    height: 12,
+    height: 10,
     width: '100%',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   progressBarBackground: {
     height: '100%',
     width: '100%',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    borderRadius: 6,
+    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+    borderRadius: 12,
     overflow: 'hidden',
+    marginHorizontal: 2,
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#4CAF50',
-    borderRadius: 6,
+    borderRadius: 12,
   },
   timeAdjustModalOverlay: {
     flex: 1,
@@ -1763,15 +2213,15 @@ const styles = StyleSheet.create({
   },
   timeAdjustModalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 20,
     width: '90%',
     maxWidth: 350,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowColor: 'rgba(0, 0, 0, 0.12)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
     elevation: 5,
   },
   timeAdjustModalTitle: {
@@ -1791,23 +2241,18 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 12,
   },
-  timeUnitLabel: {
-    fontSize: 16,
-    fontFamily: typography.fonts.medium,
-    color: '#333',
-    width: '30%',
-  },
   timeAdjustInput: {
     width: '65%',
     height: 45,
     borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 12,
     paddingHorizontal: 15,
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
     fontFamily: typography.fonts.medium,
+    backgroundColor: '#FAFAFA',
   },
   timeAdjustButtonRow: {
     flexDirection: 'row',
@@ -1873,6 +2318,111 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontFamily: typography.fonts.medium,
+  },
+  userGreeting: {
+    fontSize: 34,
+    fontFamily: typography.fonts.bold,
+    color: '#000000',
+    marginBottom: 24,
+    paddingHorizontal: 5,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.05)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  swipeableContainer: {
+    width: '100%',
+    height: 120,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  swipeableView: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  startDateView: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  startDateText: {
+    fontSize: 19,
+    fontFamily: typography.fonts.medium,
+    color: '#444444',
+    textAlign: 'center',
+    lineHeight: 30,
+  },
+  swipeIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 14,
+    paddingBottom: 8,
+    marginTop: 4,
+  },
+  swipeIndicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#DDDDDD',
+    marginHorizontal: 5,
+  },
+  swipeIndicatorActive: {
+    backgroundColor: '#4CAF50',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  swipeGestureArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    zIndex: 1,
+  },
+  swipeLeftButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  swipeRightButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerWithEmojiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 2,
+  },
+  headerEmoji: {
+    fontSize: 22,
+    marginRight: 8,
+  },
+  timeAdjustButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: -1,
   },
 });
 
