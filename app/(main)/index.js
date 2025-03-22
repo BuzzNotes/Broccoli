@@ -248,7 +248,7 @@ const MainScreen = () => {
         ];
       }
       
-      return {
+            return {
         largeUnits,
         smallUnits
       };
@@ -278,7 +278,7 @@ const MainScreen = () => {
         }
       ];
       
-      return {
+          return {
         largeUnits,
         smallUnits
       };
@@ -312,7 +312,7 @@ const MainScreen = () => {
         }
       ];
       
-      return {
+        return {
         largeUnits,
         smallUnits
       };
@@ -481,9 +481,9 @@ const MainScreen = () => {
     } catch (error) {
       console.error('Error setting up timer:', error);
       return null;
-      }
-    };
-    
+    }
+  };
+
   // Initialize timer on mount
   useEffect(() => {
     setupTimer();
@@ -1109,10 +1109,10 @@ const MainScreen = () => {
       
       {/* Background gradient that stays at the top */}
       <View style={styles.backgroundGradient}>
-        <LinearGradient
+      <LinearGradient
           colors={['#A5D6A7', '#E8F5E9', '#F5F5F5']}
           style={{height: 250}}
-          start={{ x: 0, y: 0 }}
+        start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           locations={[0, 0.7, 1]}
         />
@@ -1410,7 +1410,7 @@ const MainScreen = () => {
                     <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
                       <Ionicons name="refresh" size={28} color="#43A047" />
                     </Animated.View>
-                  </TouchableOpacity>
+            </TouchableOpacity>
                 </Animated.View>
               </View>
               
@@ -1464,8 +1464,8 @@ const MainScreen = () => {
                                 </Text>
                               </Text>
                             </View>
-                          ))}
-                        </View>
+          ))}
+        </View>
                       );
                     })()}
                   </View>
@@ -1497,10 +1497,10 @@ const MainScreen = () => {
             
             {/* Small Units Display (hours, minutes, seconds) */}
             <View style={styles.secondsBoxContainer}>
-              <LinearGradient
+            <LinearGradient
                 colors={['#43A047', '#2E7D32']}
                 style={styles.smallUnitsGradient}
-                start={{ x: 0, y: 0 }}
+              start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
                 <View style={styles.smallUnitsDisplay}>

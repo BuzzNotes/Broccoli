@@ -14,83 +14,79 @@ const BreatheScreen = () => {
   const fadeIcon = useRef(new Animated.Value(1)).current;
   const [navigating, setNavigating] = useState(false);
   
-  // Get the leaf animation context and set density to sparse
   const { changeDensity } = useLeafAnimation();
   
   useEffect(() => {
-    // Set leaf density to sparse for this screen
     changeDensity('sparse');
     
-    // Full breathing animation sequence
-    Animated.parallel([
-      // Icon scale animation (grow then shrink)
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.5,
-          duration: 2000, // Grow for 2s
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 2000, // Shrink for 2s
-          useNativeDriver: true,
-        })
-      ]),
+    // First breathing cycle
+    const breatheIn = Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1.5,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeInText, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]);
 
-      // Text transitions
-      Animated.sequence([
-        // First text
-        Animated.timing(fadeInText, {
-          toValue: 1,
-          duration: 500, // Quick fade in
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeInText, {
-          toValue: 0,
-          duration: 500, // Start fading out at 1.5s
-          delay: 1000, // Wait for 1s
-          useNativeDriver: true,
-        }),
-        // Second text
-        Animated.timing(fadeOutText, {
-          toValue: 1,
-          duration: 500, // Quick fade in
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeOutText, {
-          toValue: 0,
-          duration: 500, // Start fading out at 1.5s
-          delay: 1000, // Wait for 1s
-          useNativeDriver: true,
-        }),
-        // Icon fade out
-        Animated.timing(fadeIcon, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        })
-      ])
-    ]).start(() => {
-      // When animation completes, navigate to welcome screen
-      // Mark that we're navigating to prevent multiple navigations
+    const breatheOut = Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeInText, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeOutText, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]);
+
+    const fadeAway = Animated.parallel([
+      Animated.timing(fadeOutText, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeIcon, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]);
+
+    // Chain the animations
+    const sequence = Animated.sequence([
+      breatheIn,
+      Animated.delay(1000),
+      breatheOut,
+      Animated.delay(1000),
+      fadeAway,
+      Animated.delay(500)
+    ]);
+
+    sequence.start(() => {
       if (!navigating) {
         setNavigating(true);
-        
-        // IMPORTANT: Don't change the leaf density here
-        // Let the welcome screen handle changing the density
-        
-        // Use replace instead of push to avoid back navigation
-        router.replace({
-          pathname: '/(intro)/welcome',
-          // Pass a param to indicate we're coming from breathe screen
-          params: { fromBreathe: true }
-        });
+        router.push('/(intro)/welcome');
       }
     });
     
-    // Cleanup function
     return () => {
-      // Don't change density on unmount - let the welcome screen handle it
+      sequence.stop();
+      scaleAnim.setValue(1);
+      fadeInText.setValue(0);
+      fadeOutText.setValue(0);
+      fadeIcon.setValue(1);
     };
   }, []);
 
@@ -98,7 +94,6 @@ const BreatheScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
         <LinearGradient
           colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
@@ -122,11 +117,11 @@ const BreatheScreen = () => {
         </Animated.View>
 
         <View style={styles.textContainer}>
-          <Animated.Text style={[styles.text, { opacity: fadeInText, position: 'absolute' }]}>
+          <Animated.Text style={[styles.text, { opacity: fadeInText }]}>
             Breathe in...
           </Animated.Text>
           
-          <Animated.Text style={[styles.text, { opacity: fadeOutText, position: 'absolute' }]}>
+          <Animated.Text style={[styles.text, { opacity: fadeOutText }]}>
             Breathe out...
           </Animated.Text>
         </View>

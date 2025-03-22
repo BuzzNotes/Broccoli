@@ -28,7 +28,13 @@ import {
   formatRelapseDataForChart, 
   revertLastRelapse 
 } from '../../src/utils/relapseTracker';
-import { getUserProfile } from '../../src/utils/userProfile';
+import { 
+  getUserProfile, 
+  getAnonymousPostingPreference, 
+  saveAnonymousPostingPreference,
+  getProfilePrivacySetting,
+  saveProfilePrivacySetting 
+} from '../../src/utils/userProfile';
 import { IMAGES } from '../../src/constants/assets';
 import { useAuth } from '../../src/context/AuthContext';
 
@@ -40,6 +46,8 @@ const ProfileScreen = () => {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [reminders, setReminders] = useState(true);
+  const [anonymousPosting, setAnonymousPosting] = useState(false);
+  const [privateProfile, setPrivateProfile] = useState(true);
   const [activeTimeFrame, setActiveTimeFrame] = useState('month'); // 'today', 'week', 'month'
   const [chartData, setChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +84,22 @@ const ProfileScreen = () => {
   
   const currentData = mockData[activeTimeFrame];
   
+  useEffect(() => {
+    loadPrivacySettings();
+  }, []);
+  
+  const loadPrivacySettings = async () => {
+    try {
+      const isAnonymous = await getAnonymousPostingPreference();
+      const privacySetting = await getProfilePrivacySetting();
+      
+      setAnonymousPosting(isAnonymous);
+      setPrivateProfile(privacySetting === 'private');
+    } catch (error) {
+      console.error('Error loading privacy settings:', error);
+    }
+  };
+  
   const toggleNotifications = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setNotifications(prev => !prev);
@@ -89,6 +113,28 @@ const ProfileScreen = () => {
   const toggleReminders = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setReminders(prev => !prev);
+  };
+  
+  const toggleAnonymousPosting = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const newValue = !anonymousPosting;
+      setAnonymousPosting(newValue);
+      await saveAnonymousPostingPreference(newValue);
+    } catch (error) {
+      console.error('Error toggling anonymous posting:', error);
+    }
+  };
+  
+  const togglePrivateProfile = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const newValue = !privateProfile;
+      setPrivateProfile(newValue);
+      await saveProfilePrivacySetting(newValue ? 'private' : 'public');
+    } catch (error) {
+      console.error('Error toggling profile privacy:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -513,57 +559,96 @@ const ProfileScreen = () => {
       </View>
 
         {/* Settings Section */}
-        <View style={styles.settingsCard}>
-          <LinearGradient
-            colors={['rgba(91, 189, 104, 0.1)', 'rgba(91, 189, 104, 0.05)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <Text style={styles.cardTitle}>Settings</Text>
+        <View style={styles.settingsContainer}>
+          <Text style={styles.settingsTitle}>Settings</Text>
           
           <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="notifications" size={24} color="#5BBD68" />
-              <Text style={styles.settingText}>Push Notifications</Text>
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="notifications-outline" size={24} color="#43A047" style={styles.settingIcon} />
+              <Text style={styles.settingLabel}>Notifications</Text>
             </View>
             <Switch
               value={notifications}
               onValueChange={toggleNotifications}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
-              thumbColor={notifications ? '#5BBD68' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="moon" size={24} color="#5BBD68" />
-              <Text style={styles.settingText}>Dark Mode</Text>
-            </View>
-            <Switch
-              value={darkMode}
-              onValueChange={toggleDarkMode}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
-              thumbColor={darkMode ? '#5BBD68' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
+              trackColor={{ false: '#D9D9D9', true: '#BCE0BE' }}
+              thumbColor={notifications ? '#4CAF50' : '#F5F5F5'}
             />
           </View>
           
           <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="time" size={24} color="#5BBD68" />
-              <Text style={styles.settingText}>Daily Reminders</Text>
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="moon-outline" size={24} color="#43A047" style={styles.settingIcon} />
+              <Text style={styles.settingLabel}>Dark Mode</Text>
+            </View>
+            <Switch
+              value={darkMode}
+              onValueChange={toggleDarkMode}
+              trackColor={{ false: '#D9D9D9', true: '#BCE0BE' }}
+              thumbColor={darkMode ? '#4CAF50' : '#F5F5F5'}
+            />
+          </View>
+          
+          <View style={styles.settingItem}>
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="alarm-outline" size={24} color="#43A047" style={styles.settingIcon} />
+              <Text style={styles.settingLabel}>Daily Reminders</Text>
             </View>
             <Switch
               value={reminders}
               onValueChange={toggleReminders}
-              trackColor={{ false: '#3e3e3e', true: 'rgba(91, 189, 104, 0.5)' }}
-              thumbColor={reminders ? '#5BBD68' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
+              trackColor={{ false: '#D9D9D9', true: '#BCE0BE' }}
+              thumbColor={reminders ? '#4CAF50' : '#F5F5F5'}
             />
           </View>
-      </View>
+          
+          <View style={styles.settingsDivider} />
+          
+          <Text style={styles.settingsSubtitle}>Community & Privacy</Text>
+          
+          <View style={styles.settingItem}>
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="eye-off-outline" size={24} color="#43A047" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Post Anonymously</Text>
+                <Text style={styles.settingDescription}>Your posts won't show your display name</Text>
+              </View>
+            </View>
+            <Switch
+              value={anonymousPosting}
+              onValueChange={toggleAnonymousPosting}
+              trackColor={{ false: '#D9D9D9', true: '#BCE0BE' }}
+              thumbColor={anonymousPosting ? '#4CAF50' : '#F5F5F5'}
+            />
+          </View>
+          
+          <View style={styles.settingItem}>
+            <View style={styles.settingLabelContainer}>
+              <Ionicons name="lock-closed-outline" size={24} color="#43A047" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Private Profile</Text>
+                <Text style={styles.settingDescription}>Others can't see your profile details</Text>
+              </View>
+            </View>
+            <Switch
+              value={privateProfile}
+              onValueChange={togglePrivateProfile}
+              trackColor={{ false: '#D9D9D9', true: '#BCE0BE' }}
+              thumbColor={privateProfile ? '#4CAF50' : '#F5F5F5'}
+            />
+          </View>
+          
+          <View style={styles.settingsDivider} />
+          
+          <View style={styles.settingItem}>
+            <TouchableOpacity style={styles.settingButton} onPress={handleLogout}>
+              <View style={styles.settingLabelContainer}>
+                <Ionicons name="log-out-outline" size={24} color="#E53935" style={styles.settingIcon} />
+                <Text style={[styles.settingLabel, styles.logoutText]}>Logout</Text>
+              </View>
+              <Ionicons name="chevron-forward-outline" size={20} color="#CCCCCC" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
       {/* Support Section */}
         <View style={styles.supportCard}>
@@ -595,21 +680,6 @@ const ProfileScreen = () => {
       </View>
 
       {/* Logout Button */}
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          activeOpacity={0.8}
-          onPress={handleLogout}
-        >
-          <LinearGradient
-            colors={['rgba(255, 59, 48, 0.2)', 'rgba(255, 59, 48, 0.1)']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <Ionicons name="log-out" size={20} color="#FF3B30" style={styles.logoutIcon} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-        
         <Text style={styles.versionText}>Version 1.0.0</Text>
     </ScrollView>
     </View>
@@ -839,7 +909,7 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontFamily: typography.fonts.medium,
   },
-  settingsCard: {
+  settingsContainer: {
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
@@ -854,7 +924,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     backgroundColor: '#FFFFFF',
   },
-  cardTitle: {
+  settingsTitle: {
     fontSize: 18,
     color: '#000000',
     fontFamily: typography.fonts.bold,
@@ -868,15 +938,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
-  settingInfo: {
+  settingLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  settingText: {
+  settingLabel: {
     fontSize: 16,
     color: '#000000',
     fontFamily: typography.fonts.medium,
-    marginLeft: 16,
+  },
+  settingIcon: {
+    marginRight: 8,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logoutText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
   },
   supportCard: {
     borderRadius: 20,
@@ -907,31 +989,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.medium,
     marginLeft: 16,
   },
-  logoutButton: {
-    height: 56,
-    borderRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  logoutIcon: {
-    marginRight: 8,
-  },
-  logoutText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontFamily: typography.fonts.bold,
-  },
   versionText: {
     fontSize: 14,
     color: 'rgba(0, 0, 0, 0.5)',
@@ -960,6 +1017,30 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontFamily: typography.fonts.medium,
     marginTop: 12,
+  },
+  settingEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  settingsDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 8,
+  },
+  settingsSubtitle: {
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: typography.fonts.medium,
+    marginVertical: 12,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingDescription: {
+    fontSize: 12,
+    color: '#666666',
+    fontFamily: typography.fonts.regular,
+    marginTop: 2,
   },
 });
 

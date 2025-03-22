@@ -142,6 +142,11 @@ const FinalAnalysis = () => {
   const handleContinue = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Save assessment data for personalization
+      const { saveUserAssessment } = require('../../../src/utils/assessmentTracker');
+      await saveUserAssessment(answers);
+      
       router.push('/(onboarding)/education');
     } catch (error) {
       console.error('Error:', error);

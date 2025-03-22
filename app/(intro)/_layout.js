@@ -5,13 +5,29 @@ export default function IntroLayout() {
     <Stack 
       screenOptions={{ 
         headerShown: false,
-        animation: 'none',
-        contentStyle: { backgroundColor: 'transparent' }
+        animation: 'fade',
+        contentStyle: { backgroundColor: 'transparent' },
+        gestureEnabled: false
       }}
     >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="breathe" />
-      <Stack.Screen name="welcome" />
+      <Stack.Screen 
+        name="index"
+        options={{
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="breathe"
+        options={{
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="welcome"
+        options={{
+          animation: 'fade'
+        }}
+      />
     </Stack>
   );
 } 

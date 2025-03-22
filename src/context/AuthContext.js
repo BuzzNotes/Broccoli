@@ -51,7 +51,8 @@ const clearPreviousUserData = async () => {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Google Auth Configuration
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
@@ -99,6 +100,13 @@ export function AuthProvider({ children }) {
           // Store user data in AsyncStorage
           await AsyncStorage.setItem('user', JSON.stringify(userData));
 
+          // Skip navigation on initial load
+          if (initialLoad) {
+            setInitialLoad(false);
+            setLoading(false);
+            return;
+          }
+
           // Check onboarding state
           const { isComplete, missingFields } = isProfileComplete(userProfile);
           
@@ -125,19 +133,34 @@ export function AuthProvider({ children }) {
           console.error('Error fetching user profile:', error);
           setUser(user);
           await AsyncStorage.setItem('user', JSON.stringify(user));
-          // If there's an error, default to onboarding
+          
+          // Skip navigation on initial load
+          if (initialLoad) {
+            setInitialLoad(false);
+            setLoading(false);
+            return;
+          }
+          
           router.replace('/(onboarding)/welcome');
         }
       } else {
         setUser(null);
         await AsyncStorage.removeItem('user');
+        
+        // Skip navigation on initial load
+        if (initialLoad) {
+          setInitialLoad(false);
+          setLoading(false);
+          return;
+        }
+        
         router.replace('/(auth)/login');
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [initialLoad]);
 
   useEffect(() => {
     if (response?.type === 'success') {

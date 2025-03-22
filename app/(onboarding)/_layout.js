@@ -4,40 +4,38 @@ import { OnboardingProvider } from './context/OnboardingContext';
 export default function OnboardingLayout() {
   return (
     <OnboardingProvider>
-      <Stack screenOptions={{ 
-        headerShown: false,
-        animation: 'none'
-      }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="good-news" />
-        <Stack.Screen name="questions/addiction/frequency" />
-        <Stack.Screen name="questions/addiction/duration" />
-        <Stack.Screen name="questions/addiction/increased" />
-        <Stack.Screen name="questions/addiction/anxiety" />
-        <Stack.Screen name="questions/addiction/memory" />
-        <Stack.Screen name="questions/addiction/other_substances" />
-        <Stack.Screen name="questions/addiction/gender" />
-        <Stack.Screen name="questions/addiction/stress" />
-        <Stack.Screen name="questions/addiction/boredom" />
-        <Stack.Screen name="questions/addiction/money" />
-        <Stack.Screen name="analysis/final" options={{ animation: 'fade' }} />
-        <Stack.Screen name="calculating" options={{ animation: 'fade' }} />
-        <Stack.Screen name="analysisComplete" options={{ animation: 'fade' }} />
-        <Stack.Screen name="questions/personal/age" />
-        <Stack.Screen name="questions/personal/height" />
-        <Stack.Screen name="questions/personal/weight" />
-        <Stack.Screen name="questions/personal/activity" />
-        <Stack.Screen name="analysis/personal" options={{ animation: 'fade' }} />
-        <Stack.Screen name="questions/usage/frequency" />
-        <Stack.Screen name="questions/usage/amount" />
-        <Stack.Screen name="questions/usage/method" />
-        <Stack.Screen name="analysis/usage" options={{ animation: 'fade' }} />
-        <Stack.Screen name="symptoms" />
-        <Stack.Screen name="education" />
-        <Stack.Screen name="rating" />
-        <Stack.Screen name="referral" />
+      <Stack 
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+        }}
+      >
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="benefits" />
-        <Stack.Screen name="paywall" />
+        <Stack.Screen name="symptoms" />
+        <Stack.Screen name="good-news" />
+        <Stack.Screen name="analysisComplete" />
+        <Stack.Screen name="autoTransition" />
+        <Stack.Screen name="questions/addiction/index" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/concentration" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/craving" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/frequency" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/memory" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/fail" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/quit" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/personal/index" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/personal/sleep" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/personal/anxiety" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/personal/mood" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/patterns/index" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/patterns/reason" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/patterns/trigger" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/patterns/social" options={{ animation: 'none' }} />
+        <Stack.Screen name="analysis/index" options={{ animation: 'none' }} />
+        <Stack.Screen name="analysis/final" options={{ animation: 'none' }} />
+        <Stack.Screen name="education" options={{ animation: 'none' }} />
+        <Stack.Screen name="paywall" options={{ animation: 'none' }} />
+        <Stack.Screen name="community-setup" options={{ animation: 'none' }} />
       </Stack>
     </OnboardingProvider>
   );

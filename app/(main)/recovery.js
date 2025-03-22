@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
 
@@ -29,6 +30,16 @@ const RecoveryScreen = () => {
       setActiveTab(params.initialTab);
     }
   }, [params.initialTab]);
+
+  const handleCreateJournalEntry = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/journal-entry');
+  };
+
+  const handleViewJournalEntries = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/journal-list');
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -79,7 +90,10 @@ const RecoveryScreen = () => {
           <View style={styles.tabContent}>
             <View style={styles.journalHeader}>
               <Text style={styles.journalTitle}>My Recovery Journal</Text>
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={handleCreateJournalEntry}
+              >
                 <LinearGradient
                   colors={['#4CAF50', '#388E3C']}
                   style={StyleSheet.absoluteFill}
@@ -90,10 +104,40 @@ const RecoveryScreen = () => {
               </TouchableOpacity>
             </View>
             
-            <View style={styles.emptyJournal}>
-              <Ionicons name="book-outline" size={64} color="#4CAF50" />
-              <Text style={styles.emptyText}>No journal entries yet</Text>
-              <Text style={styles.emptySubtext}>Start documenting your recovery journey</Text>
+            <TouchableOpacity 
+              style={styles.journalCard}
+              onPress={handleViewJournalEntries}
+              activeOpacity={0.8}
+            >
+              <View style={styles.journalCardContent}>
+                <Ionicons name="book-outline" size={48} color="#4CAF50" />
+                <View style={styles.journalCardText}>
+                  <Text style={styles.journalCardTitle}>Journal Entries</Text>
+                  <Text style={styles.journalCardDescription}>
+                    Track your moods and document your recovery journey
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#CCCCCC" />
+              </View>
+            </TouchableOpacity>
+            
+            <View style={styles.journalTipsCard}>
+              <Text style={styles.cardTitle}>Journaling Tips</Text>
+              
+              <View style={styles.tipItem}>
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                <Text style={styles.tipText}>Record your moods daily to track patterns</Text>
+              </View>
+              
+              <View style={styles.tipItem}>
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                <Text style={styles.tipText}>Write down triggers and how you overcame them</Text>
+              </View>
+              
+              <View style={styles.tipItem}>
+                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                <Text style={styles.tipText}>Celebrate small victories in your journey</Text>
+              </View>
             </View>
           </View>
         );
@@ -374,10 +418,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  emptyJournal: {
+  journalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  journalCardContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+  },
+  journalCardText: {
+    flex: 1,
+    marginLeft: 16,
+    marginRight: 8,
+  },
+  journalCardTitle: {
+    fontSize: 18,
+    color: '#000000',
+    fontFamily: typography.fonts.bold,
+    marginBottom: 4,
+  },
+  journalCardDescription: {
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: typography.fonts.regular,
+  },
+  journalTipsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
@@ -388,17 +460,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  emptyText: {
-    fontSize: 18,
-    color: '#666666',
-    fontFamily: typography.fonts.medium,
-    marginTop: 16,
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999999',
-    fontFamily: typography.fonts.regular,
-    marginTop: 8,
+  tipText: {
+    fontSize: 16,
+    color: '#000000',
+    fontFamily: typography.fonts.medium,
+    marginLeft: 12,
+    flexShrink: 1,
   },
   resourceCard: {
     backgroundColor: '#FFFFFF',

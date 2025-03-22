@@ -4,16 +4,29 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+
+// Keys for storing user profile information
+export const DISPLAY_NAME_KEY = 'user_display_name';
+export const EMAIL_KEY = 'user_email'; 
+export const PROFILE_IMAGE_KEY = 'user_profile_image';
+export const FIRST_NAME_KEY = 'user_first_name';
+export const LAST_NAME_KEY = 'user_last_name';
+export const PROFILE_PRIVACY_KEY = 'profile_privacy';
+export const ANONYMOUS_POSTING_KEY = 'anonymous_posting_preference';
 
 // Keys for AsyncStorage
 const USER_NAME_KEY = 'userName';
 const USER_AGE_KEY = 'userAge';
 const USER_GENDER_KEY = 'userGender';
 const USER_PROFILE_IMAGE_KEY = 'userProfileImage';
-const USER_PROFILE_KEY = 'userProfile';
+const USER_PROFILE_KEY = '@Broccoli:userProfile';
 
 /**
  * Get the current user's ID from Firebase Auth
@@ -424,75 +437,210 @@ export const isProfileComplete = (profile = {}) => {
 };
 
 /**
- * Gets a formatted full name from the profile
- * @param {Object} profile - The user profile object
- * @returns {string} The user's full name
+ * Get user's full name from profile data
+ * @param {Object} profileData - User profile data
+ * @returns {string} Full name or display name
  */
-export const getUserFullName = (profile = {}) => {
-  if (!profile) {
-    console.log("getUserFullName - Profile is null or undefined");
-    return '';
+export const getUserFullName = (profileData) => {
+  if (!profileData) return '';
+  
+  // If we have first and last name, combine them
+  if (profileData.firstName && profileData.lastName) {
+    return `${profileData.firstName} ${profileData.lastName}`;
   }
   
-  console.log("getUserFullName - Input profile:", JSON.stringify(profile));
-  
-  // First priority: displayName if available
-  if (profile.displayName && profile.displayName.trim() !== '') {
-    console.log("getUserFullName - Using displayName:", profile.displayName);
-    return profile.displayName;
-  }
-  
-  // Second priority: firstName + lastName if both are available
-  if (profile.firstName && profile.lastName && 
-      profile.firstName.trim() !== '' && profile.lastName.trim() !== '') {
-    const fullName = `${profile.firstName} ${profile.lastName}`;
-    console.log("getUserFullName - Using firstName + lastName:", fullName);
-    return fullName;
-  }
-  
-  // Third priority: just firstName if available
-  if (profile.firstName && profile.firstName.trim() !== '') {
-    console.log("getUserFullName - Using only firstName:", profile.firstName);
-    return profile.firstName;
-  }
-  
-  // Fourth priority: just lastName if available
-  if (profile.lastName && profile.lastName.trim() !== '') {
-    console.log("getUserFullName - Using only lastName:", profile.lastName);
-    return profile.lastName;
-  }
-  
-  // Fifth priority: provider-specific handling
-  if (profile.provider === 'apple') {
-    console.log("getUserFullName - Apple user without name, checking for alternative identifiers");
-    
-    // For Apple users, we might have user.uid or a partial email
-    if (profile.uid) {
-      console.log("getUserFullName - Using 'Apple User' with partial UID");
-      return `Apple User (${profile.uid.substring(0, 5)}...)`;
-    }
-  }
-  
-  // Sixth priority: email, but only if it's not an Apple private relay email
-  if (profile.email && profile.email.trim() !== '') {
-    // Check if it's an Apple private relay email (they contain "privaterelay.appleid.com")
-    if (profile.email.includes('privaterelay.appleid.com')) {
-      console.log("getUserFullName - Found Apple private relay email, not using");
-      return 'Apple User'; // Return a generic name for Apple users
-    }
-    
-    // For regular emails, use the part before @ as a name
-    const emailName = profile.email.split('@')[0];
-    // Capitalize and format the email name
-    const formattedName = emailName
-      .split(/[._-]/)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+  // Otherwise use displayName
+  return profileData.displayName || '';
+};
+
+/**
+ * Get the user's preference for anonymous posting
+ * @returns {Promise<boolean>} Whether the user has chosen to post anonymously
+ */
+export const getAnonymousPostingPreference = async () => {
+  try {
+    // First try Firestore if user is authenticated
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
       
-    console.log("getUserFullName - Using formatted email name:", formattedName);
-    return formattedName;
+      if (userDoc.exists() && userDoc.data().anonymousPosting !== undefined) {
+        return userDoc.data().anonymousPosting;
+      }
+    }
+    
+    // Fall back to AsyncStorage
+    const storedValue = await AsyncStorage.getItem(ANONYMOUS_POSTING_KEY);
+    if (storedValue !== null) {
+      return JSON.parse(storedValue);
+    }
+    
+    // Default to false if no preference is set
+    return false;
+  } catch (error) {
+    console.error('Error retrieving anonymous posting preference:', error);
+    return false; // Default to false on error
   }
-  
-  console.log("getUserFullName - No valid name found, returning empty string");
-  return '';
+};
+
+/**
+ * Save the user's preference for anonymous posting
+ * @param {boolean} isAnonymous - Whether the user wants to post anonymously
+ * @returns {Promise<void>}
+ */
+export const saveAnonymousPostingPreference = async (isAnonymous) => {
+  try {
+    // Save to AsyncStorage
+    await AsyncStorage.setItem(ANONYMOUS_POSTING_KEY, JSON.stringify(isAnonymous));
+    
+    // If user is authenticated, save to Firestore
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        // Update existing document
+        await updateDoc(userRef, {
+          anonymousPosting: isAnonymous,
+          lastUpdated: new Date().toISOString()
+        });
+      } else {
+        // Create new document
+        await setDoc(userRef, {
+          anonymousPosting: isAnonymous,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error saving anonymous posting preference:', error);
+    // If Firestore fails, at least we tried with AsyncStorage
+  }
+};
+
+/**
+ * Get the user's profile privacy setting
+ * @returns {Promise<string>} 'private' or 'public'
+ */
+export const getProfilePrivacySetting = async () => {
+  try {
+    // First try Firestore if user is authenticated
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists() && userDoc.data().profilePrivacy !== undefined) {
+        return userDoc.data().profilePrivacy;
+      }
+    }
+    
+    // Fall back to AsyncStorage
+    const storedValue = await AsyncStorage.getItem(PROFILE_PRIVACY_KEY);
+    if (storedValue !== null) {
+      return storedValue;
+    }
+    
+    // Default to private if no preference is set
+    return 'private';
+  } catch (error) {
+    console.error('Error retrieving profile privacy setting:', error);
+    return 'private'; // Default to private on error
+  }
+};
+
+/**
+ * Save the user's profile privacy setting
+ * @param {string} privacySetting - 'private' or 'public'
+ * @returns {Promise<void>}
+ */
+export const saveProfilePrivacySetting = async (privacySetting) => {
+  try {
+    // Validate input
+    if (privacySetting !== 'private' && privacySetting !== 'public') {
+      throw new Error('Invalid privacy setting. Must be "private" or "public"');
+    }
+    
+    // Save to AsyncStorage
+    await AsyncStorage.setItem(PROFILE_PRIVACY_KEY, privacySetting);
+    
+    // If user is authenticated, save to Firestore
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        // Update existing document
+        await updateDoc(userRef, {
+          profilePrivacy: privacySetting,
+          lastUpdated: new Date().toISOString()
+        });
+      } else {
+        // Create new document
+        await setDoc(userRef, {
+          profilePrivacy: privacySetting,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error saving profile privacy setting:', error);
+    // If Firestore fails, at least we tried with AsyncStorage
+  }
+};
+
+// Add these functions to save and get anonymous posting preference
+export const saveAnonymousPostingPreferenceToProfile = async (isAnonymous) => {
+  try {
+    if (!auth.currentUser) {
+      console.log('No user logged in, cannot save anonymous preference to profile');
+      return false;
+    }
+
+    // Update in Firestore
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    await updateDoc(userRef, {
+      [ANONYMOUS_POSTING_KEY]: isAnonymous,
+      last_updated: serverTimestamp()
+    });
+
+    // Also update in local AsyncStorage
+    await AsyncStorage.setItem(ANONYMOUS_POSTING_KEY, JSON.stringify(isAnonymous));
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving anonymous preference to profile:', error);
+    return false;
+  }
+};
+
+export const getAnonymousPostingPreferenceFromProfile = async () => {
+  try {
+    // First try to get from AsyncStorage
+    const localPref = await AsyncStorage.getItem(ANONYMOUS_POSTING_KEY);
+    
+    if (localPref !== null) {
+      return JSON.parse(localPref);
+    }
+    
+    // If not in AsyncStorage, try to get from Firestore
+    if (auth.currentUser) {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists() && userDoc.data()[ANONYMOUS_POSTING_KEY] !== undefined) {
+        const preference = userDoc.data()[ANONYMOUS_POSTING_KEY];
+        
+        // Save to AsyncStorage for future use
+        await AsyncStorage.setItem(ANONYMOUS_POSTING_KEY, JSON.stringify(preference));
+        
+        return preference;
+      }
+    }
+    
+    // Default to false if not found
+    return false;
+  } catch (error) {
+    console.error('Error getting anonymous preference from profile:', error);
+    return false;
+  }
 }; 

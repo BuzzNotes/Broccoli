@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, SafeAreaView, Dimensions, Animated, StatusBar } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,94 +11,66 @@ import { typography } from '../styles/typography';
 const { width, height } = Dimensions.get('window');
 
 const WelcomeScreen = () => {
-  // Get the leaf animation context
-  const { changeDensity, startAnimation, density: currentDensity } = useLeafAnimation();
-  // Get route params to check if we're coming from breathe screen
-  const params = useLocalSearchParams();
-  const fromBreathe = params.fromBreathe === 'true';
-  // Track if we're navigating away
+  const { changeDensity, startAnimation } = useLeafAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
-  // Use a ref to track if we've already set the density
-  const hasSetDensityRef = useRef(false);
   
-  // Animation values for fade-in effects
   const fadeIconAnim = useRef(new Animated.Value(0)).current;
   const fadeTitleAnim = useRef(new Animated.Value(0)).current;
   const fadeSubtitleAnim = useRef(new Animated.Value(0)).current;
   const fadeButtonAnim = useRef(new Animated.Value(0)).current;
-  // Animation value for the entire content
   const fadeContentAnim = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
-    // Ensure animation is running
     startAnimation();
+    changeDensity('normal');
     
-    // Only set the density once when the component mounts
-    // This prevents multiple density changes during transitions
-    if (!hasSetDensityRef.current) {
-      // If coming from breathe screen, keep the sparse density
-      // Otherwise use normal density
-      const targetDensity = fromBreathe ? 'sparse' : 'normal';
-      
-      // Only change density if it's different from current
-      if (currentDensity !== targetDensity) {
-        console.log(`Welcome screen: Setting density to ${targetDensity}`);
-        changeDensity(targetDensity);
-      }
-      
-      hasSetDensityRef.current = true;
-    }
-    
-    // Start fade-in animations with staggered timing for a smoother effect
-    Animated.stagger(150, [
-      // Fade in the icon
+    const animations = [
       Animated.timing(fadeIconAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      // Fade in the title
       Animated.timing(fadeTitleAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      // Fade in the subtitle
       Animated.timing(fadeSubtitleAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-      // Fade in the button
       Animated.timing(fadeButtonAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start();
+    ];
+
+    Animated.stagger(150, animations).start();
     
-    // Cleanup function - don't change density on unmount
-    return () => {};
+    return () => {
+      animations.forEach(anim => anim.stop());
+      fadeIconAnim.setValue(0);
+      fadeTitleAnim.setValue(0);
+      fadeSubtitleAnim.setValue(0);
+      fadeButtonAnim.setValue(0);
+      fadeContentAnim.setValue(1);
+    };
   }, []);
   
   const handleStart = () => {
-    // Prevent multiple navigation attempts
     if (isNavigating) return;
     
     setIsNavigating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Fade out all content
     Animated.timing(fadeContentAnim, {
       toValue: 0,
       duration: 400,
       useNativeDriver: true,
     }).start(() => {
-      // Navigate to login screen after fade out completes
-      router.push({
-        pathname: '/(auth)/login',
-        params: { animateIn: 'true' }
-      });
+      router.push('/(auth)/login');
     });
   };
 
@@ -106,7 +78,6 @@ const WelcomeScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
-      {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
         <LinearGradient
           colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}

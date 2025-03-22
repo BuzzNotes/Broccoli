@@ -80,17 +80,9 @@ export default function Layout() {
               gestureEnabled: false // Disable gesture navigation to prevent animation glitches
             }}
           >
-            {/* Intro Screens */}
+            {/* Intro Group */}
             <Stack.Screen 
-              name="(intro)/breathe" 
-              options={{ 
-                animation: 'none',
-                animationDuration: 0,
-                gestureEnabled: false
-              }} 
-            />
-            <Stack.Screen 
-              name="(intro)/welcome" 
+              name="(intro)"
               options={{ 
                 animation: 'none',
                 animationDuration: 0,

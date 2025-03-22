@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,8 @@ import {
   RefreshControl,
   Image,
   StatusBar,
-  Alert
+  Alert,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,24 +29,39 @@ import {
   doc,
   getDoc,
   Timestamp,
-  startAfter
+  startAfter,
+  updateDoc,
+  addDoc,
+  increment,
+  serverTimestamp,
+  deleteDoc,
+  setDoc,
+  where
 } from 'firebase/firestore';
 import { db, auth } from '../../src/config/firebase';
 import { getUserProfile } from '../../src/utils/userProfile';
 import { isFirebaseInitialized } from '../../src/utils/firebaseCheck';
 import { Asset } from 'expo-asset';
 import { IMAGES } from '../../src/constants/assets';
+import BannerNotification from '../../src/components/BannerNotification';
+import { filterOffensiveWords } from '../../src/utils/contentModeration';
 
 const CommunityScreen = () => {
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState(0);
   const [userProfiles, setUserProfiles] = useState({});
   const [firebaseError, setFirebaseError] = useState(false);
   const [lastVisible, setLastVisible] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allLoaded, setAllLoaded] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerType, setBannerType] = useState('success');
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' or 'friends'
+  const flatListRef = useRef(null);
   const POST_LIMIT = 10;
 
   useEffect(() => {
@@ -72,11 +88,30 @@ const CommunityScreen = () => {
 
       // Create query
       const postsRef = collection(db, 'posts');
-      let postsQuery = query(
-        postsRef,
-        orderBy('lastActivityTimestamp', 'desc'),
-        limit(POST_LIMIT)
-      );
+      let postsQuery;
+      
+      // If/when friends functionality is implemented, this will be updated
+      // to filter posts by user's friends
+      if (activeFilter === 'friends') {
+        // For now, just use the same query as 'all'
+        // In the future, this would include a where clause to filter by friends
+        postsQuery = query(
+          postsRef,
+          orderBy('lastActivityTimestamp', 'desc'),
+          limit(POST_LIMIT)
+        );
+        
+        // TODO: When friend system is implemented, update this query:
+        // 1. Get user's friends IDs
+        // 2. Use where('userId', 'in', friendIds) to filter posts by friends
+      } else {
+        // Default 'all' filter - show all posts
+        postsQuery = query(
+          postsRef,
+          orderBy('lastActivityTimestamp', 'desc'),
+          limit(POST_LIMIT)
+        );
+      }
 
       // Get posts
       const querySnapshot = await getDocs(postsQuery);
@@ -99,9 +134,30 @@ const CommunityScreen = () => {
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
-          lastActivityTimestamp: data.lastActivityTimestamp?.toDate() || new Date()
+          lastActivityTimestamp: data.lastActivityTimestamp?.toDate() || new Date(),
+          userLiked: false // Default to false, will be updated if user is logged in
         };
       });
+
+      // Check if the current user has liked any of these posts
+      if (auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        const likedPostsPromises = postsData.map(async (post) => {
+          const userLikedPostRef = doc(db, 'users', userId, 'likedPosts', post.id);
+          const likedPostDoc = await getDoc(userLikedPostRef);
+          return { postId: post.id, liked: likedPostDoc.exists() };
+        });
+        
+        const likedPostsResults = await Promise.all(likedPostsPromises);
+        
+        // Update posts with user liked status
+        likedPostsResults.forEach(result => {
+          const postIndex = postsData.findIndex(post => post.id === result.postId);
+          if (postIndex !== -1) {
+            postsData[postIndex].userLiked = result.liked;
+          }
+        });
+      }
 
       setPosts(postsData);
       
@@ -134,12 +190,29 @@ const CommunityScreen = () => {
 
       // Create query with startAfter for pagination
       const postsRef = collection(db, 'posts');
-      const postsQuery = query(
-        postsRef,
-        orderBy('lastActivityTimestamp', 'desc'),
-        startAfter(lastVisible),
-        limit(POST_LIMIT)
-      );
+      let postsQuery;
+      
+      // Apply the same filter logic as in loadPosts
+      if (activeFilter === 'friends') {
+        // For now, just use the same query as 'all' with pagination
+        postsQuery = query(
+          postsRef,
+          orderBy('lastActivityTimestamp', 'desc'),
+          startAfter(lastVisible),
+          limit(POST_LIMIT)
+        );
+        
+        // TODO: When friend system is implemented, update this query
+        // with the same friend filtering logic as in loadPosts
+      } else {
+        // Default 'all' filter with pagination
+        postsQuery = query(
+          postsRef,
+          orderBy('lastActivityTimestamp', 'desc'),
+          startAfter(lastVisible),
+          limit(POST_LIMIT)
+        );
+      }
 
       // Get more posts
       const querySnapshot = await getDocs(postsQuery);
@@ -161,9 +234,30 @@ const CommunityScreen = () => {
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
-          lastActivityTimestamp: data.lastActivityTimestamp?.toDate() || new Date()
+          lastActivityTimestamp: data.lastActivityTimestamp?.toDate() || new Date(),
+          userLiked: false // Default to false, will be updated if user is logged in
         };
       });
+
+      // Check if the current user has liked any of these posts
+      if (auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        const likedPostsPromises = postsData.map(async (post) => {
+          const userLikedPostRef = doc(db, 'users', userId, 'likedPosts', post.id);
+          const likedPostDoc = await getDoc(userLikedPostRef);
+          return { postId: post.id, liked: likedPostDoc.exists() };
+        });
+        
+        const likedPostsResults = await Promise.all(likedPostsPromises);
+        
+        // Update posts with user liked status
+        likedPostsResults.forEach(result => {
+          const postIndex = postsData.findIndex(post => post.id === result.postId);
+          if (postIndex !== -1) {
+            postsData[postIndex].userLiked = result.liked;
+          }
+        });
+      }
 
       setPosts(prev => [...prev, ...postsData]);
       
@@ -202,16 +296,20 @@ const CommunityScreen = () => {
   };
 
   const handleRefresh = () => {
+    setRefreshProgress(100);
     loadPosts(true);
+  };
+
+  const onRefreshChange = (progress) => {
+    // Convert native refresh values (usually 0 to 1) to percentage (0 to 100)
+    const progressPercentage = Math.min(Math.floor(progress * 100), 100);
+    setRefreshProgress(progressPercentage);
   };
 
   const handleCreatePost = () => {
     // Check if Firebase is initialized
     if (!isFirebaseInitialized()) {
-      Alert.alert(
-        "Connection Error",
-        "Could not connect to the community server. Please try again later."
-      );
+      showBanner("Could not connect to the community server.", "error");
       return;
     }
     
@@ -222,10 +320,7 @@ const CommunityScreen = () => {
   const handlePostPress = (post) => {
     // Check if Firebase is initialized
     if (!isFirebaseInitialized()) {
-      Alert.alert(
-        "Connection Error",
-        "Could not connect to the community server. Please try again later."
-      );
+      showBanner("Could not connect to the community server.", "error");
       return;
     }
     
@@ -252,45 +347,292 @@ const CommunityScreen = () => {
     return date.toLocaleDateString();
   };
 
+  const navigateToUserProfile = (userId, userName) => {
+    if (!userId || userId === auth.currentUser?.uid) return; // Don't navigate to own profile
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/(standalone)/user-profile',
+      params: { userId, userName }
+    });
+  };
+
+  const handleLikePost = async (postId, isLiked) => {
+    try {
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        showBanner('You must be logged in to like posts', 'error');
+        return;
+      }
+      
+      // Check if Firebase is initialized
+      if (!isFirebaseInitialized()) {
+        showBanner("Could not connect to the community server.", "error");
+        return;
+      }
+      
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      const userId = auth.currentUser.uid;
+      const postRef = doc(db, 'posts', postId);
+      const userLikedPostRef = doc(db, 'users', userId, 'likedPosts', postId);
+      
+      // Optimistically update UI
+      const newLikedState = !isLiked;
+      const likeChange = newLikedState ? 1 : -1;
+      
+      // Update local state immediately for better UX
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? { 
+                ...post, 
+                userLiked: newLikedState,
+                likeCount: (post.likeCount || 0) + likeChange 
+              } 
+            : post
+        )
+      );
+      
+      if (newLikedState) {
+        // User is liking the post
+        await setDoc(userLikedPostRef, {
+          likedAt: serverTimestamp()
+        });
+        
+        // Increment post like count
+        await updateDoc(postRef, {
+          likeCount: increment(1)
+        });
+      } else {
+        // User is unliking the post
+        await deleteDoc(userLikedPostRef);
+        
+        // Decrement post like count, but ensure it doesn't go below 0
+        await updateDoc(postRef, {
+          likeCount: increment(-1)
+        });
+      }
+    } catch (error) {
+      console.error('Error liking/unliking post:', error);
+      showBanner('Failed to update like status. Please try again.', 'error');
+      
+      // Revert optimistic update on error
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? { 
+                ...post, 
+                userLiked: isLiked,
+                likeCount: (post.likeCount || 0) + (isLiked ? 0 : 1) - (!isLiked ? 0 : 1)
+              } 
+            : post
+        )
+      );
+    }
+  };
+
+  // Add a function to handle post deletion
+  const handleDeletePost = async (postId) => {
+    try {
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        showBanner('You must be logged in to delete posts', 'error');
+        return;
+      }
+      
+      // Check if Firebase is initialized
+      if (!isFirebaseInitialized()) {
+        showBanner("Could not connect to the community server.", "error");
+        return;
+      }
+      
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Optimistically update UI
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      
+      // Delete post from Firestore
+      const postRef = doc(db, 'posts', postId);
+      await deleteDoc(postRef);
+      
+      showBanner('Post deleted successfully', 'success');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      showBanner('Failed to delete post. Please try again.', 'error');
+      
+      // Refresh posts to restore the deleted post
+      fetchPosts();
+    }
+  };
+
+  const handleFilterChange = (filter) => {
+    if (filter === activeFilter) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveFilter(filter);
+    
+    // Reset pagination
+    setLastVisible(null);
+    setAllLoaded(false);
+    
+    // Show loading state
+    setLoading(true);
+    setPosts([]);
+    
+    // In a future implementation, this would fetch friend-only posts
+    // For now, we'll just simulate the filter change
+    setTimeout(() => {
+      if (filter === 'friends') {
+        // Show banner explaining the feature is coming soon
+        showBanner("Friends filter will be available soon!", "info");
+      }
+      
+      // For now, just reload all posts regardless of filter
+      loadPosts(true);
+    }, 300);
+  };
+
   const renderPostItem = ({ item }) => {
+    const navigateToPost = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push({
+        pathname: '/(standalone)/post-detail',
+        params: { postId: item.id }
+      });
+    };
+
+    // Check if the current user is the creator of this post
+    const isPostOwner = auth.currentUser && 
+                       auth.currentUser.uid === item.userId &&
+                       item.userId !== undefined;
+
+    // Filter any offensive content in title and body
+    const filteredTitle = filterOffensiveWords(item.title);
+    const filteredBody = filterOffensiveWords(item.body);
+
     return (
       <TouchableOpacity 
         style={styles.postCard}
-        onPress={() => handlePostPress(item)}
+        onPress={navigateToPost}
         activeOpacity={0.8}
       >
         <View style={styles.postHeader}>
-          <Image 
-            source={item.userProfileImage ? { uri: item.userProfileImage } : IMAGES.DEFAULT_AVATAR} 
-            style={styles.userAvatar} 
-          />
-          <View style={styles.postHeaderInfo}>
-            <Text style={styles.userName}>{item.userName}</Text>
-            <Text style={styles.postTime}>{formatTimestamp(item.createdAt)}</Text>
-          </View>
+          {/* Show different header based on anonymous setting */}
+          {item.isAnonymous ? (
+            <View style={styles.anonymousHeader}>
+              <View style={styles.anonymousAvatar}>
+                <Ionicons name="eye-off-outline" size={16} color="#999999" />
+              </View>
+              <Text style={styles.anonymousName}>Anonymous</Text>
+              
+              {/* Show delete button if user is post owner */}
+              {isPostOwner && (
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDeletePost(item.id);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#F44336" />
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={styles.userHeader}>
+              {item.userProfileImage ? (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    navigateToUserProfile(item.userId, item.userName);
+                  }}
+                  disabled={!item.userId}
+                >
+                  <Image 
+                    source={{ uri: item.userProfileImage }} 
+                    style={styles.userAvatar}
+                    defaultSource={IMAGES.DEFAULT_AVATAR}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    navigateToUserProfile(item.userId, item.userName);
+                  }}
+                  disabled={!item.userId}
+                  style={styles.userAvatar}
+                >
+                  <Text style={styles.avatarText}>
+                    {item.userName?.charAt(0) || '?'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.postHeaderInfo}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    navigateToUserProfile(item.userId, item.userName);
+                  }}
+                  disabled={!item.userId}
+                >
+                  <Text style={styles.userName}>{item.userName || 'User'}</Text>
+                </TouchableOpacity>
+                <Text style={styles.postTime}>{formatTimestamp(item.createdAt)}</Text>
+              </View>
+              
+              {/* Show delete button if user is post owner */}
+              {isPostOwner && (
+                <TouchableOpacity 
+                  style={styles.deleteButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDeletePost(item.id);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#F44336" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {item.pinned && (
+            <View style={styles.pinnedIndicator}>
+              <Ionicons name="pin-outline" size={14} color="#5BBD68" />
+              <Text style={styles.pinnedText}>Pinned</Text>
+            </View>
+          )}
         </View>
         
-        <Text style={styles.postTitle}>{item.title}</Text>
-        <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
-        
-        {item.imageUrl && (
-          <Image 
-            source={{ uri: item.imageUrl }} 
-            style={styles.postImage}
-            resizeMode="cover"
-          />
-        )}
+        <Text style={styles.postTitle}>{filteredTitle}</Text>
+        <Text style={styles.postBody} numberOfLines={3}>{filteredBody}</Text>
         
         <View style={styles.postStats}>
-          <View style={styles.postStat}>
-            <Ionicons name="heart" size={16} color="#4CAF50" />
-            <Text style={styles.postStatText}>{item.likeCount || 0}</Text>
-          </View>
-          
-          <View style={styles.postStat}>
-            <Ionicons name="chatbubble" size={16} color="#4CAF50" />
+          <TouchableOpacity 
+            style={styles.postStat}
+            onPress={(e) => {
+              e.stopPropagation();
+              navigateToPost();
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={18} color="#666666" />
             <Text style={styles.postStatText}>{item.commentCount || 0}</Text>
-          </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.postStat}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleLikePost(item.id, item.userLiked);
+            }}
+          >
+            <Ionicons 
+              name={item.userLiked ? "heart" : "heart-outline"} 
+              size={18} 
+              color={item.userLiked ? "#F44336" : "#666666"} 
+            />
+            <Text style={styles.postStatText}>{item.likeCount || 0}</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -333,6 +675,28 @@ const CommunityScreen = () => {
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </>
+          ) : activeFilter === 'friends' ? (
+            <>
+              <Ionicons name="people" size={64} color="#4CAF50" />
+              <Text style={styles.emptyTitle}>Friends Coming Soon</Text>
+              <Text style={styles.emptyText}>
+                The friends feature is still in development. Soon you'll be able to connect with other users on their sobriety journey!
+              </Text>
+              <TouchableOpacity 
+                style={styles.createFirstPostButton}
+                onPress={() => handleFilterChange('all')}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#4CAF50', '#388E3C']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  borderRadius={24}
+                />
+                <Text style={styles.createFirstPostText}>View All Posts</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <>
               <Ionicons name="people" size={64} color="#4CAF50" />
@@ -361,9 +725,51 @@ const CommunityScreen = () => {
     );
   };
 
+  const renderRefreshHeader = () => {
+    if (!refreshProgress || refreshProgress === 0) return null;
+    
+    return (
+      <View style={styles.refreshHeader}>
+        <View style={styles.refreshProgress}>
+          <View 
+            style={[
+              styles.refreshProgressFill, 
+              { width: `${refreshProgress}%` }
+            ]} 
+          />
+        </View>
+        <Text style={styles.refreshText}>
+          {refreshProgress < 100 
+            ? `Pull down to refresh (${refreshProgress}%)` 
+            : 'Refreshing...'}
+        </Text>
+      </View>
+    );
+  };
+
+  // Helper function to show banner notification
+  const showBanner = (message, type = 'success') => {
+    setBannerMessage(message);
+    setBannerType(type);
+    setBannerVisible(true);
+  };
+  
+  // Helper function to hide banner notification
+  const hideBanner = () => {
+    setBannerVisible(false);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      
+      {/* Banner Notification */}
+      <BannerNotification
+        visible={bannerVisible}
+        message={bannerMessage}
+        type={bannerType}
+        onHide={hideBanner}
+      />
       
       {/* Green gradient background */}
       <View style={StyleSheet.absoluteFill}>
@@ -376,69 +782,102 @@ const CommunityScreen = () => {
         
         <TouchableOpacity 
           style={styles.createPostButton}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
           onPress={handleCreatePost}
         >
           <LinearGradient
-            colors={['rgba(76, 175, 80, 0.2)', 'rgba(76, 175, 80, 0.1)']}
+            colors={['rgba(76, 175, 80, 0.8)', 'rgba(56, 142, 60, 0.9)']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             borderRadius={20}
           />
-          <Ionicons name="add" size={24} color="#4CAF50" />
+          <View style={styles.createPostButtonContent}>
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.createPostButtonText}>New Post</Text>
+          </View>
         </TouchableOpacity>
       </View>
       
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading posts...</Text>
+      {/* Filter Toggle - moved inside the header component */}
+      <View style={[styles.filterContainer, { paddingTop: insets.top + 50 }]}>
+        <View style={styles.filterToggle}>
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              activeFilter === 'all' && styles.filterOptionActive
+            ]}
+            onPress={() => handleFilterChange('all')}
+          >
+            <Text style={[
+              styles.filterOptionText,
+              activeFilter === 'all' && styles.filterOptionTextActive
+            ]}>All</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterOption,
+              activeFilter === 'friends' && styles.filterOptionActive
+            ]}
+            onPress={() => handleFilterChange('friends')}
+          >
+            <Text style={[
+              styles.filterOptionText,
+              activeFilter === 'friends' && styles.filterOptionTextActive
+            ]}>Friends</Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Soon</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={posts}
-          renderItem={renderPostItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="#4CAF50"
-              colors={["#4CAF50"]}
-            />
-          }
-          ListEmptyComponent={renderEmptyComponent}
-          onEndReached={loadMorePosts}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={renderFooter}
-        />
-      )}
-      
-      {!loading && (
-        <TouchableOpacity 
-          style={[styles.floatingButton, { bottom: insets.bottom + 70 }]}
-          activeOpacity={0.8}
-          onPress={handleCreatePost}
-        >
-          <LinearGradient
-            colors={['#4CAF50', '#388E3C']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            borderRadius={28}
+      </View>
+
+      <View style={[styles.contentContainer, { paddingTop: insets.top + 110 }]}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.loadingText}>Loading posts...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={posts}
+            renderItem={renderPostItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={[
+              styles.listContent,
+              posts.length === 0 ? { flex: 1, justifyContent: 'center' } : null
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor="#4CAF50"
+                colors={["#4CAF50"]}
+                progressViewOffset={50}
+                progressBackgroundColor="#ffffff"
+                onRefreshChange={onRefreshChange}
+              />
+            }
+            ListEmptyComponent={renderEmptyComponent}
+            onEndReached={loadMorePosts}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            ListHeaderComponent={renderRefreshHeader()}
           />
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+        )}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  contentContainer: {
     flex: 1,
   },
   header: {
@@ -464,20 +903,28 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   createPostButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.4)',
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
     shadowColor: '#4CAF50',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
+    paddingHorizontal: 8,
+  },
+  createPostButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  createPostButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    marginLeft: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -493,42 +940,58 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 100,
-    paddingTop: insets => insets.top + 70,
-    flexGrow: 1,
   },
   postCard: {
-    borderRadius: 24,
-    marginBottom: 24,
-    padding: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.08)',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 8,
     backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   postHeaderInfo: {
     flex: 1,
+    justifyContent: 'center',
     marginLeft: 12,
   },
   userAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.2)',
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anonymousHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  anonymousAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E0E0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anonymousName: {
+    fontSize: 16,
+    color: '#999999',
+    fontFamily: typography.fonts.medium,
+    marginLeft: 12,
   },
   userName: {
     fontSize: 16,
-    color: '#000000',
+    color: '#222222',
     fontFamily: typography.fonts.bold,
   },
   postTime: {
@@ -538,21 +1001,15 @@ const styles = StyleSheet.create({
   },
   postTitle: {
     fontSize: 18,
-    color: '#000000',
+    color: '#222222',
     fontFamily: typography.fonts.bold,
     marginBottom: 8,
   },
   postBody: {
     fontSize: 14,
-    color: '#666666',
+    color: '#444444',
     fontFamily: typography.fonts.regular,
     lineHeight: 20,
-    marginBottom: 12,
-  },
-  postImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
     marginBottom: 12,
   },
   postStats: {
@@ -572,20 +1029,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontFamily: typography.fonts.regular,
     marginLeft: 4,
-  },
-  floatingButton: {
-    position: 'absolute',
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
   emptyContainer: {
     flex: 1,
@@ -638,6 +1081,133 @@ const styles = StyleSheet.create({
   footerLoader: {
     padding: 16,
     alignItems: 'center',
+  },
+  pinnedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  pinnedText: {
+    fontSize: 12,
+    color: '#5BBD68',
+    fontFamily: typography.fonts.regular,
+  },
+  unreadBadge: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  unreadText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+  },
+  avatarText: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontFamily: typography.fonts.bold,
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 'auto',
+  },
+  filterContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: 'transparent',
+    position: 'absolute',
+    zIndex: 5,
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 20,
+    padding: 4,
+    width: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  filterOption: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    flexDirection: 'row',
+  },
+  filterOptionActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    color: '#666666',
+  },
+  filterOptionTextActive: {
+    color: '#4CAF50',
+    fontFamily: typography.fonts.bold,
+  },
+  comingSoonBadge: {
+    backgroundColor: '#FFB74D',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  comingSoonText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontFamily: typography.fonts.bold,
+  },
+  refreshHeader: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
+    marginBottom: 16,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  refreshProgress: {
+    width: '80%',
+    height: 6,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  refreshProgressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 3,
+  },
+  refreshText: {
+    fontSize: 12,
+    color: '#666666',
+    fontFamily: typography.fonts.medium,
   },
 });
 

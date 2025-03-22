@@ -74,6 +74,11 @@ const PaywallScreen = () => {
       // Set onboarding completion flag in AsyncStorage
       await AsyncStorage.setItem('onboardingCompleted', 'true');
       
+      // Initialize sober tracking
+      const { setStreakStartTime } = require('../../src/utils/soberTracker');
+      const startTime = new Date().getTime();
+      await setStreakStartTime(startTime);
+      
       // Update Firestore document if user is authenticated
       if (auth.currentUser) {
         const userDocRef = doc(db, 'users', auth.currentUser.uid);
@@ -83,11 +88,14 @@ const PaywallScreen = () => {
           payment_completed: true,
           onboarding_state: 'completed',
           last_onboarding_completion: new Date().toISOString(),
-          selected_plan: selectedPlan // Save the selected plan
+          selected_plan: selectedPlan, // Save the selected plan
+          streak_start_time: startTime,
+          last_sync_time: startTime
         });
       }
       
-      router.replace('/(main)');
+      // Navigate to community setup instead of main app
+      router.replace('/(onboarding)/community-setup');
     } catch (error) {
       console.error('Navigation error:', error);
     }
