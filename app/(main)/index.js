@@ -43,6 +43,7 @@ import Svg, { Circle, Path, G, Defs, LinearGradient as SvgGradient, Stop } from 
 import { auth, db } from '../../src/config/firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { awardDailyLoginPoints } from '../../src/utils/achievementUtils';
+import { isFirebaseInitialized } from '../../src/utils/firebaseCheck';
 
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.65;
@@ -869,6 +870,7 @@ const MainScreen = () => {
       
       if (!auth.currentUser) {
         console.log('No authenticated user found, redirecting to sign-in');
+        setIsLoading(false); // Make sure loading is disabled
         router.replace('/(auth)/login');
         return;
       }
@@ -887,22 +889,13 @@ const MainScreen = () => {
         
         if (!userDoc.exists()) {
           console.log('User document does not exist, creating new document');
-          // Check if user has completed onboarding in AsyncStorage
-          const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
-          const streakStartTime = await AsyncStorage.getItem('streakStartTime');
-          
           // Create the user document with onboarding state
-          await setDoc(userDocRef, {
-            streak_start_time: streakStartTime ? parseInt(streakStartTime, 10) : null,
-            last_sync_time: new Date().getTime(),
-            onboarding_completed: onboardingCompleted === 'true',
-            questions_completed: onboardingCompleted === 'true',
-            payment_completed: onboardingCompleted === 'true',
-            onboarding_state: onboardingCompleted === 'true' ? 'completed' : 'pending'
-          });
-
+          await setupNewUserDocument();
+          
+          const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
           if (onboardingCompleted !== 'true') {
             console.log('Onboarding not completed, redirecting to onboarding');
+            setIsLoading(false); // Make sure loading is disabled
             router.replace('/(onboarding)/good-news');
             return;
           }
@@ -913,33 +906,28 @@ const MainScreen = () => {
           // If onboarding is not completed in Firestore
           if (!userData.onboarding_completed || userData.onboarding_state !== 'completed') {
             console.log('Onboarding not completed according to Firestore');
-            
-            // Check if questions are completed to determine where to send the user
-            if (!userData.questions_completed) {
-              console.log('Questions not completed, redirecting to questions');
-              router.replace('/(onboarding)/questions/addiction/frequency');
-              return;
-            } 
-            // If questions completed but not payment
-            else if (userData.questions_completed && !userData.payment_completed) {
-              console.log('Questions completed but payment not done, redirecting to paywall');
-              router.replace('/(onboarding)/paywall');
-              return;
-            }
-            // If payment completed but not community setup
-            else if (userData.payment_completed && !userData.onboarding_completed) {
-              console.log('Payment completed but onboarding not done, redirecting to community setup');
-              router.replace('/(onboarding)/community-setup');
-              return;
-            }
-            // Default to onboarding start if state is unclear
-            else {
-              console.log('Unclear onboarding state, redirecting to beginning of onboarding');
-              router.replace('/(onboarding)/good-news');
-              return;
-            }
+            handleIncompleteOnboarding(userData);
+            setIsLoading(false); // Make sure loading is disabled
+            return;
           }
         }
+        
+        // If we made it here, we can initialize the timer
+        console.log('Setting up timer...');
+        // Sync timer data between local storage and database
+        await syncTimerWithFirestore();
+        
+        const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+        if (!streakStartTime) {
+          console.log('No streak start time found, redirecting to start-streak');
+          setIsLoading(false);
+          router.replace('/(standalone)/start-streak');
+          return;
+        }
+        
+        await setupTimer();
+        setIsLoading(false);
+        
       } catch (error) {
         console.error('Error checking auth and onboarding:', error);
         setError(error.message);
@@ -954,14 +942,28 @@ const MainScreen = () => {
 
   // Add periodic sync
   useEffect(() => {
-    checkAuthAndOnboarding();
-    
-    // Set up periodic sync every 5 minutes
-    const syncInterval = setInterval(syncTimerWithFirestore, 5 * 60 * 1000);
-
-    return () => {
-      clearInterval(syncInterval);
+    const checkAuth = async () => {
+      try {
+        if (!isFirebaseInitialized()) {
+          console.log('Firebase is not initialized yet, setting loading to false');
+          setIsLoading(false);
+          setError('Firebase authentication is not initialized. Please restart the app.');
+          return;
+        }
+        
+        await checkAuthAndOnboarding();
+        
+        // Set up periodic sync every 5 minutes
+        const syncInterval = setInterval(syncTimerWithFirestore, 5 * 60 * 1000);
+        return () => clearInterval(syncInterval);
+      } catch (error) {
+        console.error('Error in auth check:', error);
+        setIsLoading(false);
+        setError(error.message);
+      }
     };
+    
+    checkAuth();
   }, []);
 
   // Modify handleTimeAdjust to use Firebase
@@ -1172,7 +1174,8 @@ const MainScreen = () => {
           
           // Calculate level from points
           if (userData.points) {
-            const { calculateLevel } = require('../../src/utils/achievementUtils');
+            // Import calculateLevel function
+            const { calculateLevel } = await import('../../src/utils/achievementUtils');
             const levelData = calculateLevel(userData.points);
             setUserLevel(levelData.level);
           }
@@ -1194,6 +1197,64 @@ const MainScreen = () => {
     
     return () => clearInterval(pointsRefreshInterval);
   }, []);
+
+  // Helper function to set up a new user document
+  const setupNewUserDocument = async () => {
+    const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+    const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+    
+    // Create the user document with onboarding state
+    await setDoc(doc(db, 'users', auth.currentUser.uid), {
+      streak_start_time: streakStartTime ? parseInt(streakStartTime, 10) : null,
+      last_sync_time: new Date().getTime(),
+      onboarding_completed: onboardingCompleted === 'true',
+      questions_completed: onboardingCompleted === 'true',
+      payment_completed: onboardingCompleted === 'true',
+      onboarding_state: onboardingCompleted === 'true' ? 'completed' : 'pending'
+    });
+  };
+
+  // Helper function to handle incomplete onboarding
+  const handleIncompleteOnboarding = (userData) => {
+    // Check if questions are completed to determine where to send the user
+    if (!userData.questions_completed) {
+      console.log('Questions not completed, redirecting to questions');
+      router.replace('/(onboarding)/questions/addiction/frequency');
+      return;
+    } 
+    // If questions completed but not payment
+    else if (userData.questions_completed && !userData.payment_completed) {
+      console.log('Questions completed but payment not done, redirecting to paywall');
+      router.replace('/(onboarding)/paywall');
+      return;
+    }
+    // If payment completed but not community setup
+    else if (userData.payment_completed && !userData.onboarding_completed) {
+      console.log('Payment completed but onboarding not done, redirecting to community setup');
+      router.replace('/(onboarding)/community-setup');
+      return;
+    }
+    // Default to onboarding start if state is unclear
+    else {
+      console.log('Unclear onboarding state, redirecting to beginning of onboarding');
+      router.replace('/(onboarding)/good-news');
+      return;
+    }
+  };
+
+  // Set a timeout to prevent infinite loading
+  useEffect(() => {
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.log('Loading timeout reached, forcing loading state to false');
+        setIsLoading(false);
+        setError('Loading timeout reached. Please check your internet connection and try again.');
+      }
+    }, 10000); // 10 seconds timeout
+    
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -1612,10 +1673,10 @@ const MainScreen = () => {
             
             {/* Small Units Display (hours, minutes, seconds) */}
             <View style={styles.secondsBoxContainer}>
-              <LinearGradient
+            <LinearGradient
                 colors={['#43A047', '#2E7D32']}
                 style={styles.smallUnitsGradient}
-                start={{ x: 0, y: 0 }}
+              start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
                 <View style={styles.smallUnitsDisplay}>
