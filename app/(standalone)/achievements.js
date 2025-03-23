@@ -94,6 +94,7 @@ const AchievementsScreen = () => {
     setBannerVisible(false);
   };
   
+  // Add a function to navigate back to the recovery screen with progress tab
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
@@ -220,8 +221,8 @@ const AchievementsScreen = () => {
         <View style={{flex: 1, backgroundColor: '#F5F5F5'}} />
       </View>
       
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      {/* Header with back button */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity 
           onPress={handleBack} 
           style={styles.backButton}
@@ -241,7 +242,10 @@ const AchievementsScreen = () => {
       ) : (
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 60 }
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {/* Level Card */}
@@ -387,26 +391,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFCFC',
   },
   header: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    height: 60,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    position: 'absolute',
+    top: 0,
+    left: 0,
     zIndex: 10,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
@@ -417,7 +412,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
+  content: {
     padding: 16,
     paddingBottom: 40,
   },
@@ -781,6 +776,13 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 12,
     fontFamily: typography.fonts.medium,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

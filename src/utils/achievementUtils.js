@@ -124,38 +124,38 @@ export const ALL_ACHIEVEMENTS = [
 
 // Define level thresholds
 export const LEVEL_THRESHOLDS = [
-  { level: 1, points: 0 },
-  { level: 2, points: 30 },
-  { level: 3, points: 75 },
-  { level: 4, points: 150 },
-  { level: 5, points: 250 },
-  { level: 6, points: 375 },
-  { level: 7, points: 525 },
-  { level: 8, points: 700 },
-  { level: 9, points: 900 },
-  { level: 10, points: 1125 },
-  { level: 11, points: 1375 },
-  { level: 12, points: 1650 },
-  { level: 13, points: 1950 },
-  { level: 14, points: 2275 },
-  { level: 15, points: 2625 },
-  { level: 16, points: 3000 },
-  { level: 17, points: 3400 },
-  { level: 18, points: 3825 },
-  { level: 19, points: 4275 },
-  { level: 20, points: 4750 }
+  { level: 1, points: 0 },    // Start at level 1
+  { level: 2, points: 25 },   // Need 25 points for level 2
+  { level: 3, points: 55 },   // Need 30 more points (25+30=55)
+  { level: 4, points: 90 },   // Need 35 more points (55+35=90)
+  { level: 5, points: 130 },  // Need 40 more points (90+40=130)
+  { level: 6, points: 175 },  // Need 45 more points (130+45=175)
+  { level: 7, points: 225 },  // Need 50 more points (175+50=225)
+  { level: 8, points: 280 },  // Need 55 more points (225+55=280)
+  { level: 9, points: 340 },  // Need 60 more points (280+60=340)
+  { level: 10, points: 405 }, // Need 65 more points (340+65=405)
+  { level: 11, points: 475 }, // Need 70 more points (405+70=475)
+  { level: 12, points: 550 }, // Need 75 more points (475+75=550)
+  { level: 13, points: 630 }, // Need 80 more points (550+80=630)
+  { level: 14, points: 715 }, // Need 85 more points (630+85=715)
+  { level: 15, points: 805 }, // Need 90 more points (715+90=805)
+  { level: 16, points: 900 }, // Need 95 more points (805+95=900)
+  { level: 17, points: 1000 }, // Need 100 more points (900+100=1000)
+  { level: 18, points: 1105 }, // Need 105 more points (1000+105=1105)
+  { level: 19, points: 1215 }, // Need 110 more points (1105+110=1215)
+  { level: 20, points: 1330 }  // Need 115 more points (1215+115=1330)
 ];
 
 /**
  * Calculate user level based on points
- * @param {number} points - User's current points
+ * @param {number} points - User's current total points
  * @returns {object} - User's level and progress info
  */
 export const calculateLevel = (points) => {
   // Find the highest level threshold that the user's points exceed
   let currentLevel = 1;
-  let pointsForNextLevel = LEVEL_THRESHOLDS[1].points;
   let pointsForCurrentLevel = 0;
+  let pointsForNextLevel = LEVEL_THRESHOLDS[1].points;
   
   for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
     if (points >= LEVEL_THRESHOLDS[i].points) {
@@ -168,18 +168,25 @@ export const calculateLevel = (points) => {
     }
   }
   
+  // Calculate points within the current level (levelPoints)
+  const totalPoints = points;
+  const levelPoints = points - pointsForCurrentLevel;
+  
   // Calculate progress to next level
   const pointsNeededForNextLevel = pointsForNextLevel - pointsForCurrentLevel;
-  const pointsEarnedTowardsNextLevel = points - pointsForCurrentLevel;
-  const progressPercentage = Math.min(100, Math.floor((pointsEarnedTowardsNextLevel / pointsNeededForNextLevel) * 100));
+  const progressPercentage = Math.min(100, Math.floor((levelPoints / pointsNeededForNextLevel) * 100));
+  
+  // Calculate remaining points needed to level up
+  const pointsToNextLevel = pointsNeededForNextLevel - levelPoints;
   
   return {
     level: currentLevel,
-    points,
+    totalPoints,      // Total accumulated points
+    levelPoints,      // Points within current level (resets to 0 on level up)
     pointsForCurrentLevel,
     pointsForNextLevel,
     pointsNeededForNextLevel,
-    pointsEarnedTowardsNextLevel,
+    pointsToNextLevel, // Points still needed to level up
     progressPercentage
   };
 };
@@ -270,14 +277,14 @@ export const awardJournalingPoints = async (userId) => {
     const userData = userDoc.data();
     const lastJournalPoints = userData.lastJournalPoints || 0;
     
-    // Check for 3-hour cooldown
+    // Check for 24-hour cooldown (updated from 3 hours)
     const now = new Date().getTime();
-    const threeHoursInMs = 3 * 60 * 60 * 1000;
-    const threeHoursAgo = now - threeHoursInMs;
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+    const twentyFourHoursAgo = now - twentyFourHoursInMs;
     
-    if (lastJournalPoints && lastJournalPoints > threeHoursAgo) {
+    if (lastJournalPoints && lastJournalPoints > twentyFourHoursAgo) {
       // Calculate when cooldown ends
-      const cooldownEndsTime = lastJournalPoints + threeHoursInMs;
+      const cooldownEndsTime = lastJournalPoints + twentyFourHoursInMs;
       const timeRemaining = cooldownEndsTime - now;
       
       // Convert to hours, minutes, and seconds
