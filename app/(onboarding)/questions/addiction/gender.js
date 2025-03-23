@@ -6,32 +6,30 @@ const GenderQuestion = () => {
   const { saveAnswer, clearAnswer } = useOnboarding();
 
   useEffect(() => {
-    clearAnswer('addiction_gender');
+    clearAnswer('gender');
   }, []);
 
-  const handleAnswer = (answer) => {
-    // All gender options have a score of 0 as specified
-    const score = 0;
-    
-    // Save both the answer and the score
-    saveAnswer('addiction_gender', {
-      answer: answer,
-      score: score
+  const handleAnswer = (option) => {
+    // Save the answer
+    saveAnswer('gender', {
+      answer: option.text
     });
   };
 
   return (
     <QuestionScreen
-      question="What is your gender?"
+      question="What gender do you identify as?"
       options={[
-        "Male",
-        "Female",
-        "Non-binary"
+        { text: "Male" },
+        { text: "Female" },
+        { text: "Non-binary" },
+        { text: "Prefer not to say" }
       ]}
-      onAnswer={handleAnswer}
-      currentStep={7}
+      onSelect={handleAnswer}
+      currentStep={10}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/stress"
+      nextScreen="/(onboarding)/analysis/final"
+      questionId="gender"
     />
   );
 };

@@ -9,23 +9,23 @@ const DurationQuestion = () => {
     clearAnswer('addiction_duration');
   }, []);
 
-  const handleAnswer = (answer) => {
+  const handleAnswer = (option) => {
     let score = 1; // Default score
     
     // Assign score based on answer
-    if (answer === "Less than 6 months") {
+    if (option.text === "Less than 6 months") {
       score = 1;
-    } else if (answer === "6 months – 2 years") {
+    } else if (option.text === "6 months – 2 years") {
       score = 2;
-    } else if (answer === "2–5 years") {
+    } else if (option.text === "2–5 years") {
       score = 3;
-    } else if (answer === "5+ years") {
+    } else if (option.text === "5+ years") {
       score = 4;
     }
     
     // Save both the answer and the score
     saveAnswer('addiction_duration', {
-      answer: answer,
+      answer: option.text,
       score: score
     });
   };
@@ -34,15 +34,16 @@ const DurationQuestion = () => {
     <QuestionScreen
       question="How long have you been using?"
       options={[
-        "Less than 6 months",
-        "6 months – 2 years",
-        "2–5 years",
-        "5+ years"
+        { text: "Less than 6 months" },
+        { text: "6 months – 2 years" },
+        { text: "2–5 years" },
+        { text: "5+ years" }
       ]}
-      onAnswer={handleAnswer}
+      onSelect={handleAnswer}
       currentStep={2}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/increased"
+      nextScreen="/(onboarding)/questions/addiction/increased"
+      questionId="addiction_duration"
     />
   );
 };

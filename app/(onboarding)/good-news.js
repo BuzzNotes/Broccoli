@@ -8,6 +8,9 @@ import { colors } from '../../app/styles/colors';
 import { useAuth } from '../../src/context/AuthContext';
 import { useLeafAnimation } from '../../src/context/LeafAnimationContext';
 import { getUserFullName, getUserProfile } from '../../src/utils/userProfile';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../src/config/firebase';
+import { auth } from '../../src/config/firebase';
 
 export default function GoodNewsScreen() {
   const bounceAnim = useRef(new Animated.Value(1)).current;
@@ -201,6 +204,20 @@ export default function GoodNewsScreen() {
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Update onboarding state in Firestore before navigating
+    if (auth.currentUser) {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      updateDoc(userDocRef, {
+        onboarding_state: 'questions_addiction_frequency',
+        current_onboarding_step: 'questions/addiction/frequency',
+        questions_started: true,
+        last_onboarding_step_time: new Date().toISOString()
+      }).catch(error => {
+        console.error("Error updating onboarding state:", error);
+      });
+    }
+    
     router.push('/(onboarding)/questions/addiction/frequency');
   };
 

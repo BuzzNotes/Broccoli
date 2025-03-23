@@ -3,7 +3,7 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      'expo-router/babel',
+      // 'expo-router/babel', // Removed as deprecated in SDK 50
       ["module:react-native-dotenv", {
         "moduleName": "@env",
         "path": ".env",

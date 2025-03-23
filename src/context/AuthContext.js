@@ -80,87 +80,157 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    console.log("Setting up auth state listener");
+    let authStateTimeout = null;
+    
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+      console.log("Auth state changed:", authUser ? `User: ${authUser.uid}` : "No user");
+      
+      // Clear any previous timeout
+      if (authStateTimeout) {
+        clearTimeout(authStateTimeout);
+        authStateTimeout = null;
+      }
+      
+      if (authUser) {
+        setUser(authUser);
+        
+        // Check user document in Firestore
+        const userDocRef = doc(db, 'users', authUser.uid);
+        
         try {
-          // Get full user profile from Firestore
-          const userProfile = await getUserProfile();
+          const userDoc = await getDoc(userDocRef);
           
-          console.log("Auth state changed - User:", user.uid);
-          console.log("Auth state changed - Profile:", userProfile);
-          
-          // Combine auth user with profile data
-          const userData = {
-            ...user,
-            profile: userProfile
-          };
-          
-          setUser(userData);
-          
-          // Store user data in AsyncStorage
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-
-          // Skip navigation on initial load
-          if (initialLoad) {
-            setInitialLoad(false);
+          // New user or deleted user data
+          if (!userDoc.exists()) {
+            console.log("User doesn't exist in Firestore, sending to onboarding");
+            await AsyncStorage.removeItem('streakStartTime');
+            await AsyncStorage.removeItem('onboardingCompleted');
+            router.replace('/(onboarding)/good-news');
             setLoading(false);
             return;
           }
-
-          // Check onboarding state
-          const { isComplete, missingFields } = isProfileComplete(userProfile);
           
-          // If profile is not complete, check what's missing
-          if (!isComplete) {
-            if (missingFields.includes('firstName') || missingFields.includes('lastName')) {
-              router.replace('/(auth)/complete-profile');
-            } else if (!userProfile.onboarding_completed || userProfile.onboarding_state !== 'completed') {
-              // For new users, go to good-news first
-              if (!userProfile.onboarding_state) {
-                router.replace('/(onboarding)/good-news');
-              } else {
-                // For users who started but didn't complete onboarding, go to their last state
-                router.replace('/(onboarding)/' + (userProfile.onboarding_state || 'good-news'));
-              }
-            } else {
-              router.replace('/(main)');
-            }
-          } else {
-            // If everything is complete, go to main screen
+          // User exists, check their onboarding state
+          const userData = userDoc.data();
+          console.log("User document exists, checking onboarding state:", userData.onboarding_state);
+          
+          // If onboarding is fully complete, go to main app
+          if (userData.onboarding_completed === true && userData.onboarding_state === 'completed') {
+            console.log("Onboarding complete, going to main app");
             router.replace('/(main)');
+            setLoading(false);
+            return;
+          }
+          
+          // Check for specific current onboarding step
+          if (userData.current_onboarding_step) {
+            console.log("Found specific onboarding step:", userData.current_onboarding_step);
+            router.replace(`/(onboarding)/${userData.current_onboarding_step}`);
+            setLoading(false);
+            return;
+          }
+          
+          // If we don't have a specific step but have onboarding_state
+          if (userData.onboarding_state) {
+            // Handle different onboarding states
+            switch(userData.onboarding_state) {
+              case 'community_setup':
+                router.replace('/(onboarding)/community-setup');
+                break;
+                
+              case 'questions_addiction_frequency':
+              case 'questions_started':
+                router.replace('/(onboarding)/questions/addiction/frequency');
+                break;
+                
+              case 'questions_completed':
+              case 'paywall':
+                router.replace('/(onboarding)/paywall');
+                break;
+                
+              default:
+                if (userData.onboarding_state.includes('questions_')) {
+                  // Extract path from onboarding_state by replacing underscores with slashes
+                  const path = userData.onboarding_state.replace(/questions_/g, 'questions/').replace(/_/g, '/');
+                  router.replace(`/(onboarding)/${path}`);
+                } else {
+                  // Default to the beginning of onboarding
+                  router.replace('/(onboarding)/good-news');
+                }
+            }
+            setLoading(false);
+            return;
+          }
+          
+          // If user started but didn't finish questions
+          if (userData.questions_completed !== true) {
+            console.log("Questions not completed, sending to questions screen");
+            router.replace('/(onboarding)/questions/addiction/frequency');
+          }
+          // If user completed questions but not payment/paywall
+          else if (userData.questions_completed === true && userData.payment_completed !== true) {
+            console.log("Questions completed but payment not done, sending to paywall");
+            router.replace('/(onboarding)/paywall');
+          }
+          // If everything except community setup is done
+          else if (userData.payment_completed === true && userData.onboarding_completed !== true) {
+            console.log("Payment completed but onboarding not done, sending to community setup");
+            router.replace('/(onboarding)/community-setup');
+          }
+          // Fallback - start from beginning of onboarding
+          else {
+            console.log("Couldn't determine onboarding state, starting from beginning");
+            router.replace('/(onboarding)/good-news');
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
-          setUser(user);
-          await AsyncStorage.setItem('user', JSON.stringify(user));
-          
-          // Skip navigation on initial load
-          if (initialLoad) {
-            setInitialLoad(false);
-            setLoading(false);
-            return;
-          }
-          
-          router.replace('/(onboarding)/welcome');
+          console.error("Error checking user document:", error);
+          // Default to onboarding if we can't check the user document
+          router.replace('/(onboarding)/good-news');
         }
       } else {
         setUser(null);
-        await AsyncStorage.removeItem('user');
         
-        // Skip navigation on initial load
-        if (initialLoad) {
-          setInitialLoad(false);
-          setLoading(false);
-          return;
+        // Only navigate to login if we're not already there
+        const currentPath = router.getCurrentPath();
+        if (!currentPath.includes('/(auth)')) {
+          router.replace('/(auth)/login');
         }
-        
-        router.replace('/(auth)/login');
       }
+      
+      // Always set loading to false when auth state is determined
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [initialLoad]);
+    // Set a timeout for maximum waiting time for auth state to be determined
+    authStateTimeout = setTimeout(() => {
+      console.log("Auth state determination timed out");
+      setLoading(false);
+      
+      // If we're stuck in a loading state, clear any persisted credentials
+      if (!auth.currentUser) {
+        auth.signOut().catch(error => {
+          console.error("Error signing out:", error);
+        });
+        
+        // Clear auth persistence data if possible
+        try {
+          AsyncStorage.removeItem('firebase:authUser');
+        } catch (error) {
+          console.error("Error clearing auth storage:", error);
+        }
+      }
+    }, 10000);
+
+    return () => {
+      console.log("Cleaning up auth state listener");
+      unsubscribe();
+      
+      if (authStateTimeout) {
+        clearTimeout(authStateTimeout);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -337,12 +407,21 @@ export function AuthProvider({ children }) {
       
       console.log("Starting Apple sign-in process...");
       
-      const credential = await AppleAuthentication.signInAsync({
+      // Add a timeout for the Apple Authentication call
+      const appleAuthPromise = AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Apple authentication timed out')), 20000)
+      );
+      
+      // Race between the auth promise and timeout
+      const credential = await Promise.race([appleAuthPromise, timeoutPromise]);
       
       console.log("Apple authentication successful");
       console.log("Apple credential received:", JSON.stringify({
@@ -351,6 +430,10 @@ export function AuthProvider({ children }) {
         hasIdentityToken: !!credential.identityToken
       }));
 
+      if (!credential.identityToken) {
+        throw new Error('Apple authentication failed: No identity token received');
+      }
+
       // Create OAuthProvider for Apple
       const provider = new OAuthProvider('apple.com');
       const oAuthCredential = provider.credential({
@@ -358,8 +441,13 @@ export function AuthProvider({ children }) {
         rawNonce: credential.nonce,
       });
 
-      // Sign in with Firebase
-      const result = await signInWithCredential(auth, oAuthCredential);
+      // Add another timeout for Firebase sign in
+      const firebaseSignInPromise = signInWithCredential(auth, oAuthCredential);
+      const result = await Promise.race([
+        firebaseSignInPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase sign-in timed out')), 15000))
+      ]);
+      
       console.log("Firebase sign-in successful with Apple credential");
       
       // Important: Apple only provides the name during the FIRST sign-in
@@ -415,10 +503,21 @@ export function AuthProvider({ children }) {
       }
 
       // The auth state change listener will handle navigation
+      return result.user;
     } catch (error) {
       console.error('Apple Sign-In Error:', error);
-      // Reset loading state on error
+      
+      // Check for specific error types and handle accordingly
+      if (error.code === 'ERR_CANCELED') {
+        console.log('User canceled Apple sign-in');
+      } else if (error.message && error.message.includes('timed out')) {
+        console.log('Authentication timed out');
+      }
+      
+      // Ensure we reset loading state
       setLoading(false);
+      
+      // Re-throw for the calling function to handle
       throw error;
     }
   };

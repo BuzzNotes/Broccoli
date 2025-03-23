@@ -9,37 +9,41 @@ const AnxietyQuestion = () => {
     clearAnswer('addiction_anxiety');
   }, []);
 
-  const handleAnswer = (answer) => {
-    let score = 1; // Default score
+  const handleAnswer = (option) => {
+    let score = 0;
     
     // Assign score based on answer
-    if (answer === "Frequently") {
-      score = 3;
-    } else if (answer === "Occasionally") {
-      score = 2;
-    } else if (answer === "Rarely or never") {
+    if (option.text === "Never") {
+      score = 0;
+    } else if (option.text === "Rarely") {
       score = 1;
+    } else if (option.text === "Sometimes") {
+      score = 2;
+    } else if (option.text === "Often") {
+      score = 3;
     }
     
     // Save both the answer and the score
     saveAnswer('addiction_anxiety', {
-      answer: answer,
+      answer: option.text,
       score: score
     });
   };
 
   return (
     <QuestionScreen
-      question="Do you feel anxious or irritable when you don't smoke?"
+      question="How often do you feel anxious or irritable when you can't smoke?"
       options={[
-        "Frequently",
-        "Occasionally",
-        "Rarely or never"
+        { text: "Never" },
+        { text: "Rarely" },
+        { text: "Sometimes" },
+        { text: "Often" }
       ]}
-      onAnswer={handleAnswer}
-      currentStep={4}
+      onSelect={handleAnswer}
+      currentStep={5}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/memory"
+      nextScreen="/(onboarding)/questions/addiction/boredom"
+      questionId="addiction_anxiety"
     />
   );
 };

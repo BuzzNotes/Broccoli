@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, StatusBar, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,30 +7,32 @@ import { colors } from '../../styles/colors';
 import * as Haptics from 'expo-haptics';
 import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
 import { typography } from '../../styles/typography';
+import { auth, db } from '../../../src/config/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+
+const { width } = Dimensions.get('window');
 
 const QuestionScreen = ({ 
   question, 
   options, 
-  onAnswer, 
+  onSelect, 
   currentStep, 
   totalSteps,
-  nextRoute 
+  nextScreen,
+  nextScreenParams,
+  questionId
 }) => {
-  // Animation values for options and question
-  const fadeAnims = useRef(options.map(() => new Animated.Value(0))).current;
-  const scaleAnims = useRef(options.map(() => new Animated.Value(0.95))).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const questionFadeAnim = useRef(new Animated.Value(0)).current;
+  const [selectedOption, setSelectedOption] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
-  
-  // Get the leaf animation context and set density to normal
   const { changeDensity } = useLeafAnimation();
   
-  // Set initial progress value immediately to prevent layout jumps
-  useEffect(() => {
-    // Set initial progress value immediately
-    progressAnim.setValue((currentStep - 1) / totalSteps);
-  }, []);
+  // Progress animations
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const questionFadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Option animations - create arrays with a value for each option
+  const fadeAnims = options.map(() => useRef(new Animated.Value(0)).current);
+  const scaleAnims = options.map(() => useRef(new Animated.Value(0.95)).current);
   
   // Reset navigation state and run entrance animations when component mounts
   useEffect(() => {
@@ -85,54 +87,90 @@ const QuestionScreen = ({
 
   const handleOptionSelect = async (option, index) => {
     if (isNavigating) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedOption(index);
     setIsNavigating(true);
     
-    // Simple press animation
-    Animated.sequence([
-      Animated.spring(scaleAnims[index], {
-        toValue: 0.95,
-        tension: 200,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnims[index], {
-        toValue: 1,
-        tension: 200,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Haptic feedback
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    try {
-      // Handle answer and navigation
-      if (onAnswer) {
-        await onAnswer(option);
+    // Save the selected answer to the user's profile in Firestore
+    if (auth.currentUser && questionId) {
+      try {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          [`answers.${questionId}`]: option.value || option.text,
+          current_onboarding_step: nextScreen,
+          onboarding_state: nextScreen ? nextScreen.replace(/\//g, '_') : '',
+          last_onboarding_step_time: new Date().toISOString()
+        });
+        console.log(`Saved answer for ${questionId}: ${option.value || option.text}`);
+      } catch (error) {
+        console.error('Error saving question answer:', error);
       }
-      
-      // Fade out question and options
+    }
+    
+    // If onSelect is provided, call it with the selected option
+    if (onSelect) {
+      onSelect(option, index);
+    }
+    
+    // Animate out all options except the selected one
+    options.forEach((_, i) => {
+      if (i !== index) {
+        Animated.parallel([
+          Animated.timing(fadeAnims[i], {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnims[i], {
+            toValue: 0.9,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    });
+    
+    // Animate the selected option
+    Animated.sequence([
+      Animated.delay(200),
       Animated.parallel([
+        Animated.timing(scaleAnims[index], {
+          toValue: 1.05,
+          duration: 200,
+          useNativeDriver: true,
+        }),
         Animated.timing(questionFadeAnim, {
           toValue: 0,
           duration: 200,
           useNativeDriver: true,
         }),
-        ...fadeAnims.map(anim =>
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          })
-        )
-      ]).start(() => {
-        router.push(nextRoute);
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      setIsNavigating(false);
-    }
+      ]),
+      Animated.delay(200),
+      Animated.timing(fadeAnims[index], {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      try {
+        // Navigate to next screen with params if provided
+        if (!nextScreen) {
+          console.error('Navigation error: nextScreen is undefined');
+          setIsNavigating(false);
+          return;
+        }
+        
+        if (nextScreenParams) {
+          router.push({ pathname: nextScreen, params: nextScreenParams });
+        } else {
+          router.push(nextScreen);
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+        setIsNavigating(false);
+      }
+    });
   };
 
   const handleBack = () => {
@@ -209,6 +247,7 @@ const QuestionScreen = ({
               <Pressable
                 style={({ pressed }) => [
                   styles.optionButton,
+                  selectedOption === index && styles.optionButtonSelected,
                   pressed && styles.optionButtonPressed,
                   isNavigating && styles.optionButtonDisabled
                 ]}
@@ -222,7 +261,7 @@ const QuestionScreen = ({
                   end={{ x: 1, y: 1 }}
                   borderRadius={16}
                 />
-                <Text style={styles.optionText}>{option}</Text>
+                <Text style={styles.optionText}>{option.text}</Text>
                 <View style={styles.optionIcon}>
                   <Ionicons name="chevron-forward" size={20} color="white" />
                 </View>
@@ -331,6 +370,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 8,
     elevation: 5,
+  },
+  optionButtonSelected: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
   optionButtonPressed: {
     opacity: 0.9,

@@ -70,6 +70,7 @@ export default function CommunitySetupScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
+      // Request permission first
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant camera roll permissions to change your profile picture.');
@@ -84,20 +85,36 @@ export default function CommunitySetupScreen() {
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setUploadingImage(true);
-        // Upload image to Firebase Storage
-        const imageUrl = await uploadImage(result.assets[0].uri);
-        setProfileImage(imageUrl);
-        setUploadingImage(false);
+        try {
+          setUploadingImage(true);
+          // Upload image to Firebase Storage
+          const imageUrl = await uploadImage(result.assets[0].uri);
+          setProfileImage(imageUrl);
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          Alert.alert(
+            'Upload Failed', 
+            'We could not upload your profile image. Please try again later.'
+          );
+        } finally {
+          setUploadingImage(false);
+        }
       }
     } catch (error) {
-      setUploadingImage(false);
       console.error('Error choosing image:', error);
-      Alert.alert('Error', 'Failed to select image. Please try again.');
+      Alert.alert(
+        'Error', 
+        'Failed to select image. Please try again.'
+      );
+      setUploadingImage(false);
     }
   };
 
   const uploadImage = async (uri) => {
+    if (!auth.currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
     return new Promise((resolve, reject) => {
       const storage = getStorage();
       const filename = uri.substring(uri.lastIndexOf('/') + 1);
@@ -109,6 +126,11 @@ export default function CommunitySetupScreen() {
         .then(blob => {
           const uploadTask = uploadBytesResumable(storageRef, blob);
           
+          // Set timeout to cancel upload if it takes too long
+          const timeout = setTimeout(() => {
+            reject(new Error('Upload timed out'));
+          }, 60000); // 1 minute timeout
+          
           // Listen for state changes, errors, and completion
           uploadTask.on(
             'state_changed',
@@ -119,13 +141,19 @@ export default function CommunitySetupScreen() {
             },
             (error) => {
               // Handle errors
+              clearTimeout(timeout);
               console.error('Error uploading image:', error);
               reject(error);
             },
             async () => {
               // Upload completed successfully, get download URL
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(downloadURL);
+              clearTimeout(timeout);
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(downloadURL);
+              } catch (error) {
+                reject(error);
+              }
             }
           );
         })
@@ -162,6 +190,12 @@ export default function CommunitySetupScreen() {
       // Save all profile data to user profile
       if (auth.currentUser) {
         const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        
+        // Set a fresh streak start time
+        const startTime = new Date().getTime();
+        await AsyncStorage.setItem('streakStartTime', startTime.toString());
+        await AsyncStorage.setItem('onboardingCompleted', 'true');
+        
         await updateDoc(userDocRef, {
           displayName: displayName.trim(),
           firstName: firstName.trim(),
@@ -170,8 +204,21 @@ export default function CommunitySetupScreen() {
           photoURL: profileImage,
           profileImage: profileImage, // Add profileImage field specifically for posts
           anonymousPosting: isAnonymous,
-          profilePrivacy: isPrivate ? 'private' : 'public'
+          profilePrivacy: isPrivate ? 'private' : 'public',
+          streak_start_time: startTime, // Ensure we set a fresh streak time
+          last_sync_time: startTime,
+          
+          // Explicitly mark onboarding as complete
+          onboarding_completed: true,
+          questions_completed: true,
+          payment_completed: true,
+          onboarding_state: 'completed',
+          community_setup_completed: true,
+          onboarding_completion_date: new Date().toISOString()
         });
+        
+        // Log completion for analytics
+        console.log("User completed full onboarding flow:", auth.currentUser.uid);
       }
       
       // Save to AsyncStorage

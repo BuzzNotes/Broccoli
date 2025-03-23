@@ -66,6 +66,17 @@ const CreatePostScreen = () => {
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerType, setBannerType] = useState('error');
   
+  // Auto-hide banner after a duration
+  useEffect(() => {
+    if (bannerVisible) {
+      const timer = setTimeout(() => {
+        setBannerVisible(false);
+      }, 3000); // Hide after 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [bannerVisible]);
+  
   // Check Firebase initialization on component mount
   useEffect(() => {
     loadUserProfile();
@@ -258,9 +269,14 @@ const CreatePostScreen = () => {
       
       showBanner('Post published successfully!', 'success');
       
-      // Clear form and go back after success
+      // Clear form data to avoid discard prompt and directly navigate back
+      setTitle('');
+      setBody('');
+      setImage(null);
+      
+      // Go back after success
       setTimeout(() => {
-        handleClose();
+        router.back();
       }, 1000);
     } catch (error) {
       console.error('Error publishing post:', error);
@@ -453,10 +469,10 @@ const CreatePostScreen = () => {
               />
               <Text style={styles.anonymityStatusText}>
                 {postAnonymously 
-                  ? "Your post will be published anonymously. " 
-                  : "Your post will show your name and profile picture. "}
+                  ? "Your post will be published anonymously." 
+                  : "Your post will show your name and profile picture."}
                 <Text style={styles.anonymityStatusLink} onPress={goToSettings}>
-                  Change in settings
+                  {" Change in settings"}
                 </Text>
               </Text>
             </View>

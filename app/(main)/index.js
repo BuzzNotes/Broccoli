@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -41,6 +42,7 @@ import TimerDisplay from '../../src/components/TimerDisplay';
 import Svg, { Circle, Path, G, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { auth, db } from '../../src/config/firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { awardDailyLoginPoints } from '../../src/utils/achievementUtils';
 
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.65;
@@ -57,6 +59,8 @@ const MainScreen = () => {
   
   // Add userName state
   const [userName, setUserName] = useState('');
+  const [userPoints, setUserPoints] = useState(0);
+  const [userLevel, setUserLevel] = useState(1);
 
   // Timer State
   const [timeElapsed, setTimeElapsed] = useState({
@@ -431,6 +435,23 @@ const MainScreen = () => {
         router.replace('/(standalone)/start-streak');
         return null;
       }
+      
+      // Check if this is potentially a leftover from previous data
+      // by checking if it's older than an hour but the app was just freshly installed/database wiped
+      const isFirstLaunch = await AsyncStorage.getItem('appLaunched') !== 'true';
+      const timeDiff = new Date().getTime() - startTime;
+      const oneHourMs = 60 * 60 * 1000;
+      
+      if (isFirstLaunch && timeDiff > oneHourMs) {
+        console.log('Detected potentially stale streak time on first launch - resetting');
+        await AsyncStorage.removeItem('streakStartTime');
+        await AsyncStorage.setItem('appLaunched', 'true');
+        router.replace('/(standalone)/start-streak');
+        return null;
+      }
+      
+      // Mark app as launched
+      await AsyncStorage.setItem('appLaunched', 'true');
       
       console.log('Setting up timer with start time:', new Date(startTime).toISOString());
       
@@ -848,7 +869,7 @@ const MainScreen = () => {
       
       if (!auth.currentUser) {
         console.log('No authenticated user found, redirecting to sign-in');
-        router.replace('/(auth)/sign-in');
+        router.replace('/(auth)/login');
         return;
       }
 
@@ -857,6 +878,12 @@ const MainScreen = () => {
       
       try {
         const userDoc = await getDoc(userDocRef);
+        
+        // Load user name
+        await loadUserName();
+        
+        // Load user points and level
+        await loadUserPointsAndLevel();
         
         if (!userDoc.exists()) {
           console.log('User document does not exist, creating new document');
@@ -876,7 +903,7 @@ const MainScreen = () => {
 
           if (onboardingCompleted !== 'true') {
             console.log('Onboarding not completed, redirecting to onboarding');
-            router.replace('/(onboarding)/welcome');
+            router.replace('/(onboarding)/good-news');
             return;
           }
         } else {
@@ -885,62 +912,39 @@ const MainScreen = () => {
           
           // If onboarding is not completed in Firestore
           if (!userData.onboarding_completed || userData.onboarding_state !== 'completed') {
-            // Check if it's completed in AsyncStorage as backup
-            const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+            console.log('Onboarding not completed according to Firestore');
             
-            if (onboardingCompleted === 'true') {
-              // Update Firestore to mark onboarding as completed
-              console.log('Updating Firestore with completed onboarding status');
-              await updateDoc(userDocRef, {
-                onboarding_completed: true,
-                questions_completed: true,
-                payment_completed: true,
-                onboarding_state: 'completed'
-              });
-            } else {
-              console.log('Onboarding not completed, redirecting to onboarding');
-              router.replace('/(onboarding)/welcome');
+            // Check if questions are completed to determine where to send the user
+            if (!userData.questions_completed) {
+              console.log('Questions not completed, redirecting to questions');
+              router.replace('/(onboarding)/questions/addiction/frequency');
+              return;
+            } 
+            // If questions completed but not payment
+            else if (userData.questions_completed && !userData.payment_completed) {
+              console.log('Questions completed but payment not done, redirecting to paywall');
+              router.replace('/(onboarding)/paywall');
+              return;
+            }
+            // If payment completed but not community setup
+            else if (userData.payment_completed && !userData.onboarding_completed) {
+              console.log('Payment completed but onboarding not done, redirecting to community setup');
+              router.replace('/(onboarding)/community-setup');
+              return;
+            }
+            // Default to onboarding start if state is unclear
+            else {
+              console.log('Unclear onboarding state, redirecting to beginning of onboarding');
+              router.replace('/(onboarding)/good-news');
               return;
             }
           }
         }
-
-        // Sync timer data between local storage and database
-        console.log('Checking timer data...');
-        await syncTimerWithFirestore();
-
-        // Check if we need to start fresh
-        const streakStartTime = await AsyncStorage.getItem('streakStartTime');
-        if (!streakStartTime) {
-          console.log('No streak start time found, redirecting to start-streak');
-          router.replace('/(standalone)/start-streak');
-          return;
-        }
-
-        console.log('Setting up timer...');
-        await setupTimer();
+      } catch (error) {
+        console.error('Error checking auth and onboarding:', error);
+        setError(error.message);
         setIsLoading(false);
-
-      } catch (firestoreError) {
-        console.error('Firestore error:', firestoreError);
-        // If there's a Firestore error, check local storage as backup
-        const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
-        const streakStartTime = await AsyncStorage.getItem('streakStartTime');
-        
-        if (onboardingCompleted !== 'true') {
-          router.replace('/(onboarding)/welcome');
-          return;
-        }
-        
-        if (streakStartTime) {
-          console.log('Using local streak data due to Firestore error');
-          await setupTimer();
-          setIsLoading(false);
-        } else {
-          router.replace('/(standalone)/start-streak');
-        }
       }
-
     } catch (error) {
       console.error('Error in checkAuthAndOnboarding:', error);
       setError(error.message);
@@ -1079,6 +1083,117 @@ const MainScreen = () => {
     
     return `Started on:\n${startDate.toLocaleDateString(undefined, options)}`;
   };
+
+  // Add function to award daily login points
+  const checkAndAwardDailyLoginPoints = async () => {
+    try {
+      // Only award points if user is authenticated
+      if (!isFirebaseInitialized() || !auth.currentUser) {
+        return;
+      }
+      
+      const userId = auth.currentUser.uid;
+      const lastLoginKey = `last_login_${userId}`;
+      
+      // Check if we already awarded points today
+      const lastLoginStr = await AsyncStorage.getItem(lastLoginKey);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      
+      if (lastLoginStr) {
+        const lastLogin = parseInt(lastLoginStr);
+        // If last login was today, don't award again
+        if (lastLogin >= today) {
+          // Still refresh points and level to ensure UI is up to date
+          await loadUserPointsAndLevel();
+          return;
+        }
+      }
+      
+      // Award daily login points
+      const pointsResult = await awardDailyLoginPoints(userId);
+      
+      // If successful, update last login date
+      if (pointsResult) {
+        await AsyncStorage.setItem(lastLoginKey, today.toString());
+        
+        // Update UI with new points
+        setUserPoints(pointsResult.newPoints);
+        
+        // Get updated level
+        if (pointsResult.levelInfo) {
+          setUserLevel(pointsResult.levelInfo.level);
+        }
+        
+        // Refresh the full user data to ensure consistency
+        await loadUserPointsAndLevel();
+        
+        // If user leveled up, show a notification
+        if (pointsResult.leveledUp) {
+          // Show level up notification
+          Alert.alert(
+            '🎉 Level Up!',
+            `Congratulations! You've reached Level ${pointsResult.levelInfo.level}!`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          // Show points notification if no level up
+          Alert.alert(
+            '🌟 Daily Login Bonus',
+            'You earned 5 points for logging in today!',
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error awarding daily login points:', error);
+    }
+  };
+
+  // Add useEffect to check for daily login
+  useEffect(() => {
+    const checkLogin = async () => {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        await checkAndAwardDailyLoginPoints();
+      }
+    };
+    
+    checkLogin();
+  }, [auth.currentUser?.uid]); // Add dependency on user ID
+
+  // Add function to load user points and level
+  const loadUserPointsAndLevel = async () => {
+    try {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserPoints(userData.points || 0);
+          
+          // Calculate level from points
+          if (userData.points) {
+            const { calculateLevel } = require('../../src/utils/achievementUtils');
+            const levelData = calculateLevel(userData.points);
+            setUserLevel(levelData.level);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user points and level:', error);
+    }
+  };
+
+  // Add useEffect to periodically refresh user points and level
+  useEffect(() => {
+    // Check for points and level updates every 5 minutes
+    const pointsRefreshInterval = setInterval(async () => {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        await loadUserPointsAndLevel();
+      }
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(pointsRefreshInterval);
+  }, []);
 
   if (isLoading) {
     return (
@@ -1497,10 +1612,10 @@ const MainScreen = () => {
             
             {/* Small Units Display (hours, minutes, seconds) */}
             <View style={styles.secondsBoxContainer}>
-            <LinearGradient
+              <LinearGradient
                 colors={['#43A047', '#2E7D32']}
                 style={styles.smallUnitsGradient}
-              start={{ x: 0, y: 0 }}
+                start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
                 <View style={styles.smallUnitsDisplay}>
@@ -1521,6 +1636,18 @@ const MainScreen = () => {
                   })()}
                 </View>
               </LinearGradient>
+            </View>
+            
+            {/* Points and Level Display */}
+            <View style={styles.pointsLevelContainer}>
+              <View style={styles.pointsContainer}>
+                <Ionicons name="star" size={22} color="#FFD700" />
+                <Text style={styles.pointsText}>{userPoints} pts</Text>
+              </View>
+              <View style={styles.levelContainer}>
+                <Ionicons name="trophy" size={22} color="#4CAF50" />
+                <Text style={styles.levelText}>Level {userLevel}</Text>
+              </View>
             </View>
           </View>
           
@@ -2423,6 +2550,44 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: -1,
+  },
+  pointsLevelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 24,
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  levelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pointsText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.semiBold,
+    color: '#000000',
+    marginLeft: 4,
+  },
+  levelText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.semiBold,
+    color: '#000000',
+    marginLeft: 4,
   },
 });
 

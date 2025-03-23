@@ -54,14 +54,19 @@ export function AuthProvider({ children }) {
           email: userCredential.user.email,
           name: userCredential.user.displayName,
           photoURL: userCredential.user.photoURL,
-          lastLogin: new Date().toISOString()
+          lastLogin: new Date().toISOString(),
+          // Set initial onboarding state
+          onboarding_state: 'pending',
+          questions_completed: false,
+          payment_completed: false,
+          onboarding_completed: false
         }, { merge: true });
 
         // Store user data in AsyncStorage
         await AsyncStorage.setItem('user', JSON.stringify(userCredential.user));
         
-        // Navigate to onboarding
-        router.push('/(onboarding)/good-news');
+        // The auth state listener will handle navigation to the appropriate screen
+        // based on the user's onboarding state
       }
     } catch (error) {
       console.error("Error signing in with Google:", error);

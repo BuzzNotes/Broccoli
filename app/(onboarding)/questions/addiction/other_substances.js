@@ -9,34 +9,35 @@ const OtherSubstancesQuestion = () => {
     clearAnswer('addiction_other_substances');
   }, []);
 
-  const handleAnswer = (answer) => {
-    let score = 0; // Default score
+  const handleAnswer = (option) => {
+    let score = 0;
     
     // Assign score based on answer
-    if (answer === "Yes") {
+    if (option.text === "Yes") {
       score = 1;
-    } else if (answer === "No") {
+    } else if (option.text === "No") {
       score = 0;
     }
     
     // Save both the answer and the score
     saveAnswer('addiction_other_substances', {
-      answer: answer,
+      answer: option.text,
       score: score
     });
   };
 
   return (
     <QuestionScreen
-      question="Do you think weed has led you to trying other substances?"
+      question="Do you use other substances (alcohol, tobacco, etc.) along with cannabis?"
       options={[
-        "Yes",
-        "No"
+        { text: "Yes" },
+        { text: "No" }
       ]}
-      onAnswer={handleAnswer}
-      currentStep={6}
+      onSelect={handleAnswer}
+      currentStep={9}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/gender"
+      nextScreen="/(onboarding)/questions/addiction/gender"
+      questionId="addiction_other_substances"
     />
   );
 };

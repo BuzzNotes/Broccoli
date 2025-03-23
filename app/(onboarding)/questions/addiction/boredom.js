@@ -9,37 +9,41 @@ const BoredomQuestion = () => {
     clearAnswer('addiction_boredom');
   }, []);
 
-  const handleAnswer = (answer) => {
-    let score = 1; // Default score
+  const handleAnswer = (option) => {
+    let score = 0;
     
     // Assign score based on answer
-    if (answer === "Frequently") {
-      score = 3;
-    } else if (answer === "Occasionally") {
-      score = 2;
-    } else if (answer === "Rarely or never") {
+    if (option.text === "Never") {
+      score = 0;
+    } else if (option.text === "Rarely") {
       score = 1;
+    } else if (option.text === "Sometimes") {
+      score = 2;
+    } else if (option.text === "Often") {
+      score = 3;
     }
     
     // Save both the answer and the score
     saveAnswer('addiction_boredom', {
-      answer: answer,
+      answer: option.text,
       score: score
     });
   };
 
   return (
     <QuestionScreen
-      question="Do you smoke cannabis out of boredom?"
+      question="Do you smoke when you're bored?"
       options={[
-        "Frequently",
-        "Occasionally",
-        "Rarely or never"
+        { text: "Never" },
+        { text: "Rarely" },
+        { text: "Sometimes" },
+        { text: "Often" }
       ]}
-      onAnswer={handleAnswer}
-      currentStep={9}
+      onSelect={handleAnswer}
+      currentStep={6}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/money"
+      nextScreen="/(onboarding)/questions/addiction/stress"
+      questionId="addiction_boredom"
     />
   );
 };

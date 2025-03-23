@@ -77,6 +77,28 @@ const LoginScreen = () => {
     }
   }, [authLoading, isAuthenticating]);
 
+  // Safety mechanism to reset loading state if stuck
+  useEffect(() => {
+    let timeout;
+    
+    if (isAuthenticating || googleLoading || appleLoading) {
+      // Set a timeout to reset loading state after 35 seconds
+      timeout = setTimeout(() => {
+        if (googleLoading || appleLoading || isAuthenticating) {
+          console.log('Authentication is taking too long - resetting state');
+          setGoogleLoading(false);
+          setAppleLoading(false);
+          setIsAuthenticating(false);
+          setError('Authentication timed out. Please try again.');
+        }
+      }, 35000);
+    }
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [googleLoading, appleLoading, isAuthenticating]);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -113,11 +135,31 @@ const LoginScreen = () => {
       setError(null);
       setAppleLoading(true);
       setIsAuthenticating(true);
-      await signInWithApple();
+      
+      // Add timeout protection
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Sign-in timed out. Please try again.')), 30000)
+      );
+      
+      // Race between the actual sign-in and the timeout
+      await Promise.race([
+        signInWithApple(),
+        timeoutPromise
+      ]);
+      
       // Don't reset loading state here - let the useEffect handle it
     } catch (error) {
       console.error('Apple Sign-In Error:', error);
-      setError('Apple sign-in failed. Please try again.');
+      let errorMessage = 'Apple sign-in failed. Please try again.';
+      
+      // More descriptive error messages based on the error
+      if (error.message.includes('timed out')) {
+        errorMessage = error.message;
+      } else if (error.code === 'ERR_CANCELED') {
+        errorMessage = 'Sign-in was cancelled.';
+      }
+      
+      setError(errorMessage);
       setAppleLoading(false);
       setIsAuthenticating(false);
     }

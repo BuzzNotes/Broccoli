@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
 import { globalStyles } from '../styles/globalStyles';
 import { standaloneStyles } from '../styles/standalone';
+import { auth, db } from '../../src/config/firebase';
+import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +27,32 @@ const StartStreakScreen = () => {
       // Save start time to AsyncStorage
       const startTime = new Date().getTime();
       await AsyncStorage.setItem('streakStartTime', startTime.toString());
+      await AsyncStorage.setItem('onboardingCompleted', 'true');
+      
+      // Also update Firestore if user is authenticated
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          await updateDoc(userDocRef, {
+            streak_start_time: startTime,
+            last_sync_time: startTime,
+            onboarding_completed: true,
+            onboarding_state: 'completed'
+          });
+        } else {
+          // Create new user document if it doesn't exist
+          await setDoc(userDocRef, {
+            streak_start_time: startTime,
+            last_sync_time: startTime,
+            onboarding_completed: true,
+            questions_completed: true,
+            payment_completed: true,
+            onboarding_state: 'completed'
+          });
+        }
+      }
       
       // Navigate to main timer screen
       router.replace('/(main)');

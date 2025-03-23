@@ -74,6 +74,17 @@ const PostDetailScreen = () => {
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerType, setBannerType] = useState('success');
   
+  // Auto-hide banner after a duration
+  useEffect(() => {
+    if (bannerVisible) {
+      const timer = setTimeout(() => {
+        setBannerVisible(false);
+      }, 3000); // Hide after 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [bannerVisible]);
+  
   useEffect(() => {
     // Check if Firebase is initialized
     if (!isFirebaseInitialized()) {

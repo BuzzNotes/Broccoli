@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, Platform, Animated, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebase';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
+import { awardOnboardingAchievement } from '../../src/utils/achievementUtils';
 
 const SubscriptionOption = ({ isYearly, selected, onSelect }) => {
   const monthlyPrice = isYearly ? 3.33 : 12.99;
@@ -69,7 +70,7 @@ const PaywallScreen = () => {
 
   const handleStartJourney = async () => {
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
       // Set onboarding completion flag in AsyncStorage
       await AsyncStorage.setItem('onboardingCompleted', 'true');
@@ -82,22 +83,58 @@ const PaywallScreen = () => {
       // Update Firestore document if user is authenticated
       if (auth.currentUser) {
         const userDocRef = doc(db, 'users', auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          onboarding_completed: true,
-          questions_completed: true,
-          payment_completed: true,
-          onboarding_state: 'completed',
-          last_onboarding_completion: new Date().toISOString(),
-          selected_plan: selectedPlan, // Save the selected plan
-          streak_start_time: startTime,
-          last_sync_time: startTime
-        });
+        
+        // First check if the user document exists
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          // Update existing document
+          await updateDoc(userDocRef, {
+            onboarding_completed: false, // Not fully completed until community setup
+            questions_completed: true,
+            payment_completed: true,
+            onboarding_state: 'community_setup',
+            current_onboarding_step: 'community-setup',
+            last_onboarding_completion: new Date().toISOString(),
+            selected_plan: selectedPlan, // Save the selected plan
+            streak_start_time: startTime,
+            last_sync_time: startTime
+          });
+        } else {
+          // Create new document with full onboarding state
+          await setDoc(userDocRef, {
+            onboarding_completed: false, // Not fully completed until community setup
+            questions_completed: true,
+            payment_completed: true,
+            onboarding_state: 'community_setup',
+            current_onboarding_step: 'community-setup',
+            last_onboarding_completion: new Date().toISOString(),
+            selected_plan: selectedPlan,
+            streak_start_time: startTime,
+            last_sync_time: startTime,
+            email: auth.currentUser.email || '',
+            displayName: auth.currentUser.displayName || '',
+            photoURL: auth.currentUser.photoURL || ''
+          });
+        }
+        
+        // Award the onboarding achievement
+        try {
+          await awardOnboardingAchievement(auth.currentUser.uid);
+        } catch (error) {
+          console.error('Failed to award onboarding achievement:', error);
+          // Non-critical error, continue with navigation
+        }
       }
       
       // Navigate to community setup instead of main app
       router.replace('/(onboarding)/community-setup');
     } catch (error) {
       console.error('Navigation error:', error);
+      Alert.alert(
+        'Error',
+        'There was a problem completing onboarding. Please try again.'
+      );
     }
   };
 

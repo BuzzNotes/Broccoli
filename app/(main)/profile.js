@@ -37,6 +37,7 @@ import {
 } from '../../src/utils/userProfile';
 import { IMAGES } from '../../src/constants/assets';
 import { useAuth } from '../../src/context/AuthContext';
+import { resetSobrietyStreak } from '../../src/utils/achievementUtils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -397,6 +398,58 @@ const ProfileScreen = () => {
     }
   };
 
+  // Add a relapse reporting function
+  const handleReportRelapse = () => {
+    Alert.alert(
+      'Report Relapse',
+      'We understand recovery has ups and downs. Would you like to reset your sobriety streak? Your achievements and progress will be kept.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Reset Streak',
+          style: 'destructive',
+          onPress: confirmResetStreak
+        }
+      ]
+    );
+  };
+
+  // Add a function to reset the streak
+  const confirmResetStreak = async () => {
+    try {
+      if (!isFirebaseInitialized() || !auth.currentUser) {
+        showBanner('Please sign in to reset your streak', 'error');
+        return;
+      }
+      
+      const userId = auth.currentUser.uid;
+      
+      // Show loading message
+      setLoading(true);
+      showBanner('Resetting your streak...', 'info');
+      
+      // Reset streak but keep achievements
+      const result = await resetSobrietyStreak(userId);
+      
+      if (result && result.success) {
+        showBanner('Your streak has been reset. A new journey begins today!', 'success');
+        
+        // Refresh user data after reset
+        fetchUserData();
+      } else {
+        showBanner('Failed to reset streak', 'error');
+      }
+    } catch (error) {
+      console.error('Error resetting streak:', error);
+      showBanner('An error occurred while resetting your streak', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -681,6 +734,25 @@ const ProfileScreen = () => {
 
       {/* Logout Button */}
         <Text style={styles.versionText}>Version 1.0.0</Text>
+
+        {/* Add the relapse option to the profile screen */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recovery Options</Text>
+          
+          <TouchableOpacity
+            style={styles.optionItem}
+            onPress={handleReportRelapse}
+          >
+            <Ionicons name="refresh-circle" size={24} color="#FF5252" style={styles.optionIcon} />
+            <View style={styles.optionTextContainer}>
+              <Text style={styles.optionTitle}>Report Relapse</Text>
+              <Text style={styles.optionDescription}>Reset your sobriety streak but keep achievements</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#888888" />
+          </TouchableOpacity>
+          
+          {/* ...other profile options... */}
+        </View>
     </ScrollView>
     </View>
   );
@@ -1040,6 +1112,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666666',
     fontFamily: typography.fonts.regular,
+    marginTop: 2,
+  },
+  section: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(91, 189, 104, 0.4)',
+    position: 'relative',
+    shadowColor: '#5BBD68',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    backgroundColor: '#FFFFFF',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: '#000000',
+    fontFamily: typography.fonts.bold,
+    marginBottom: 16,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  optionIcon: {
+    marginRight: 16,
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
+    color: '#333333',
+  },
+  optionDescription: {
+    fontSize: 12,
+    fontFamily: typography.fonts.regular,
+    color: '#888888',
     marginTop: 2,
   },
 });

@@ -32,6 +32,9 @@ const BannerNotification = ({
       }, duration);
       
       return () => clearTimeout(timer);
+    } else {
+      // Ensure banner is hidden when visible prop is false
+      hideNotification();
     }
   }, [visible]);
   
@@ -82,10 +85,16 @@ const BannerNotification = ({
     <Animated.View 
       style={[
         styles.container, 
-        { transform: [{ translateY }], backgroundColor, marginTop: insets.top }
+        { 
+          transform: [{ translateY }], 
+          backgroundColor, 
+          marginTop: insets.top,
+          width: width, // Ensure full width
+          left: 0, // Ensure no left spacing
+        }
       ]}
     >
-      <Ionicons name={icon} size={24} color={color} />
+      <Ionicons name={icon} size={24} color={color} style={styles.icon} />
       <Text style={[styles.message, { color }]}>{message}</Text>
     </Animated.View>
   );
@@ -95,7 +104,8 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,
-    width: width,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
@@ -106,10 +116,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
+  icon: {
+    marginRight: 8,
+  },
   message: {
     fontFamily: typography.fonts.medium,
     fontSize: 16,
-    paddingLeft: 12,
+    paddingLeft: 4,
     flex: 1,
   }
 });

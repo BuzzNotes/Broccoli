@@ -9,34 +9,35 @@ const IncreasedQuestion = () => {
     clearAnswer('addiction_increased');
   }, []);
 
-  const handleAnswer = (answer) => {
-    let score = 0; // Default score
+  const handleAnswer = (option) => {
+    let score = 0;
     
     // Assign score based on answer
-    if (answer === "Yes") {
+    if (option.text === "Yes") {
       score = 1;
-    } else if (answer === "No") {
+    } else if (option.text === "No") {
       score = 0;
     }
     
     // Save both the answer and the score
     saveAnswer('addiction_increased', {
-      answer: answer,
+      answer: option.text,
       score: score
     });
   };
 
   return (
     <QuestionScreen
-      question="Has your frequency of use increased since you started?"
+      question="Have you noticed an increase in how often you need to smoke to feel the same effect?"
       options={[
-        "Yes",
-        "No"
+        { text: "Yes" },
+        { text: "No" }
       ]}
-      onAnswer={handleAnswer}
+      onSelect={handleAnswer}
       currentStep={3}
       totalSteps={10}
-      nextRoute="/(onboarding)/questions/addiction/anxiety"
+      nextScreen="/(onboarding)/questions/addiction/money"
+      questionId="addiction_increased"
     />
   );
 };

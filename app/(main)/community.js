@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../styles/colors';
 import { typography } from '../styles/typography';
@@ -51,7 +51,6 @@ const CommunityScreen = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshProgress, setRefreshProgress] = useState(0);
   const [userProfiles, setUserProfiles] = useState({});
   const [firebaseError, setFirebaseError] = useState(false);
   const [lastVisible, setLastVisible] = useState(null);
@@ -63,6 +62,20 @@ const CommunityScreen = () => {
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' or 'friends'
   const flatListRef = useRef(null);
   const POST_LIMIT = 10;
+
+  // Create a ref outside of the useFocusEffect
+  const isInitialMount = useRef(true);
+
+  // Auto-hide banner after a duration
+  useEffect(() => {
+    if (bannerVisible) {
+      const timer = setTimeout(() => {
+        setBannerVisible(false);
+      }, 3000); // Hide after 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [bannerVisible]);
 
   useEffect(() => {
     loadPosts();
@@ -81,9 +94,11 @@ const CommunityScreen = () => {
 
       if (refresh) {
         setRefreshing(true);
-        setPosts([]);
-        setLastVisible(null);
+        // Don't reset pagination for refresh - this maintains existing posts during fetch
         setAllLoaded(false);
+      } else {
+        setLoading(true);
+        setLastVisible(null); // Reset pagination for initial load
       }
 
       // Create query
@@ -159,14 +174,22 @@ const CommunityScreen = () => {
         });
       }
 
-      setPosts(postsData);
-      
-      // Load user profiles for posts
-      postsData.forEach(post => {
-        if (post.userId && !userProfiles[post.userId]) {
-          getUserDataById(post.userId);
-        }
-      });
+      // Only update posts once we have all the data
+      if (postsData.length > 0) {
+        // If this is a refresh, replace the existing posts
+        // If it's an initial load, set the posts
+        setPosts(postsData);
+        
+        // Load user profiles for posts
+        postsData.forEach(post => {
+          if (post.userId && !userProfiles[post.userId]) {
+            getUserDataById(post.userId);
+          }
+        });
+      } else if (querySnapshot.empty && refresh) {
+        // If we got an empty result on refresh, clear the posts
+        setPosts([]);
+      }
     } catch (error) {
       console.error('Error loading posts:', error);
       setFirebaseError(true);
@@ -296,14 +319,7 @@ const CommunityScreen = () => {
   };
 
   const handleRefresh = () => {
-    setRefreshProgress(100);
     loadPosts(true);
-  };
-
-  const onRefreshChange = (progress) => {
-    // Convert native refresh values (usually 0 to 1) to percentage (0 to 100)
-    const progressPercentage = Math.min(Math.floor(progress * 100), 100);
-    setRefreshProgress(progressPercentage);
   };
 
   const handleCreatePost = () => {
@@ -316,6 +332,20 @@ const CommunityScreen = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/(standalone)/create-post');
   };
+
+  // Add a listener for when the screen comes back into focus to refresh posts
+  useFocusEffect(
+    React.useCallback(() => {
+      // Don't refresh on initial render
+      if (!isInitialMount.current) {
+        loadPosts(true);
+      } else {
+        isInitialMount.current = false;
+      }
+      
+      return () => {};
+    }, [])
+  );
 
   const handlePostPress = (post) => {
     // Check if Firebase is initialized
@@ -476,9 +506,8 @@ const CommunityScreen = () => {
     setLastVisible(null);
     setAllLoaded(false);
     
-    // Show loading state
+    // Show loading state but keep existing posts
     setLoading(true);
-    setPosts([]);
     
     // In a future implementation, this would fetch friend-only posts
     // For now, we'll just simulate the filter change
@@ -649,7 +678,8 @@ const CommunityScreen = () => {
   };
 
   const renderEmptyComponent = () => {
-    if (loading) return null;
+    // Don't show empty state while loading
+    if (loading || refreshing) return null;
     
     return (
       <View style={styles.emptyContainer}>
@@ -721,28 +751,6 @@ const CommunityScreen = () => {
             </>
           )}
         </View>
-      </View>
-    );
-  };
-
-  const renderRefreshHeader = () => {
-    if (!refreshProgress || refreshProgress === 0) return null;
-    
-    return (
-      <View style={styles.refreshHeader}>
-        <View style={styles.refreshProgress}>
-          <View 
-            style={[
-              styles.refreshProgressFill, 
-              { width: `${refreshProgress}%` }
-            ]} 
-          />
-        </View>
-        <Text style={styles.refreshText}>
-          {refreshProgress < 100 
-            ? `Pull down to refresh (${refreshProgress}%)` 
-            : 'Refreshing...'}
-        </Text>
       </View>
     );
   };
@@ -834,7 +842,7 @@ const CommunityScreen = () => {
       </View>
 
       <View style={[styles.contentContainer, { paddingTop: insets.top + 110 }]}>
-        {loading ? (
+        {loading && posts.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>Loading posts...</Text>
@@ -847,25 +855,21 @@ const CommunityScreen = () => {
             keyExtractor={item => item.id}
             contentContainerStyle={[
               styles.listContent,
-              posts.length === 0 ? { flex: 1, justifyContent: 'center' } : null
+              posts.length === 0 && !loading ? { flex: 1, justifyContent: 'center' } : null
             ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor="#4CAF50"
                 colors={["#4CAF50"]}
-                progressViewOffset={50}
-                progressBackgroundColor="#ffffff"
-                onRefreshChange={onRefreshChange}
+                tintColor="#4CAF50"
               />
             }
             ListEmptyComponent={renderEmptyComponent}
             onEndReached={loadMorePosts}
             onEndReachedThreshold={0.5}
             ListFooterComponent={renderFooter}
-            ListHeaderComponent={renderRefreshHeader()}
           />
         )}
       </View>
@@ -1177,37 +1181,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 8,
     fontFamily: typography.fonts.bold,
-  },
-  refreshHeader: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 12,
-    marginBottom: 16,
-    marginHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  refreshProgress: {
-    width: '80%',
-    height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  refreshProgressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
-  },
-  refreshText: {
-    fontSize: 12,
-    color: '#666666',
-    fontFamily: typography.fonts.medium,
   },
 });
 
