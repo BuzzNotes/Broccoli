@@ -44,11 +44,17 @@ import { auth, db } from '../../src/config/firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { awardDailyLoginPoints } from '../../src/utils/achievementUtils';
 import { isFirebaseInitialized } from '../../src/utils/firebaseCheck';
+import ConfettiCannon from 'react-native-confetti-cannon';
+import BannerNotification from '../../src/components/BannerNotification';
+import { ALL_ACHIEVEMENTS } from '../../src/utils/achievementUtils';
+import * as Notifications from 'expo-notifications';
 
 const { width, height } = Dimensions.get('window');
-const CIRCLE_SIZE = width * 0.65;
+const CIRCLE_SIZE = width * 0.8;
 const STROKE_WIDTH = 14;
 const PULSE_DURATION = 2000;
+const PROGRESS_RING_COLOR = '#2E7D32'; // Change to a darker forest green that will stand out against the background
+const PROGRESS_RING_WIDTH = 12; // Increase stroke width for better visibility
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -57,6 +63,22 @@ const MainScreen = () => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const logoScale = useSharedValue(1);
+  
+  // Add headerStyle animated style based on scrollY
+  const headerStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, 50],
+      [0, 1],
+      'clamp'
+    );
+    
+    return {
+      backgroundColor: `rgba(255, 255, 255, ${opacity})`,
+      shadowOpacity: opacity * 0.3,
+      zIndex: 100,
+    };
+  });
   
   // Add userName state
   const [userName, setUserName] = useState('');
@@ -89,6 +111,11 @@ const MainScreen = () => {
     minutes: '0'
   });
   
+  // Initialize user achievements state
+  const [userAchievements, setUserAchievements] = useState([]);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerType, setBannerType] = useState('info');
+  
   // Animation values
   const rainbowAnimation = useSharedValue(0);
   const progressAnimation = useSharedValue(0);
@@ -111,6 +138,44 @@ const MainScreen = () => {
   const [startDate, setStartDate] = useState(null);
   const swipeAnim = useSharedValue(0);
   
+  // Add a state for relapse history
+  const [relapseHistory, setRelapseHistory] = useState([]);
+
+  // Add a separate shared value specifically for the seconds progress
+  const secondsProgress = useSharedValue(0);
+
+  // This function manually updates the secondsProgress value
+  const updateSecondsProgress = () => {
+    if (timeElapsed && 'seconds' in timeElapsed) {
+      // Use withTiming to create smooth animation
+      secondsProgress.value = withTiming(timeElapsed.seconds / 60, {
+        duration: 950, // Slightly less than 1 second for smooth transition
+        easing: Easing.linear
+      });
+    }
+  };
+
+  // Set up a more aggressive timer for the seconds animation
+  useEffect(() => {
+    // Update immediately
+    updateSecondsProgress();
+    
+    // Set up a dedicated interval just for the ring animation
+    const ringAnimationInterval = setInterval(() => {
+      updateSecondsProgress();
+    }, 1000); // Update every second (sync with timer)
+    
+    return () => clearInterval(ringAnimationInterval);
+  }, [timeElapsed?.seconds]);
+
+  // Update the progressCircleProps to use a simpler calculation
+  const progressCircleProps = useAnimatedProps(() => {
+    const circumference = 2 * Math.PI * ((CIRCLE_SIZE) / 2 + 10);
+    return {
+      strokeDashoffset: circumference * (1 - secondsProgress.value),
+    };
+  });
+
   // Start rainbow animation when modal is shown
   useEffect(() => {
     if (showPledgeModal) {
@@ -583,15 +648,6 @@ const MainScreen = () => {
     };
   });
   
-  // Animated props for the progress circle
-  const progressCircleProps = useAnimatedProps(() => {
-    const circumference = 2 * Math.PI * ((CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2);
-    const strokeDashoffset = circumference * (1 - progressAnimation.value);
-    return {
-      strokeDashoffset: strokeDashoffset,
-    };
-  });
-  
   // Animated style for the pulse effect
   const pulseStyle = useAnimatedStyle(() => {
     return {
@@ -771,37 +827,100 @@ const MainScreen = () => {
     };
   });
 
-  // Calculate brain rewiring progress (0-100%)
-  const calculateBrainProgress = () => {
-    // 90 days in total for 100% brain rewiring
+  // Calculate brain fog reduction (starts at 100%, decreases to 0%)
+  const calculateBrainFog = () => {
+    if (!timeElapsed) return 100;
+    
+    // Brain fog typically clears significantly in 90 days
     const totalDays = 90;
-    const currentDays = timeElapsed.days;
+    // Use ms to days conversion
+    const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
     
-    // Cap at 100%
-    const progress = Math.min(currentDays / totalDays, 1) * 100;
-    return Math.floor(progress);
+    // Calculate remaining fog percentage (considering potential relapses)
+    let relapseCount = 0;
+    if (auth.currentUser) {
+      relapseCount = relapseHistory?.length || 0;
+    }
+    
+    // Apply a recovery penalty based on relapse count (adds 5% fog per relapse)
+    const relapsePenalty = Math.min(40, relapseCount * 5);
+    
+    // Calculate remaining fog (starts at 100%, decreases to 0%)
+    let remainingFog = 100 - ((currentDays / totalDays) * 100);
+    
+    // Add relapse penalty
+    remainingFog = Math.min(100, remainingFog + relapsePenalty);
+    
+    // Ensure fog is between 0-100%
+    return Math.max(0, Math.floor(remainingFog));
   };
 
-  // Calculate lung recovery progress (0-100%)
-  const calculateLungProgress = () => {
-    // 30 days for significant lung recovery
+  // Calculate lung buildup reduction (starts at 100%, decreases to 0%)
+  const calculateLungBuildup = () => {
+    if (!timeElapsed) return 100;
+    
+    // Lung buildup clears significantly in 30 days
     const totalDays = 30;
-    const currentDays = timeElapsed.days;
+    // Use ms to days conversion
+    const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
     
-    // Cap at 100%
-    const progress = Math.min(currentDays / totalDays, 1) * 100;
-    return Math.floor(progress);
+    // Calculate remaining buildup percentage (considering potential relapses)
+    let relapseCount = 0;
+    if (auth.currentUser) {
+      relapseCount = relapseHistory?.length || 0;
+    }
+    
+    // Apply a recovery penalty based on relapse count (adds 7% buildup per relapse)
+    const relapsePenalty = Math.min(50, relapseCount * 7);
+    
+    // Calculate remaining buildup (starts at 100%, decreases to 0%)
+    let remainingBuildup = 100 - ((currentDays / totalDays) * 100);
+    
+    // Add relapse penalty
+    remainingBuildup = Math.min(100, remainingBuildup + relapsePenalty);
+    
+    // Ensure buildup is between 0-100%
+    return Math.max(0, Math.floor(remainingBuildup));
   };
 
-  // Calculate sleep recovery progress (0-100%)
-  const calculateSleepProgress = () => {
-    // 14 days for sleep pattern normalization
-    const totalDays = 14;
-    const currentDays = timeElapsed.days;
+  // Calculate sleep impairment reduction (starts at 100%, decreases to 0%)
+  const calculateSleepImpairment = () => {
+    if (!timeElapsed) return 100;
     
-    // Cap at 100%
-    const progress = Math.min(currentDays / totalDays, 1) * 100;
-    return Math.floor(progress);
+    // Sleep impairment typically reduces in 14 days
+    const totalDays = 14;
+    // Use ms to days conversion
+    const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
+    
+    // Calculate remaining impairment percentage (considering potential relapses)
+    let relapseCount = 0;
+    if (auth.currentUser) {
+      relapseCount = relapseHistory?.length || 0;
+    }
+    
+    // Apply a recovery penalty based on relapse count (adds 10% impairment per relapse)
+    const relapsePenalty = Math.min(60, relapseCount * 10);
+    
+    // Calculate remaining impairment (starts at 100%, decreases to 0%)
+    let remainingImpairment = 100 - ((currentDays / totalDays) * 100);
+    
+    // Add relapse penalty
+    remainingImpairment = Math.min(100, remainingImpairment + relapsePenalty);
+    
+    // Ensure impairment is between 0-100%
+    return Math.max(0, Math.floor(remainingImpairment));
+  };
+
+  // Calculate money saved based on average daily spend
+  const averageDailySpend = 15; // Default value of $15 per day
+
+  const calculateMoneySaved = () => {
+    if (!timeElapsed) return 0;
+    
+    const daysPassed = timeElapsed / (1000 * 60 * 60 * 24);
+    const saved = Math.floor(daysPassed * averageDailySpend);
+    
+    return saved;
   };
 
   // Sync timer with Firestore
@@ -1256,6 +1375,130 @@ const MainScreen = () => {
     return () => clearTimeout(loadingTimeout);
   }, [isLoading]);
 
+  // Function to show banner notifications
+  const showBanner = (message, type = 'info') => {
+    setBannerMessage(message);
+    setBannerType(type);
+    
+    // Auto-hide banner after 3 seconds
+    setTimeout(() => {
+      setBannerMessage('');
+    }, 3000);
+  };
+
+  // Get user's progress percentage for current level
+  const calculateLevelProgressPercentage = () => {
+    if (!userPoints) return 0;
+    
+    // Find the current level threshold and next level threshold
+    let currentLevelPoints = 0;
+    let nextLevelPoints = 25; // Default for level 1
+    
+    // Using the thresholds from achievementUtils.js
+    if (userLevel === 1) {
+      currentLevelPoints = 0;
+      nextLevelPoints = 25;
+    } else if (userLevel === 2) {
+      currentLevelPoints = 25;
+      nextLevelPoints = 55;
+    } else if (userLevel === 3) {
+      currentLevelPoints = 55;
+      nextLevelPoints = 90;
+    } else if (userLevel === 4) {
+      currentLevelPoints = 90;
+      nextLevelPoints = 130;
+    } else if (userLevel === 5) {
+      currentLevelPoints = 130;
+      nextLevelPoints = 175;
+    } else if (userLevel >= 6) {
+      currentLevelPoints = 175 + ((userLevel - 6) * 50);
+      nextLevelPoints = currentLevelPoints + 50 + (5 * (userLevel - 5));
+    }
+    
+    // Calculate points needed for this level
+    const pointsNeededForThisLevel = nextLevelPoints - currentLevelPoints;
+    
+    // Calculate user's current points in this level
+    const pointsInCurrentLevel = userPoints - currentLevelPoints;
+    
+    // Ensure progress is between 0-100%
+    const percentage = Math.min(100, Math.max(0, Math.floor((pointsInCurrentLevel / pointsNeededForThisLevel) * 100)));
+    
+    return percentage;
+  };
+
+  // Get points needed for next level
+  const getPointsForNextLevel = () => {
+    // Using the thresholds from achievementUtils.js
+    if (userLevel === 1) return 25;
+    if (userLevel === 2) return 55;
+    if (userLevel === 3) return 90;
+    if (userLevel === 4) return 130;
+    if (userLevel === 5) return 175;
+    if (userLevel >= 6) {
+      const currentLevelPoints = 175 + ((userLevel - 6) * 50);
+      return currentLevelPoints + 50 + (5 * (userLevel - 5));
+    }
+    return 25; // Default for level 1
+  };
+
+  // Get current level starting points
+  const getCurrentLevelStartingPoints = () => {
+    if (userLevel === 1) return 0;
+    if (userLevel === 2) return 25;
+    if (userLevel === 3) return 55;
+    if (userLevel === 4) return 90;
+    if (userLevel === 5) return 130;
+    if (userLevel >= 6) {
+      return 175 + ((userLevel - 6) * 50);
+    }
+    return 0; // Default
+  };
+
+  // Add this function to fetch user achievements
+  const fetchUserAchievements = async () => {
+    try {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.achievements) {
+            setUserAchievements(userData.achievements);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user achievements:', error);
+    }
+  };
+
+  // Add this to the fetchUserData function in useEffect
+  const fetchUserData = async () => {
+    try {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          // Set relapse history
+          if (userData.relapse_history) {
+            setRelapseHistory(userData.relapse_history);
+          }
+          
+          // Other user data fetching...
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  // Add the fetchUserData call to useEffect
+  useEffect(() => {
+    fetchUserData();
+    fetchUserAchievements();
+  }, []);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1281,200 +1524,26 @@ const MainScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      <StatusBar barStyle="dark-content" />
       
-      {/* Background gradient that stays at the top */}
-      <View style={styles.backgroundGradient}>
-      <LinearGradient
-          colors={['#A5D6A7', '#E8F5E9', '#F5F5F5']}
-          style={{height: 250}}
-        start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          locations={[0, 0.7, 1]}
-        />
-      </View>
-      
-      {/* Light gray background for the rest of the screen */}
-      <View style={[StyleSheet.absoluteFill, {backgroundColor: '#F5F5F5', zIndex: -2}]} />
-      
-      {/* Time Adjust Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showTimeAdjustModal}
-        onRequestClose={() => setShowTimeAdjustModal(false)}
-      >
-        <View style={styles.timeAdjustModalOverlay}>
-          <View style={styles.timeAdjustModalContent}>
-            <Text style={styles.timeAdjustModalTitle}>Adjust Time</Text>
-            <ScrollView style={styles.timeUnitsScrollView}>
-              {[
-                { label: 'Years', key: 'years' },
-                { label: 'Months', key: 'months' },
-                { label: 'Weeks', key: 'weeks' },
-                { label: 'Days', key: 'days' },
-                { label: 'Hours', key: 'hours' },
-                { label: 'Minutes', key: 'minutes' }
-              ].map((unit) => (
-                <View key={unit.key} style={styles.timeUnitInputRow}>
-                  <Text style={styles.timeUnitLabel}>{unit.label}</Text>
-                  <TextInput
-                    style={styles.timeAdjustInput}
-                    value={adjustedTime[unit.key]}
-                    onChangeText={(value) => handleTimeUnitChange(unit.key, value)}
-                    keyboardType="number-pad"
-                    placeholder="0"
-                    placeholderTextColor="#999"
-                    maxLength={4}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.timeAdjustButtonRow}>
-              <TouchableOpacity 
-                style={[styles.modalTimeAdjustButton, styles.timeAdjustCancelButton]}
-                onPress={() => {
-                  setShowTimeAdjustModal(false);
-                  setAdjustedTime({
-                    years: '0',
-                    months: '0',
-                    weeks: '0',
-                    days: '0',
-                    hours: '0',
-                    minutes: '0'
-                  });
-                }}
-              >
-                <Text style={[styles.timeAdjustButtonText, styles.timeAdjustCancelText]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalTimeAdjustButton, styles.timeAdjustConfirmButton]}
-                onPress={handleTimeAdjust}
-              >
-                <Text style={[styles.timeAdjustButtonText, styles.timeAdjustConfirmText]}>Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      
-      {/* Pledge Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showPledgeModal}
-        onRequestClose={() => setShowPledgeModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {/* Modal Header with Gradient */}
-      <LinearGradient
-              colors={['#4CAF50', '#388E3C']}
-              style={styles.modalHeaderGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>PLEDGE YOUR SOBRIETY</Text>
-                <Pressable 
-                  onPress={() => setShowPledgeModal(false)} 
-                  style={styles.modalCloseButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="close-circle" size={28} color="#FFFFFF" />
-                </Pressable>
-              </View>
-            </LinearGradient>
-      
-      <ScrollView
-              style={styles.modalScrollView} 
-              contentContainerStyle={styles.modalScrollContent}
-        showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.pledgeSection}>
-                <Text style={styles.pledgeTitle}>
-                  Why Sobriety Matters
-                </Text>
-                
-                <View style={styles.pledgePoint}>
-                  <Ionicons name="brain" size={24} color="#4CAF50" style={styles.pledgeIcon} />
-                  <Text style={styles.pledgeText}>
-                    Improved mental clarity and cognitive function
-                  </Text>
-        </View>
-        
-                <View style={styles.pledgePoint}>
-                  <Ionicons name="heart" size={24} color="#4CAF50" style={styles.pledgeIcon} />
-                  <Text style={styles.pledgeText}>
-                    Better physical health and respiratory function
-                  </Text>
-        </View>
-        
-                <View style={styles.pledgePoint}>
-                  <Ionicons name="cash" size={24} color="#4CAF50" style={styles.pledgeIcon} />
-                  <Text style={styles.pledgeText}>
-                    Financial savings that add up over time
-            </Text>
-          </View>
-          
-                <View style={styles.pledgePoint}>
-                  <Ionicons name="people" size={24} color="#4CAF50" style={styles.pledgeIcon} />
-                  <Text style={styles.pledgeText}>
-                    Stronger relationships and social connections
-                  </Text>
-          </View>
-          
-                <View style={styles.pledgePoint}>
-                  <Ionicons name="trophy" size={24} color="#4CAF50" style={styles.pledgeIcon} />
-                  <Text style={styles.pledgeText}>
-                    Sense of accomplishment and self-control
-                  </Text>
-                </View>
-              </View>
-              
-              <Animated.View style={styles.pledgeButtonContainer}>
-                <TouchableOpacity 
-                  style={styles.pledgeButton} 
-                  activeOpacity={0.7}
-                  onPress={handlePledgeConfirm}
-                >
-                  <Animated.View style={[StyleSheet.absoluteFill, rainbowAnimatedStyle]}>
-            <LinearGradient
-                      colors={['#4CAF50', '#388E3C', '#2E7D32', '#1B5E20', '#4CAF50']}
-              start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{ width: 400, height: '100%' }}
-                    />
-                  </Animated.View>
-                  <Text style={styles.pledgeButtonText}>PLEDGE NOW</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </ScrollView>
-        </View>
-        </View>
-      </Modal>
-      
-      {/* Confetti Animation */}
-      {showConfetti && (
-        <ConfettiAnimation 
-          animationKey={confettiKey} 
-          onAnimationFinish={handleConfettiFinish} 
-        />
-      )}
-      
-      {/* Header with Logo in top left */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <Animated.View style={[
+        styles.headerContainer, 
+        headerStyle, 
+        { paddingTop: insets.top + 5 }
+      ]}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🌿</Text>
-          <Text style={styles.logoText}>T-BREAK</Text>
+          <Text style={styles.logoEmoji}>🥦</Text>
+          <Text style={styles.logoText}>Broccoli</Text>
         </View>
-            <TouchableOpacity
-          style={styles.timeAdjustButton}
-          onPress={() => setShowTimeAdjustModal(true)}
+        
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => handleButtonPress('settings')}
         >
-          <Ionicons name="time-outline" size={20} color="#000000" />
+          <Ionicons name="settings-outline" size={24} color="#232323" />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
       
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 70, paddingBottom: 150 }]}
@@ -1482,401 +1551,475 @@ const MainScreen = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* User Greeting - Enhanced styling with emoji */}
-        <Text style={styles.userGreeting}>Hello, Rob 👋</Text>
+        {/* User Greeting */}
+        <Text style={styles.userGreeting}>Hello, {userName || 'Friend'} 👋</Text>
         
-        {/* Timer Display - Modified to show time unit labels next to the values */}
-        <View style={styles.timerContainer}>
-          {/* Timer Content Box */}
-          <View style={styles.timerContentBox}>
-            {/* Title Bar */}
-            <View style={styles.timerTitleBar}>
-              <Text style={styles.timerTitle}>Sobriety Tracker</Text>
-            </View>
-            
-            {/* Top section with circle */}
-            <View style={styles.timerTopSection}>
-              {/* Timer circle */}
-              <View style={styles.circleWrapper}>
-                <Animated.View style={[styles.circleContainer, pulseStyle]}>
-                  <Svg width={CIRCLE_SIZE * 0.7} height={CIRCLE_SIZE * 0.7} style={styles.svg}>
-                    <Defs>
-                      <SvgGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="1" />
-                        <Stop offset="50%" stopColor="#2E7D32" stopOpacity="1" />
-                        <Stop offset="100%" stopColor="#1B5E20" stopOpacity="1" />
-                      </SvgGradient>
-                      <SvgGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#E8F5E9" stopOpacity="1" />
-                        <Stop offset="100%" stopColor="#C8E6C9" stopOpacity="0.8" />
-                      </SvgGradient>
-                      <SvgGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.3" />
-                        <Stop offset="100%" stopColor="#4CAF50" stopOpacity="0" />
-                      </SvgGradient>
-                      <SvgGradient id="resetButtonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                        <Stop offset="100%" stopColor="#F8F8F8" stopOpacity="1" />
-                      </SvgGradient>
-                      <SvgGradient id="shimmerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="rgba(255, 255, 255, 0)" />
-                        <Stop offset="50%" stopColor="rgba(255, 255, 255, 0.3)" />
-                        <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
-                      </SvgGradient>
-                    </Defs>
-                    
-                    {/* Outer glow effect with animation */}
-                    <Animated.View style={glowStyle}>
-                      <Circle
-                        cx={CIRCLE_SIZE * 0.35}
-                        cy={CIRCLE_SIZE * 0.35}
-                        r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2 + 12}
-                        stroke="url(#glowGradient)"
-                        strokeWidth={24}
-                        fill="transparent"
-                      />
-                    </Animated.View>
-                    
-                    {/* Background Circle with subtle gradient */}
-                    <Circle
-                      cx={CIRCLE_SIZE * 0.35}
-                      cy={CIRCLE_SIZE * 0.35}
-                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
-                      stroke="url(#bgGradient)"
-                      strokeWidth={STROKE_WIDTH}
-                      fill="transparent"
-                      strokeLinecap="round"
-                    />
-                    
-                    {/* Shimmer effect overlay */}
-                    <Circle
-                      cx={CIRCLE_SIZE * 0.35}
-                      cy={CIRCLE_SIZE * 0.35}
-                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
-                      stroke="url(#shimmerGradient)"
-                      strokeWidth={STROKE_WIDTH}
-                      fill="transparent"
-                      strokeLinecap="round"
-                      opacity={0.4}
-                    />
-                    
-                    {/* Progress Circle with gradient */}
-                    <AnimatedCircle
-                      cx={CIRCLE_SIZE * 0.35}
-                      cy={CIRCLE_SIZE * 0.35}
-                      r={(CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2}
-                      stroke="url(#progressGradient)"
-                      strokeWidth={STROKE_WIDTH}
-                      strokeLinecap="round"
-                      fill="transparent"
-                      strokeDasharray={`${2 * Math.PI * ((CIRCLE_SIZE * 0.7 - STROKE_WIDTH) / 2)}`}
-                      animatedProps={progressCircleProps}
-                      transform={`rotate(-90 ${CIRCLE_SIZE * 0.35} ${CIRCLE_SIZE * 0.35})`}
-                    />
-                  </Svg>
-                  
-                  {/* Center Emoji without container */}
-                  <TouchableOpacity
-                    style={styles.refreshButton}
-                    onPress={handleRefreshPress}
-                    onPressIn={handleRefreshPressIn}
-                    onPressOut={handleRefreshPressOut}
-                    activeOpacity={0.9}
-                  >
-                    <Animated.View style={[refreshIconStyle, refreshButtonStyle]}>
-                      <Ionicons name="refresh" size={28} color="#43A047" />
-                    </Animated.View>
-            </TouchableOpacity>
-                </Animated.View>
-              </View>
-              
-              {/* Timer Label */}
-              <Text style={styles.timerLabel}>
-                You've been cannabis-free for:
-              </Text>
-            </View>
-            
-            {/* Divider */}
-            <View style={styles.timerDivider} />
-            
-            {/* Swipeable Container */}
-            <View style={styles.swipeableContainer}>
-              <Animated.View style={[styles.swipeableView, timerViewStyle]}>
-                {/* Main Time Display - Show large units (days and above) */}
-                <View style={styles.mainTimeDisplayScroll}>
-                  <View style={styles.mainTimeDisplay}>
-                    {(() => {
-                      const { largeUnits } = getFormattedTimeUnits();
-                      
-                      if (largeUnits.length === 0) {
-                        return (
-                          <View style={styles.mainTimeUnit}>
-                            <Text style={styles.timeUnitInline}>
-                              <Text style={styles.timeUnitValue}>0</Text>
-                              <Text style={styles.timeUnitLabelInline}>min</Text>
-                            </Text>
-                          </View>
-                        );
-                      }
-                      
-                      return (
-                        <View style={styles.largeUnitsContainer}>
-                          {largeUnits.map((unit, index) => (
-                            <View key={index} style={[
-                              styles.largeUnitItem,
-                              largeUnits.length <= 2 ? styles.largeUnitItemWide : {}
-                            ]}>
-                              <Text style={styles.timeUnitInline}>
-                                <Text style={styles.timeUnitValue}>{unit.value}</Text>
-                                <Text style={styles.timeUnitLabelInline}>
-                                  {unit.label === 'hours' || unit.label === 'hour' ? ' hour' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'minutes' || unit.label === 'minute' ? ' min' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'seconds' || unit.label === 'second' ? ' sec' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'days' || unit.label === 'day' ? ' day' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'weeks' || unit.label === 'week' ? ' week' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'months' || unit.label === 'month' ? ' month' + (unit.value !== 1 ? 's' : '') : 
-                                   unit.label === 'years' || unit.label === 'year' ? ' year' + (unit.value !== 1 ? 's' : '') : 
-                                   ' ' + unit.label}
-                                </Text>
-                              </Text>
-                            </View>
-          ))}
-        </View>
-                      );
-                    })()}
-                  </View>
-                </View>
-              </Animated.View>
-              
-              <Animated.View style={[styles.swipeableView, styles.startDateView, startDateViewStyle]}>
-                <Text style={styles.startDateText}>{formatStartDate()}</Text>
-              </Animated.View>
-              
-              {/* Swipe Gesture Handlers */}
-              <View style={styles.swipeGestureArea}>
+        {/* Main Timer Card */}
+        <View style={styles.timerCardContainer}>
+          <View style={styles.timerCard}>
+            <View style={styles.timerHeader}>
+              <Text style={styles.timerHeaderTitle}>Sobriety Timer</Text>
+              {startDate && (
                 <TouchableOpacity 
-                  style={styles.swipeLeftButton} 
-                  onPress={() => handleSwipe('right')}
-                  activeOpacity={0.6}
+                  style={styles.startDateButton}
+                  onPress={() => setShowStartDate(!showStartDate)}
                 >
-                  <Ionicons name="chevron-back" size={20} color={!showStartDate ? "#CCCCCC" : "#4CAF50"} />
+                  <Text style={styles.startDateText}>
+                    {showStartDate ? 'Hide' : 'Show'} Start Date
+                  </Text>
+                  <Ionicons 
+                    name={showStartDate ? "chevron-up" : "chevron-down"} 
+                    size={16} 
+                    color="#4CAF50" 
+                  />
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.swipeRightButton} 
-                  onPress={() => handleSwipe('left')}
-                  activeOpacity={0.6}
-                >
-                  <Ionicons name="chevron-forward" size={20} color={showStartDate ? "#CCCCCC" : "#4CAF50"} />
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
             
-            {/* Small Units Display (hours, minutes, seconds) */}
-            <View style={styles.secondsBoxContainer}>
-            <LinearGradient
-                colors={['#43A047', '#2E7D32']}
-                style={styles.smallUnitsGradient}
-              start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <View style={styles.smallUnitsDisplay}>
+            {showStartDate && startDate && (
+              <View style={styles.startDateContainer}>
+                <Text style={styles.startDateLabel}>
+                  Started: {formatStartDate()}
+                </Text>
+              </View>
+            )}
+            
+            {/* Timer Circle */}
+            <View style={styles.timerCircleContainer}>
+              <Animated.View style={[styles.timerCircle, pulseStyle]}>
+                {/* Progress Ring */}
+                <Svg 
+                  width={CIRCLE_SIZE + 40} 
+                  height={CIRCLE_SIZE + 40} 
+                  style={{
+                    position: 'absolute',
+                    transform: [{ rotate: '-90deg' }],
+                  }}
+                >
+                  {/* Background Circle */}
+                  <Circle
+                    cx={(CIRCLE_SIZE + 40) / 2}
+                    cy={(CIRCLE_SIZE + 40) / 2}
+                    r={(CIRCLE_SIZE + 20) / 2}
+                    fill="rgba(0, 0, 0, 0.15)"
+                  />
+                  <Circle
+                    cx={(CIRCLE_SIZE + 40) / 2}
+                    cy={(CIRCLE_SIZE + 40) / 2}
+                    r={(CIRCLE_SIZE + 20) / 2}
+                    stroke="rgba(255, 255, 255, 0.3)"
+                    strokeWidth={PROGRESS_RING_WIDTH}
+                    fill="transparent"
+                  />
+                  <AnimatedCircle
+                    cx={(CIRCLE_SIZE + 40) / 2}
+                    cy={(CIRCLE_SIZE + 40) / 2}
+                    r={(CIRCLE_SIZE + 20) / 2}
+                    stroke={PROGRESS_RING_COLOR}
+                    strokeWidth={PROGRESS_RING_WIDTH}
+                    strokeDasharray={2 * Math.PI * ((CIRCLE_SIZE + 20) / 2)}
+                    strokeLinecap="round"
+                    fill="transparent"
+                    animatedProps={progressCircleProps}
+                  />
+                </Svg>
+                
+                {/* Time Display */}
+                <View style={styles.timeDisplay}>
                   {(() => {
-                    const { smallUnits } = getFormattedTimeUnits();
+                    const { largeUnits, smallUnits } = getFormattedTimeUnits();
                     
                     return (
-                      <Text style={styles.smallUnitsText}>
-                        {smallUnits.map((unit, index) => (
-                          <React.Fragment key={index}>
-                            <Text style={styles.smallUnitValue}>{parseInt(unit.value, 10)}</Text>
-                            <Text style={styles.smallUnitLabel}>{unit.label}</Text>
-                            {index < smallUnits.length - 1 && <Text style={styles.smallUnitSpacer}> </Text>}
-                          </React.Fragment>
-                        ))}
-                      </Text>
+                      <>
+                        {/* Large Units (Years, Months, etc) */}
+                        {largeUnits.length > 0 && (
+                          <View style={styles.largeUnitsRow}>
+                            {largeUnits.map((unit, index) => (
+                              <View key={index} style={styles.timeUnit}>
+                                <Text style={styles.largeTimeValue}>{unit.value}</Text>
+                                <Text style={styles.timeUnitLabel}>{unit.label}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                        
+                        {/* Small Units (Days, Hours, etc) */}
+                        <View style={styles.smallUnitsRow}>
+                          {smallUnits.map((unit, index) => (
+                            <View key={index} style={styles.timeUnit}>
+                              <Text style={styles.smallTimeValue}>{unit.value}</Text>
+                              <Text style={styles.timeUnitLabel}>{unit.label}</Text>
+                              {index < smallUnits.length - 1 && (
+                                <Text style={styles.unitSeparator}>:</Text>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      </>
                     );
                   })()}
                 </View>
+                
+                {/* Reset Button */}
+                <TouchableOpacity 
+                  style={styles.resetButton}
+                  onPress={handleReset}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  <Text style={styles.resetButtonText}>Reset Timer</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+            
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleButtonPress('meditate')}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: meditateButtonScale }] }]}>
+                  <Ionicons name="leaf-outline" size={22} color="#4CAF50" />
+                  <Text style={styles.actionButtonText}>Meditate</Text>
+                </Animated.View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleButtonPress('journal')}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: journalButtonScale }] }]}>
+                  <Ionicons name="journal-outline" size={22} color="#4CAF50" />
+                  <Text style={styles.actionButtonText}>Journal</Text>
+                </Animated.View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleButtonPress('emergency')}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: pledgeButtonScale }] }]}>
+                  <Ionicons name="alert-circle-outline" size={22} color="#E57373" />
+                  <Text style={[styles.actionButtonText, {color: '#E57373'}]}>S.O.S</Text>
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        
+        {/* Replace Stats Row with Level Card */}
+        <View style={styles.levelCard}>
+          <View style={styles.levelSection}>
+            <View style={styles.levelBadgeContainer}>
+              <LinearGradient
+                colors={['#4CAF50', '#2E7D32']}
+                style={styles.levelBadge}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.levelNumber}>{userLevel || 1}</Text>
               </LinearGradient>
             </View>
-            
-            {/* Points and Level Display */}
-            <View style={styles.pointsLevelContainer}>
-              <View style={styles.pointsContainer}>
-                <Ionicons name="star" size={22} color="#FFD700" />
-                <Text style={styles.pointsText}>{userPoints} pts</Text>
-              </View>
-              <View style={styles.levelContainer}>
-                <Ionicons name="trophy" size={22} color="#4CAF50" />
-                <Text style={styles.levelText}>Level {userLevel}</Text>
+            <View style={styles.levelDetails}>
+              <Text style={styles.levelTitle}>Level {userLevel || 1}</Text>
+              <View style={styles.levelProgressContainer}>
+                <View style={styles.levelProgressBar}>
+                  <View 
+                    style={[
+                      styles.levelProgressFill, 
+                      { width: `${calculateLevelProgressPercentage()}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.pointsText}>
+                  {userPoints - getCurrentLevelStartingPoints()} / {getPointsForNextLevel() - getCurrentLevelStartingPoints()} points for next level
+                </Text>
               </View>
             </View>
           </View>
           
-          {/* Swipe Indicator - Moved outside the box */}
-          <View style={styles.swipeIndicatorContainer}>
-            <View style={[styles.swipeIndicatorDot, !showStartDate && styles.swipeIndicatorActive]} />
-            <View style={[styles.swipeIndicatorDot, showStartDate && styles.swipeIndicatorActive]} />
-          </View>
-        </View>
-        
-        {/* Recovery Section Title */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recovery</Text>
-        </View>
-        
-        {/* Brain Rewiring Progress Bar */}
-        <View style={styles.brainProgressContainer}>
-          <TouchableOpacity
-            style={styles.brainProgressCard}
-            activeOpacity={0.9}
-          >
-            <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiRow}>
-                <Text style={styles.headerEmoji}>🧠</Text>
-                <Text style={styles.brainProgressTitle}>Brain Healing</Text>
-              </View>
-              <Text style={styles.brainProgressPercent}>{calculateBrainProgress()}%</Text>
+          <View style={styles.pointsInfoContainer}>
+            <View style={styles.pointsInfoItem}>
+              <Ionicons name="trophy-outline" size={16} color="#4CAF50" />
+              <Text style={styles.pointsInfoText}>Get points from achievements</Text>
             </View>
-            
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: `${calculateBrainProgress()}%` }
-                  ]} 
-                />
-              </View>
+            <View style={styles.pointsInfoItem}>
+              <Ionicons name="calendar-outline" size={16} color="#4CAF50" />
+              <Text style={styles.pointsInfoText}>Daily login: +5 points</Text>
             </View>
-          </TouchableOpacity>
+            <View style={styles.pointsInfoItem}>
+              <Ionicons name="journal-outline" size={16} color="#4CAF50" />
+              <Text style={styles.pointsInfoText}>Journal entry: +15 points</Text>
+            </View>
           </View>
           
-        {/* Lung Recovery Progress Bar */}
-        <View style={styles.brainProgressContainer}>
-          <TouchableOpacity
-            style={styles.brainProgressCard}
-            activeOpacity={0.9}
+          <TouchableOpacity 
+            style={styles.viewPointsButton}
+            onPress={() => router.push('/(main)/recovery?initialTab=achievements')}
           >
-            <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiRow}>
-                <Text style={styles.headerEmoji}>🫁</Text>
-                <Text style={styles.brainProgressTitle}>Lung Recovery</Text>
-              </View>
-              <Text style={styles.brainProgressPercent}>{calculateLungProgress()}%</Text>
+            <Text style={styles.viewPointsText}>View All Achievements</Text>
+            <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Health Benefits Card */}
+        <View style={styles.benefitsCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Health Improvements</Text>
+            <View style={styles.refreshContainer}>
+              <Text style={styles.refreshText}>Real-time</Text>
             </View>
-            
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: `${calculateLungProgress()}%` }
-                  ]} 
-                />
           </View>
+          
+          <View style={styles.benefitItem}>
+            <View style={[styles.benefitIconContainer, {backgroundColor: 'rgba(255, 182, 193, 0.2)'}]}>
+              <Text style={styles.emojiIcon}>🧠</Text>
             </View>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Sleep Recovery Progress Bar */}
-        <View style={styles.brainProgressContainer}>
-          <TouchableOpacity
-            style={styles.brainProgressCard}
-            activeOpacity={0.9}
-          >
-            <View style={styles.brainProgressHeader}>
-              <View style={styles.headerWithEmojiRow}>
-                <Text style={styles.headerEmoji}>😴</Text>
-                <Text style={styles.brainProgressTitle}>Sleep Recovery</Text>
+            <View style={styles.benefitContent}>
+              <View style={styles.benefitTextRow}>
+                <Text style={styles.benefitTitle}>Brain Fog</Text>
+                <Text style={[styles.benefitPercent, calculateBrainFog() < 50 ? {color: '#4CAF50'} : {color: '#FF7B9C'}]}>
+                  {calculateBrainFog()}%
+                </Text>
               </View>
-              <Text style={styles.brainProgressPercent}>{calculateSleepProgress()}%</Text>
-            </View>
-            
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground}>
+              <View style={styles.progressBar}>
                 <View 
                   style={[
-                    styles.progressBarFill, 
-                    { width: `${calculateSleepProgress()}%` }
+                    styles.progressFill, 
+                    { 
+                      width: `${calculateBrainFog()}%`,
+                      backgroundColor: calculateBrainFog() < 50 ? '#4CAF50' : '#FF7B9C',
+                    }
                   ]} 
                 />
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
+          
+          <View style={styles.benefitItem}>
+            <View style={[styles.benefitIconContainer, {backgroundColor: 'rgba(244, 67, 54, 0.1)'}]}>
+              <Text style={styles.emojiIcon}>🫁</Text>
+            </View>
+            <View style={styles.benefitContent}>
+              <View style={styles.benefitTextRow}>
+                <Text style={styles.benefitTitle}>Lung Buildup</Text>
+                <Text style={[styles.benefitPercent, calculateLungBuildup() < 50 ? {color: '#4CAF50'} : {color: '#F44336'}]}>
+                  {calculateLungBuildup()}%
+                </Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${calculateLungBuildup()}%`,
+                      backgroundColor: calculateLungBuildup() < 50 ? '#4CAF50' : '#F44336',
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.benefitItem}>
+            <View style={[styles.benefitIconContainer, {backgroundColor: 'rgba(33, 150, 243, 0.1)'}]}>
+              <Text style={styles.emojiIcon}>😴</Text>
+            </View>
+            <View style={styles.benefitContent}>
+              <View style={styles.benefitTextRow}>
+                <Text style={styles.benefitTitle}>Sleep Impairment</Text>
+                <Text style={[styles.benefitPercent, calculateSleepImpairment() < 50 ? {color: '#4CAF50'} : {color: '#2196F3'}]}>
+                  {calculateSleepImpairment()}%
+                </Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${calculateSleepImpairment()}%`,
+                      backgroundColor: calculateSleepImpairment() < 50 ? '#4CAF50' : '#2196F3',
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          </View>
         </View>
         
-        {/* Quick Actions Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-        
-        {/* Action Buttons */}
-        <View style={styles.buttonGrid}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              activeOpacity={0.7}
-              onPress={() => handleButtonPress('meditate')}
+        {/* Achievement Carousel */}
+        <View style={styles.achievementsCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Recent Achievements</Text>
+            <TouchableOpacity 
+              style={styles.viewAllContainer}
+              onPress={() => router.push('/(main)/recovery?initialTab=achievements')}
             >
-              <View style={styles.buttonInnerContainer}>
-                <Text style={styles.buttonEmoji}>🧘</Text>
-                <Text style={styles.buttonText} numberOfLines={1}>Meditate</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              activeOpacity={0.7}
-              onPress={() => handleButtonPress('pledge')}
-            >
-              <View style={styles.buttonInnerContainer}>
-                <Text style={styles.buttonEmoji}>🙏</Text>
-                <Text style={styles.buttonText} numberOfLines={1}>Pledge</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
             </TouchableOpacity>
           </View>
           
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              activeOpacity={0.7}
-              onPress={() => handleButtonPress('journal')}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.achievementsList}
+            decelerationRate="fast"
+            snapToInterval={90} // Width of item + margin
+            snapToAlignment="start"
+          >
+            {ALL_ACHIEVEMENTS.map((achievement) => {
+              // Calculate if achievement is unlocked based on days
+              const daysPassed = timeElapsed ? Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) : 0;
+              const isUnlocked = userAchievements.includes(achievement.id) || 
+                                (achievement.days > 0 && daysPassed >= achievement.days);
+              
+              return (
+                <Animated.View 
+                  key={achievement.id} 
+                  style={[
+                    styles.achievementItem,
+                    { opacity: isUnlocked ? 1 : 0.7 }
+                  ]}
+                >
+                  <View style={[
+                    styles.achievementIcon, 
+                    {
+                      backgroundColor: isUnlocked ? achievement.color : '#E0E0E0',
+                      borderWidth: isUnlocked ? 0 : 1,
+                      borderColor: '#DDDDDD',
+                    }
+                  ]}>
+                    <Ionicons 
+                      name={achievement.icon} 
+                      size={22} 
+                      color={isUnlocked ? '#FFFFFF' : '#AAAAAA'} 
+                    />
+                    {isUnlocked && (
+                      <View style={styles.checkmarkBadge}>
+                        <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+                  <Text 
+                    style={[
+                      styles.achievementName,
+                      !isUnlocked && {color: '#999999'}
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {achievement.title}
+                  </Text>
+                  <Text style={[
+                    styles.achievementDay,
+                    !isUnlocked && {color: '#BBBBBB'}
+                  ]}>
+                    {achievement.days} {achievement.days === 1 ? 'day' : 'days'}
+                  </Text>
+                </Animated.View>
+              );
+            })}
+          </ScrollView>
+        </View>
+        
+        {/* Money Saved Card */}
+        <View style={styles.moneySavedCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Money Saved</Text>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => showBanner("You'll be able to set your spending habits soon!", "info")}
             >
-              <View style={styles.buttonInnerContainer}>
-                <Text style={styles.buttonEmoji}>📓</Text>
-                <Text style={styles.buttonText} numberOfLines={1}>Journal</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+              <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
+          </View>
+          
+          <View style={styles.moneySavedTotal}>
+            <Text style={styles.currencySymbol}>$</Text>
+            <Text style={styles.moneySavedValue}>{calculateMoneySaved()}</Text>
+          </View>
+          
+          <View style={styles.projectionRow}>
+            <View style={styles.projectionItem}>
+              <Text style={styles.projectionLabel}>1 Month</Text>
+              <Text style={styles.projectionValue}>${(averageDailySpend * 30).toFixed(0)}</Text>
+            </View>
             
-            <TouchableOpacity
-              style={styles.actionButton}
-              activeOpacity={0.7}
-              onPress={() => handleButtonPress('more')}
-            >
-              <View style={styles.buttonInnerContainer}>
-                <Text style={styles.buttonEmoji}>⚙️</Text>
-                <Text style={styles.buttonText} numberOfLines={1}>More</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
-            </TouchableOpacity>
+            <View style={styles.projectionItem}>
+              <Text style={styles.projectionLabel}>6 Months</Text>
+              <Text style={styles.projectionValue}>${(averageDailySpend * 180).toFixed(0)}</Text>
+            </View>
+            
+            <View style={styles.projectionItem}>
+              <Text style={styles.projectionLabel}>1 Year</Text>
+              <Text style={styles.projectionValue}>${(averageDailySpend * 365).toFixed(0)}</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
-
-      {/* Sticky Panic Button */}
-      <TouchableOpacity 
-        style={[styles.panicButton, { bottom: insets.bottom + 70 }]} 
-        activeOpacity={0.7}
-        onPress={handlePanicButtonPress}
+      
+      {/* Notifications/Panic Button */}
+      <View style={[styles.floatingButtonsContainer, { bottom: insets.bottom + 70 }]}>
+        <TouchableOpacity
+          style={styles.panicButton}
+          onPress={handlePanicButtonPress}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#F44336', '#D32F2F']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Text style={styles.panicButtonText}>I Need Help</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Time Adjust Modal */}
+      <Modal
+        visible={showTimeAdjustModal}
+        transparent={true}
+        animationType="fade"
       >
-        <View style={styles.panicButtonInner}>
-          <Ionicons name="alert-circle" size={18} color="#FF3B30" style={styles.panicIcon} />
-        <Text style={styles.panicButtonText}>PANIC BUTTON</Text>
-        </View>
-      </TouchableOpacity>
+        {/* ... existing time adjust modal code ... */}
+      </Modal>
+      
+      {/* Pledge Modal */}
+      <Modal
+        visible={showPledgeModal}
+        transparent={true}
+        animationType="fade"
+      >
+        {/* ... existing pledge modal code ... */}
+      </Modal>
+      
+      {/* Confetti Animation */}
+      {showConfetti && (
+        <ConfettiCannon
+          count={100}
+          origin={{x: width / 2, y: height}}
+          autoStart={true}
+          fadeOut={true}
+          onAnimationEnd={handleConfettiFinish}
+          key={confettiKey}
+        />
+      )}
+      
+      {/* Banner Notifications */}
+      <BannerNotification 
+        visible={bannerMessage !== ''} 
+        message={bannerMessage}
+        type={bannerType}
+        onClose={() => setBannerMessage('')}
+      />
     </View>
   );
 };
@@ -1884,7 +2027,7 @@ const MainScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#F8F8F8',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -1919,736 +2062,499 @@ const styles = StyleSheet.create({
     marginLeft: 3,
     letterSpacing: 1,
   },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: 0,
-    marginTop: 0,
-    width: '100%',
-    paddingHorizontal: 0,
-  },
-  timerContentBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 0,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
-    marginTop: 0,
-    borderWidth: 0,
-    marginHorizontal: 0,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  timerTitleBar: {
-    width: '100%',
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
-    alignItems: 'center',
-  },
-  timerTitle: {
-    fontSize: 16,
-    fontFamily: typography.fonts.semibold,
-    color: '#222222',
-    letterSpacing: 0.5,
-  },
-  timerTopSection: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 20,
-    marginTop: 0,
-  },
-  timerDivider: {
-    width: '85%',
-    height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  timerLabel: {
-    fontSize: 17,
-    color: '#333333',
-    fontFamily: typography.fonts.semibold,
-    marginTop: 14,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  circleWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    marginTop: 6,
-  },
-  circleContainer: {
-    width: CIRCLE_SIZE * 0.75,
-    height: CIRCLE_SIZE * 0.75,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: 'rgba(76, 175, 80, 0.15)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  svg: {
-    position: 'absolute',
-  },
-  mainTimeDisplayScroll: {
-    flexGrow: 0,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    width: '100%',
-    marginBottom: 20,
-    marginTop: 4,
-  },
-  mainTimeDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 0,
-    flexWrap: 'nowrap',
-    paddingHorizontal: 2,
-  },
-  mainTimeUnit: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  largeUnitsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'nowrap',
-    width: '100%',
-    paddingHorizontal: 2,
-    overflow: 'hidden',
-  },
-  largeUnitItem: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 3,
-    minWidth: 65,
-    maxWidth: 150,
-  },
-  largeUnitItemWide: {
-    minWidth: 85,
-  },
-  timeUnitInline: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'nowrap',
-  },
-  timeUnitValue: {
-    fontSize: 46,
-    color: '#222222',
-    fontFamily: typography.fonts.bold,
-    textAlign: 'center',
-    adjustsFontSizeToFit: true,
-    numberOfLines: 1,
-    includeFontPadding: false,
-    textShadowColor: 'rgba(76, 175, 80, 0.08)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-    letterSpacing: -0.5,
-    lineHeight: 50,
-    marginBottom: 2,
-  },
-  timeUnitLabelInline: {
-    fontSize: 18,
-    color: '#777777',
-    fontFamily: typography.fonts.medium,
-    marginLeft: 1,
-    marginBottom: 4,
-    flexShrink: 1,
-  },
-  secondsBoxContainer: {
-    marginBottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
-    width: '100%',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    overflow: 'hidden',
-  },
-  smallUnitsGradient: {
-    borderRadius: 0,
-    overflow: 'hidden',
-    borderWidth: 0,
-    width: '100%',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  smallUnitsDisplay: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  smallUnitsText: {
-    textAlign: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  smallUnitValue: {
-    fontSize: 19,
-    color: '#FFFFFF',
-    fontFamily: typography.fonts.bold,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-  },
-  smallUnitLabel: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: typography.fonts.medium,
-    opacity: 0.9,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 0,
-    marginRight: 8,
-  },
-  smallUnitSpacer: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginRight: 6,
-    marginLeft: 4,
-  },
-  refreshButton: {
-    width: STROKE_WIDTH * 3.6,
-    height: STROKE_WIDTH * 3.6,
-    borderRadius: STROKE_WIDTH * 1.8,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    position: 'absolute',
-  },
-  resetEmoji: {
-    fontSize: 28,
-    textAlign: 'center',
-    marginBottom: 0,
-    color: '#43A047',
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 2,
-  },
-  sectionHeader: {
-    marginBottom: 12,
-    marginTop: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: typography.fonts.semibold,
-    color: '#000000',
-    marginLeft: 5,
-    letterSpacing: 0.3,
-  },
-  buttonGrid: {
-    marginBottom: 20,
-    marginTop: 10,
-    width: '100%',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    width: '100%',
-  },
-  actionButton: {
-    width: '48.5%',
-    height: 68,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 16,
-    paddingRight: 16,
-    shadowColor: 'rgba(0, 0, 0, 0.04)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-  },
-  buttonInnerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '80%',
-  },
-  buttonEmoji: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  buttonText: {
-    fontSize: 16,
-    color: '#333333',
-    fontFamily: typography.fonts.semibold,
-    letterSpacing: 0,
-    maxWidth: '70%',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: '15%',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: '95%',
-    maxHeight: '85%',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.4)',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(76, 175, 80, 0.3)',
-  },
-  modalTitle: {
-    fontSize: 22,
-    color: '#FFFFFF',
-    fontFamily: typography.fonts.bold,
-    letterSpacing: 1,
-  },
-  modalCloseButton: {
+  iconButton: {
     padding: 8,
   },
-  modalScrollView: {
-    maxHeight: '75%',
-  },
-  modalScrollContent: {
-    padding: 20,
-    paddingBottom: 30,
-  },
-  pledgeSection: {
-    marginBottom: 30,
-  },
-  pledgeTitle: {
-    fontSize: 28,
-    color: '#333333',
+  userGreeting: {
+    fontSize: 24,
     fontFamily: typography.fonts.bold,
-    marginBottom: 24,
-    textAlign: 'center',
+    color: '#232323',
+    marginBottom: 20,
+    marginTop: 10,
   },
-  pledgePoint: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  timerCardContainer: {
     marginBottom: 20,
   },
-  pledgeIcon: {
-    marginRight: 16,
+  timerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  pledgeText: {
-    fontSize: 16,
-    color: '#666666',
-    fontFamily: typography.fonts.regular,
-    lineHeight: 22,
-  },
-  pledgeButtonContainer: {
+  timerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 20,
-    paddingHorizontal: 20,
+    marginBottom: 16,
   },
-  pledgeButton: {
-    borderRadius: 30,
-    height: 60,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    elevation: 6,
-  },
-  pledgeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
+  timerHeaderTitle: {
+    fontSize: 18,
     fontFamily: typography.fonts.bold,
-    letterSpacing: 2,
+    color: '#232323',
   },
-  modalHeaderGradient: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(76, 175, 80, 0.3)',
-    width: '100%',
-  },
-  panicButton: {
-    position: 'absolute',
-    left: 50,
-    right: 50,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(255, 59, 48, 0.06)',
-    borderWidth: 1.5,
-    borderColor: '#FF3B30',
-    shadowColor: 'rgba(0, 0, 0, 0.12)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 16,
-    elevation: 6,
-    overflow: 'hidden',
-  },
-  panicButtonInner: {
-    width: '100%',
-    height: '100%',
+  startDateButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  startDateText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    color: '#4CAF50',
+    marginRight: 4,
+  },
+  startDateContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  startDateLabel: {
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  timerCircleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  timerCircle: {
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: (width * 0.8) / 2,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(76, 175, 80, 0.3)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  timeDisplay: {
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  panicIcon: {
-    marginRight: 12,
-  },
-  panicButtonText: {
-    color: '#FF3B30',
-    fontSize: 17,
-    fontFamily: typography.fonts.bold,
-    letterSpacing: 1,
-  },
-  brainProgressContainer: {
+  largeUnitsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'baseline',
     marginBottom: 8,
-    width: '100%',
   },
-  brainProgressCard: {
+  smallUnitsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'baseline',
+  },
+  timeUnit: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginHorizontal: 4,
+  },
+  largeTimeValue: {
+    fontSize: 32,
+    fontFamily: typography.fonts.bold,
+    color: '#FFFFFF',
+  },
+  smallTimeValue: {
+    fontSize: 24,
+    fontFamily: typography.fonts.semibold,
+    color: '#FFFFFF',
+  },
+  timeUnitLabel: {
+    fontSize: 14,
+    fontFamily: typography.fonts.regular,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginLeft: 4,
+  },
+  unitSeparator: {
+    fontSize: 24,
+    fontFamily: typography.fonts.regular,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginHorizontal: 2,
+  },
+  resetButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  resetButtonText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 6,
+  },
+  actionButtonInner: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontFamily: typography.fonts.medium,
+    color: '#4CAF50',
+    marginTop: 6,
+  },
+  levelCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    paddingTop: 14,
-    shadowColor: 'rgba(0, 0, 0, 0.04)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-    width: '100%',
-    position: 'relative',
   },
-  brainProgressHeader: {
+  levelSection: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingTop: 0,
-    paddingRight: 4,
+    marginBottom: 16,
   },
-  brainProgressTitle: {
-    fontSize: 15,
-    fontFamily: typography.fonts.semibold,
-    color: '#444444',
+  levelBadgeContainer: {
+    marginRight: 16,
   },
-  brainProgressPercent: {
-    fontSize: 17,
-    fontFamily: typography.fonts.bold,
-    color: '#3AAF3C',
-  },
-  progressBarContainer: {
-    height: 10,
-    width: '100%',
-    marginBottom: 2,
-  },
-  progressBarBackground: {
-    height: '100%',
-    width: '100%',
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginHorizontal: 2,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-  },
-  timeAdjustModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  levelBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  timeAdjustModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxWidth: 350,
-    alignItems: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.12)',
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: 'rgba(76, 175, 80, 0.3)',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 5,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  timeAdjustModalTitle: {
+  levelNumber: {
+    fontSize: 28,
+    fontFamily: typography.fonts.bold,
+    color: '#FFFFFF',
+  },
+  levelDetails: {
+    flex: 1,
+  },
+  levelTitle: {
     fontSize: 18,
     fontFamily: typography.fonts.bold,
-    color: '#333',
-    marginBottom: 15,
-  },
-  timeUnitsScrollView: {
-    width: '100%',
-    maxHeight: 300,
-  },
-  timeUnitInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 12,
-  },
-  timeAdjustInput: {
-    width: '65%',
-    height: 45,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-    fontFamily: typography.fonts.medium,
-    backgroundColor: '#FAFAFA',
-  },
-  timeAdjustButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  modalTimeAdjustButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  timeAdjustCancelButton: {
-    backgroundColor: '#F5F5F5',
-  },
-  timeAdjustConfirmButton: {
-    backgroundColor: '#4CAF50',
-  },
-  timeAdjustButtonText: {
-    fontSize: 16,
-    fontFamily: typography.fonts.medium,
-  },
-  timeAdjustCancelText: {
-    color: '#666',
-  },
-  timeAdjustConfirmText: {
-    color: '#FFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 20,
-    fontFamily: typography.fonts.bold,
-    color: '#333',
+    color: '#232323',
     marginBottom: 8,
   },
-  errorSubtext: {
-    fontSize: 16,
-    fontFamily: typography.fonts.regular,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: typography.fonts.medium,
-  },
-  userGreeting: {
-    fontSize: 34,
-    fontFamily: typography.fonts.bold,
-    color: '#000000',
-    marginBottom: 24,
-    paddingHorizontal: 5,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.05)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  swipeableContainer: {
+  levelProgressContainer: {
     width: '100%',
-    height: 120,
-    position: 'relative',
+  },
+  levelProgressBar: {
+    height: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 4,
+    marginBottom: 6,
     overflow: 'hidden',
   },
-  swipeableView: {
-    position: 'absolute',
-    width: '100%',
+  levelProgressFill: {
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  startDateView: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  startDateText: {
-    fontSize: 19,
-    fontFamily: typography.fonts.medium,
-    color: '#444444',
-    textAlign: 'center',
-    lineHeight: 30,
-  },
-  swipeIndicatorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 8,
-    marginTop: 4,
-  },
-  swipeIndicatorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#DDDDDD',
-    marginHorizontal: 5,
-  },
-  swipeIndicatorActive: {
     backgroundColor: '#4CAF50',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  swipeGestureArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    zIndex: 1,
-  },
-  swipeLeftButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  swipeRightButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerWithEmojiRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 2,
-  },
-  headerEmoji: {
-    fontSize: 22,
-    marginRight: 8,
-  },
-  timeAdjustButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: -1,
-  },
-  pointsLevelContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginTop: 24,
-    shadowColor: 'rgba(0, 0, 0, 0.2)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pointsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-    paddingRight: 12,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  levelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 4,
   },
   pointsText: {
     fontSize: 14,
-    fontFamily: typography.fonts.semiBold,
-    color: '#000000',
-    marginLeft: 4,
+    fontFamily: typography.fonts.medium,
+    color: '#666666',
   },
-  levelText: {
+  pointsInfoContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  pointsInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pointsInfoText: {
     fontSize: 14,
-    fontFamily: typography.fonts.semiBold,
-    color: '#000000',
-    marginLeft: 4,
+    fontFamily: typography.fonts.regular,
+    color: '#555555',
+    marginLeft: 8,
+  },
+  viewPointsButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewPointsText: {
+    fontSize: 15,
+    fontFamily: typography.fonts.bold,
+    color: '#FFFFFF',
+    marginRight: 4,
+  },
+  benefitsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: typography.fonts.bold,
+    color: '#232323',
+  },
+  refreshContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  refreshText: {
+    fontSize: 12,
+    fontFamily: typography.fonts.medium,
+    color: '#4CAF50',
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  benefitIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  benefitContent: {
+    flex: 1,
+  },
+  benefitTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  benefitTitle: {
+    fontSize: 16,
+    fontFamily: typography.fonts.medium,
+    color: '#232323',
+  },
+  benefitPercent: {
+    fontSize: 15,
+    fontFamily: typography.fonts.bold,
+    color: '#4CAF50',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  achievementsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  viewAllContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.medium,
+    color: '#4CAF50',
+    marginRight: 2,
+  },
+  achievementsList: {
+    paddingVertical: 10,
+  },
+  achievementItem: {
+    alignItems: 'center',
+    marginRight: 20,
+    width: 70,
+  },
+  achievementIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    position: 'relative',
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  checkmarkBadge: {
+    position: 'absolute',
+    bottom: -3,
+    right: -3,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'white',
+  },
+  achievementName: {
+    fontSize: 13,
+    color: '#333333',
+    textAlign: 'center',
+    fontFamily: typography.fonts.medium,
+    marginBottom: 4,
+    width: '100%',
+  },
+  achievementDay: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+    fontFamily: typography.fonts.regular,
+  },
+  moneySavedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: 'rgba(0, 0, 0, 0.05)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  editButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  editButtonText: {
+    fontSize: 12,
+    fontFamily: typography.fonts.medium,
+    color: '#666666',
+  },
+  moneySavedTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+  },
+  currencySymbol: {
+    fontSize: 26,
+    fontFamily: typography.fonts.bold,
+    color: '#4CAF50',
+    marginRight: 4,
+  },
+  moneySavedValue: {
+    fontSize: 42,
+    fontFamily: typography.fonts.bold,
+    color: '#4CAF50',
+  },
+  projectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  projectionItem: {
+    alignItems: 'center',
+  },
+  projectionLabel: {
+    fontSize: 14,
+    fontFamily: typography.fonts.regular,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  projectionValue: {
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
+    color: '#232323',
+  },
+  floatingButtonsContainer: {
+    position: 'absolute',
+    bottom: 80,
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  panicButton: {
+    backgroundColor: '#F44336',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: 'rgba(244, 67, 54, 0.3)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  panicButtonText: {
+    fontSize: 16,
+    fontFamily: typography.fonts.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  
+  // ... additional styles for modals ...
+  
+  progressRingSvg: {
+    position: 'absolute',
+    transform: [{ rotate: '-90deg' }],
+    shadowColor: 'rgba(255, 255, 255, 0.5)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  emojiIcon: {
+    fontSize: 22,
   },
 });
 
