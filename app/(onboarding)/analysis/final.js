@@ -1,255 +1,190 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Animated, StatusBar, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, Dimensions, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useOnboarding } from '../context/OnboardingContext';
-import { useLeafAnimation } from '../../../src/context/LeafAnimationContext';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
-import { typography } from '../../styles/typography';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { useFonts, PlusJakartaSans_700Bold, PlusJakartaSans_400Regular } from "@expo-google-fonts/plus-jakarta-sans";
+import LoadingScreen from '../../../src/components/LoadingScreen';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
-const CircularProgress = ({ percentage }) => {
-  const size = 160;
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const progressOffset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <View style={[{ width: size, height: size, position: 'relative' }, styles.progressShadow]}>
-      <Svg width={size} height={size}>
-        <Defs>
-          <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#4CAF50" stopOpacity="1" />
-            <Stop offset="1" stopColor="#388E3C" stopOpacity="1" />
-          </SvgGradient>
-        </Defs>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="rgba(76, 175, 80, 0.2)"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="url(#grad)"
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={progressOffset}
-          strokeLinecap="round"
-          fill="none"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View style={styles.percentageContainer}>
-        <Text style={styles.percentageText}>{Math.round(percentage)}%</Text>
-      </View>
-    </View>
-  );
-};
-
-const BarChart = ({ userScore, averageScore }) => {
-  return (
-    <View style={styles.chartContainer}>
-      <View style={styles.barContainer}>
-        <View style={styles.barWrapper}>
-          <View style={[styles.bar, { height: 150 * (userScore / 100), backgroundColor: '#FF4B4B' }]} />
-        </View>
-        <Text style={styles.barLabel}>Your{'\n'}Score</Text>
-        <Text style={styles.barValue}>{userScore}%</Text>
-      </View>
-      <View style={styles.barContainer}>
-        <View style={styles.barWrapper}>
-          <View style={[styles.bar, { height: 150 * (averageScore / 100), backgroundColor: '#4CAF50' }]} />
-        </View>
-        <Text style={styles.barLabel}>Average</Text>
-        <Text style={styles.barValue}>{averageScore}%</Text>
-      </View>
-    </View>
-  );
-};
+const { width } = Dimensions.get('window');
 
 const FinalAnalysis = () => {
-  const insets = useSafeAreaInsets();
-  const { answers } = useOnboarding();
-  const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const lastHapticProgress = useRef(0);
-  
-  // Get the leaf animation context and turn off leaves
-  const { changeDensity } = useLeafAnimation();
-  
+  const { answers, saveAnswer } = useOnboarding();
+  const [analysis, setAnalysis] = useState(null);
+  const [dependencyScore, setDependencyScore] = useState(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [showConfetti, setShowConfetti] = useState(true);
+
+  const [fontsLoaded] = useFonts({
+    'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
+    'PlusJakartaSans-Regular': PlusJakartaSans_400Regular,
+  });
+
   useEffect(() => {
-    // Turn off leaf animations for this page
-    changeDensity('none');
+    calculateAnalysis();
+
+    // Start pulsing animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Hide confetti after 5 seconds
+    const timer = setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [answers]);
+
+  const calculateAnalysis = () => {
+    // Calculate dependency score (0-100)
+    const scores = {
+      frequency: answers.addiction_frequency?.score || 0,
+      duration: answers.addiction_duration?.score || 0,
+      increased: answers.addiction_increased?.score || 0,
+      money: answers.addiction_money?.score || 0,
+      anxiety: answers.addiction_anxiety?.score || 0,
+      boredom: answers.addiction_boredom?.score || 0,
+      stress: answers.addiction_stress?.score || 0,
+      memory: answers.addiction_memory?.score || 0,
+      other_substances: answers.addiction_other_substances?.score || 0,
+      quit: answers.addiction_quit?.score || 0
+    };
+
+    // Calculate normalized scores for each factor (0-100)
+    const normalizedScores = {
+      frequency: Math.round((scores.frequency / 4) * 100), // frequency max is 4
+      duration: Math.round((scores.duration / 4) * 100),   // duration max is 4
+      tolerance: Math.round((scores.increased / 1) * 100), // increased max is 1
+      emotional: Math.round(((scores.anxiety + scores.stress + scores.boredom) / 9) * 100)   // emotional max is 9 (3 each)
+    };
+
+    // Calculate total score from all answers
+    const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+    const maxPossibleScore = 23; // Update this if max score changes
+    const calculatedDependencyScore = Math.round((totalScore / maxPossibleScore) * 100);
     
-    if (loading) {
-      // Animate progress from 0 to 100 over 3 seconds
-      const duration = 3000;
-      const interval = 16; // ~60fps
-      const steps = duration / interval;
-      const increment = 100 / steps;
-      let currentProgress = 0;
+    // Ensure dependency score is not 0 if there are any non-zero scores
+    const finalDependencyScore = totalScore > 0 ? Math.max(calculatedDependencyScore, 1) : 0;
+    setDependencyScore(finalDependencyScore);
 
-      const timer = setInterval(() => {
-        currentProgress += increment;
-        
-        // Create a drumroll effect with haptic feedback
-        const currentTwo = Math.floor(currentProgress / 2);
-        const lastTwo = Math.floor(lastHapticProgress.current / 2);
-        
-        if (currentTwo > lastTwo) {
-          // Increase intensity in the last 20%
-          if (currentProgress > 80) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          } else if (currentProgress > 60) {
-            // Alternate between light and medium for middle section
-            Haptics.impactAsync(currentTwo % 2 === 0 ? 
-              Haptics.ImpactFeedbackStyle.Light : 
-              Haptics.ImpactFeedbackStyle.Medium);
-          } else {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-        }
-        lastHapticProgress.current = currentProgress;
+    // Calculate annual cost and savings
+    const weedCost = answers.weed_cost?.annual_cost || 0;
+    const monthlySavings = Math.round(weedCost / 12);
+    const weeklySavings = Math.round(weedCost / 52);
+    const dailySavings = Math.round(weedCost / 365);
 
-        if (currentProgress >= 100) {
-          clearInterval(timer);
-          setLoading(false);
-          // Final strong haptic feedback
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          // Fade in the analysis content
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }).start();
-        }
-        setProgress(Math.min(currentProgress, 100));
-      }, interval);
+    // Ensure normalized scores are not 0 if there are any answers
+    const finalNormalizedScores = {
+      frequency: scores.frequency > 0 ? Math.max(normalizedScores.frequency, 1) : 0,
+      duration: scores.duration > 0 ? Math.max(normalizedScores.duration, 1) : 0,
+      tolerance: scores.increased > 0 ? Math.max(normalizedScores.tolerance, 1) : 0,
+      emotional: (scores.anxiety + scores.stress + scores.boredom) > 0 ? 
+        Math.max(normalizedScores.emotional, 1) : 0
+    };
 
-      return () => clearInterval(timer);
-    }
-  }, [loading]);
-
-  const handleContinue = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      // Save assessment data for personalization
-      const { saveUserAssessment } = require('../../../src/utils/assessmentTracker');
-      await saveUserAssessment(answers);
-      
-      router.push('/(onboarding)/education');
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  // Calculate user's addiction score based on their answers
-  const calculateAddictionScore = () => {
-    // Get all addiction-related answers
-    const addictionKeys = [
-      'addiction_frequency',
-      'addiction_duration',
-      'addiction_increased',
-      'addiction_anxiety',
-      'addiction_memory',
-      'addiction_other_substances',
-      'addiction_gender', // This has a score of 0 for all options
-      'addiction_stress',
-      'addiction_boredom',
-      'addiction_money'
-    ];
-    
-    // Maximum possible score calculation
-    // frequency (4) + duration (4) + increased (1) + anxiety (3) + memory (3) + 
-    // other_substances (1) + gender (0) + stress (3) + boredom (3) + money (1) = 23
-    const maxPossibleScore = 23;
-    
-    // Sum up the scores from all answers
-    let totalScore = 0;
-    let answeredQuestions = 0;
-    
-    addictionKeys.forEach(key => {
-      if (answers[key] && typeof answers[key].score === 'number') {
-        totalScore += answers[key].score;
-        answeredQuestions++;
-      }
+    setAnalysis({
+      annualCost: weedCost,
+      monthlySavings,
+      weeklySavings,
+      dailySavings,
+      dependencyLevel: getDependencyLevel(finalDependencyScore),
+      normalizedScores: finalNormalizedScores
     });
-    
-    // If user hasn't answered any questions, return a default score
-    if (answeredQuestions === 0) {
-      return 50; // Default score if no questions answered
-    }
-    
-    // Calculate percentage of maximum possible score
-    return Math.round((totalScore / maxPossibleScore) * 100);
   };
 
-  // Calculate the user's score
-  const userScore = calculateAddictionScore();
-  
-  // Average score for comparison (this would typically come from real data)
-  const averageScore = 35;
-  
-  // Calculate the difference for display
-  const difference = userScore - averageScore;
-
-  // Get a dynamic result message based on the user's score
-  const getResultMessage = (score) => {
-    if (score >= 80) {
-      return "Your responses indicate a severe dependence on cannabis*";
-    } else if (score >= 60) {
-      return "Your responses indicate a significant dependence on cannabis*";
-    } else if (score >= 40) {
-      return "Your responses indicate a moderate dependence on cannabis*";
-    } else if (score >= 20) {
-      return "Your responses indicate a mild dependence on cannabis*";
-    } else {
-      return "Your responses indicate a minimal dependence on cannabis*";
-    }
+  const getDependencyLevel = (score) => {
+    if (score < 30) return 'Low';
+    if (score < 60) return 'Moderate';
+    if (score < 80) return 'High';
+    return 'Very High';
   };
 
-  // Get a dynamic comparison text based on the difference
-  const getComparisonText = (diff) => {
-    if (diff <= 0) {
-      return `${Math.abs(diff)}% lower dependence than average`;
-    } else {
-      return `${diff}% higher dependence than average`;
+  const getScoreColor = (score) => {
+    // Define color stops
+    const colors = {
+      0: '#4CAF50',   // Green
+      30: '#8BC34A',  // Light Green
+      50: '#FFC107',  // Amber
+      70: '#FF9800',  // Orange
+      85: '#FF5722',  // Deep Orange
+      100: '#D32F2F', // Red
+    };
+
+    // Find the two closest color stops
+    const stops = Object.keys(colors).map(Number).sort((a, b) => a - b);
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (score >= stops[i] && score <= stops[i + 1]) {
+        lower = stops[i];
+        upper = stops[i + 1];
+        break;
+      }
     }
+
+    // If score is at or beyond the limits, return the extreme colors
+    if (score <= lower) return colors[lower];
+    if (score >= upper) return colors[upper];
+
+    // Calculate the percentage between the two stops
+    const range = upper - lower;
+    const progress = (score - lower) / range;
+
+    // Convert hex to RGB for interpolation
+    const lowerRGB = {
+      r: parseInt(colors[lower].slice(1, 3), 16),
+      g: parseInt(colors[lower].slice(3, 5), 16),
+      b: parseInt(colors[lower].slice(5, 7), 16),
+    };
+    const upperRGB = {
+      r: parseInt(colors[upper].slice(1, 3), 16),
+      g: parseInt(colors[upper].slice(3, 5), 16),
+      b: parseInt(colors[upper].slice(5, 7), 16),
+    };
+
+    // Interpolate between colors
+    const resultRGB = {
+      r: Math.round(lowerRGB.r + (upperRGB.r - lowerRGB.r) * progress),
+      g: Math.round(lowerRGB.g + (upperRGB.g - lowerRGB.g) * progress),
+      b: Math.round(lowerRGB.b + (upperRGB.b - lowerRGB.b) * progress),
+    };
+
+    // Convert back to hex
+    const resultHex = '#' + 
+      resultRGB.r.toString(16).padStart(2, '0') +
+      resultRGB.g.toString(16).padStart(2, '0') +
+      resultRGB.b.toString(16).padStart(2, '0');
+
+    return resultHex;
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-        
-        {/* Green gradient background */}
-        <View style={StyleSheet.absoluteFill}>
-          <LinearGradient
-            colors={['#FFFFFF', '#E8F5E9', '#C8E6C9']}
-            style={{flex: 1}}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 0.6 }}
-          />
-        </View>
-        
-        <View style={styles.loadingContainer}>
-          <CircularProgress percentage={progress} />
-          <Text style={styles.calculatingText}>Calculating</Text>
-          <Text style={styles.understandingText}>Understanding responses...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handleNext = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(onboarding)/rating');
+  };
+
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
+  if (!fontsLoaded || !analysis) return <LoadingScreen />;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,64 +200,128 @@ const FinalAnalysis = () => {
         />
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent, 
-          { paddingBottom: insets.bottom + 80 }
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      {/* Back Button */}
+      <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+        <Ionicons name="chevron-back" size={28} color="#4CAF50" />
+      </TouchableOpacity>
+
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
+          {/* Title Section */}
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Analysis Complete</Text>
-            <Ionicons name="sparkles" size={28} color="#4CAF50" style={styles.twinkle} />
+            <Ionicons name="sparkles" size={28} color="#FFD700" style={styles.sparkleIcon} />
           </View>
-
-          <Text style={styles.subtitle}>We've got some news to break to you...</Text>
-
-          <View style={styles.resultCard}>
-            <Text style={styles.resultText}>
-              {getResultMessage(userScore)}
-            </Text>
-          </View>
-
-          <View style={styles.chartCard}>
-            <BarChart userScore={userScore} averageScore={averageScore} />
-
-            <Text style={[
-              styles.comparisonText, 
-              { color: difference <= 0 ? '#4CAF50' : '#FF4B4B' }
+          <Text style={styles.subtitle}>Here's what we're working with...</Text>
+          
+          {/* Money Section with Lead-in */}
+          <Text style={styles.sectionLead}>Let's talk about your wallet</Text>
+          <Text style={styles.analysisText}>You're spending a significant amount on cannabis:</Text>
+          
+          <View style={styles.section}>
+            {showConfetti && (
+              <ConfettiCannon
+                count={200}
+                origin={{x: -10, y: 0}}
+                autoStart={true}
+                fadeOut={true}
+              />
+            )}
+            <Animated.View style={[
+              styles.savingsCard,
+              {
+                transform: [{ scale: pulseAnim }]
+              }
             ]}>
-              {getComparisonText(difference)}
-            </Text>
+              <View style={styles.walletIconContainer}>
+                <Ionicons name="wallet-outline" size={24} color="#666" />
+              </View>
+              <Text style={[styles.savingsAmount, { color: '#FF5252' }]}>${analysis.annualCost.toLocaleString()}</Text>
+              <Text style={styles.savingsLabel}>Spent on Cannabis Yearly</Text>
+              <View style={styles.savingsBreakdown}>
+                <View style={styles.breakdownItem}>
+                  <Text style={styles.breakdownAmount}>${analysis.monthlySavings.toLocaleString()}</Text>
+                  <Text style={styles.breakdownLabel}>Monthly Cost</Text>
+                </View>
+                <View style={styles.verticalSeparator} />
+                <View style={styles.breakdownItem}>
+                  <Text style={styles.breakdownAmount}>${analysis.weeklySavings.toLocaleString()}</Text>
+                  <Text style={styles.breakdownLabel}>Weekly Cost</Text>
+                </View>
+                <View style={styles.verticalSeparator} />
+                <View style={styles.breakdownItem}>
+                  <Text style={styles.breakdownAmount}>${analysis.dailySavings.toLocaleString()}</Text>
+                  <Text style={styles.breakdownLabel}>Daily Cost</Text>
+                </View>
+              </View>
+            </Animated.View>
           </View>
 
-          <Text style={styles.disclaimer}>
-            * This result is an indication only, not a medical diagnosis. For a definitive assessment, please contact your healthcare provider.
-          </Text>
-        </Animated.View>
+          {/* Dependency Analysis Section with Lead-in */}
+          <Text style={styles.sectionLead}>Your usage patterns</Text>
+          <Text style={styles.analysisText}>Here's how your cannabis use compares to what we typically see:</Text>
+          
+          <View style={styles.section}>
+            <View style={styles.dependencyCard}>
+              <View style={styles.dependencyHeader}>
+                <Text style={styles.dependencyLevel}>{analysis.dependencyLevel}</Text>
+                <Text style={[styles.dependencyScore, { color: getScoreColor(dependencyScore) }]}>{dependencyScore}%</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View style={[
+                  styles.progressFill, 
+                  { 
+                    width: `${dependencyScore}%`,
+                    backgroundColor: getScoreColor(dependencyScore)
+                  }
+                ]} />
+              </View>
+              <View style={styles.dependencyFactors}>
+                <View style={styles.factorItem}>
+                  <Text style={styles.factorLabel}>Frequency of Use</Text>
+                  <View style={styles.factorBar}>
+                    <View style={[styles.factorFill, { width: `${analysis.normalizedScores.frequency}%` }]} />
+                  </View>
+                </View>
+                <View style={styles.factorItem}>
+                  <Text style={styles.factorLabel}>Duration of Sessions</Text>
+                  <View style={styles.factorBar}>
+                    <View style={[styles.factorFill, { width: `${analysis.normalizedScores.duration}%` }]} />
+                  </View>
+                </View>
+                <View style={styles.factorItem}>
+                  <Text style={styles.factorLabel}>Tolerance Level</Text>
+                  <View style={styles.factorBar}>
+                    <View style={[styles.factorFill, { width: `${analysis.normalizedScores.tolerance}%` }]} />
+                  </View>
+                </View>
+                <View style={styles.factorItem}>
+                  <Text style={styles.factorLabel}>Emotional Impact</Text>
+                  <View style={styles.factorBar}>
+                    <View style={[styles.factorFill, { width: `${analysis.normalizedScores.emotional}%` }]} />
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Disclaimer Section */}
+          <View style={styles.section}>
+            <View style={styles.disclaimerCard}>
+              <Ionicons name="information-circle-outline" size={24} color="#4CAF50" />
+              <Text style={styles.disclaimerText}>
+                This analysis is based on your responses and helps us personalize your journey. While informative, it's not a medical diagnosis.
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
-      
-      {/* Fixed continue button at bottom */}
-      <View style={[styles.buttonContainer, { paddingBottom: insets.bottom || 20 }]}>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.continueButton,
-            pressed && styles.continueButtonPressed
-          ]}
-          onPress={handleContinue}
-        >
-          <LinearGradient
-            colors={['#4CAF50', '#388E3C']}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            borderRadius={16}
-          />
-          <Text style={styles.buttonText}>Learn about cannabis</Text>
-          <Ionicons name="arrow-forward" size={20} color="white" />
-        </Pressable>
+
+      {/* Next Button */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextButtonText}>Let's Make a Change</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -335,207 +334,221 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calculatingText: {
-    fontSize: 32,
-    color: '#333333',
-    fontFamily: typography.fonts.bold,
-    marginTop: 32,
-    textShadowColor: 'rgba(76, 175, 80, 0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  understandingText: {
-    fontSize: 20,
-    color: '#666666',
-    marginTop: 12,
-    fontFamily: typography.fonts.medium,
-    textShadowColor: 'rgba(76, 175, 80, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  progressShadow: {
-    shadowColor: 'rgba(76, 175, 80, 0.4)',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  percentageContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  percentageText: {
-    fontSize: 42,
-    color: '#333333',
-    fontFamily: typography.fonts.bold,
-    textShadowColor: 'rgba(76, 175, 80, 0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
   content: {
+    padding: 24,
+    paddingTop: 80,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    zIndex: 1,
+    padding: 8,
+  },
+  section: {
+    marginBottom: 40,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    color: '#333',
+    marginBottom: 16,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  savingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  savingsAmount: {
+    fontSize: 42,
+    fontFamily: 'PlusJakartaSans-Bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  savingsLabel: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'PlusJakartaSans-Regular',
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  savingsBreakdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 24,
+  },
+  breakdownItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  breakdownAmount: {
+    fontSize: 22,
+    color: '#333',
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 4,
+  },
+  breakdownLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  dependencyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  dependencyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dependencyLevel: {
+    fontSize: 28,
+    color: '#333',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  dependencyScore: {
+    fontSize: 28,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  progressBar: {
+    height: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 6,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  dependencyFactors: {
+    gap: 16,
+  },
+  factorItem: {
+    gap: 8,
+  },
+  factorLabel: {
+    fontSize: 15,
+    color: '#666',
+    fontFamily: 'PlusJakartaSans-Regular',
+    marginBottom: 6,
+  },
+  factorBar: {
+    height: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  factorFill: {
+    height: '100%',
+    backgroundColor: '#D32F2F',
+    borderRadius: 4,
+  },
+  disclaimerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#4CAF50',
+    fontFamily: 'PlusJakartaSans-Regular',
+    lineHeight: 20,
+  },
+  buttonContainer: {
+    padding: 24,
+  },
+  nextButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: 'PlusJakartaSans-Bold',
+    letterSpacing: 0.5,
   },
   titleContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
     position: 'relative',
+    width: '100%',
   },
   title: {
-    fontSize: 36,
-    color: '#333333',
-    fontFamily: typography.fonts.bold,
-    letterSpacing: 0.5,
+    fontSize: 32,
+    color: '#232323',
+    fontFamily: 'PlusJakartaSans-Bold',
+    letterSpacing: 0.25,
+    marginBottom: 8,
   },
-  twinkle: {
+  sparkleIcon: {
     position: 'absolute',
-    right: -36,
-    top: -4,
+    right: -12,
+    top: 2,
     opacity: 0.9,
   },
   subtitle: {
-    fontSize: 20,
-    color: '#666666',
-    marginBottom: 30,
-    fontFamily: typography.fonts.medium,
-    textAlign: 'center',
-  },
-  resultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 28,
-    width: '100%',
-    marginBottom: 24,
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.08)',
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: 28,
-    color: '#333333',
-    textAlign: 'center',
-    fontFamily: typography.fonts.bold,
-    lineHeight: 38,
-  },
-  chartCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 28,
-    paddingVertical: 36,
-    width: '100%',
-    marginBottom: 24,
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.08)',
-    alignItems: 'center',
-  },
-  chartContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    width: '100%',
-    gap: 80,
-    marginBottom: 30,
-  },
-  barContainer: {
-    alignItems: 'center',
-    width: 70,
-  },
-  barWrapper: {
-    height: 150,
-    justifyContent: 'flex-end',
-    marginBottom: 16,
-  },
-  bar: {
-    width: '100%',
-    borderRadius: 12,
-  },
-  barLabel: {
-    color: '#666666',
-    fontSize: 16,
-    marginBottom: 6,
-    fontFamily: typography.fonts.medium,
-    textAlign: 'center',
-  },
-  barValue: {
-    color: '#333333',
-    fontSize: 24,
-    fontFamily: typography.fonts.bold,
-  },
-  comparisonText: {
-    fontSize: 24,
-    fontFamily: typography.fonts.bold,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  disclaimer: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    fontFamily: typography.fonts.regular,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: 'transparent',
-  },
-  continueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    gap: 12,
-    overflow: 'hidden',
-    shadowColor: 'rgba(76, 175, 80, 0.4)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 5,
-    width: '100%',
-    justifyContent: 'center',
-    height: 56,
-  },
-  continueButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  buttonText: {
     fontSize: 18,
-    color: 'white',
-    fontFamily: typography.fonts.bold,
+    color: '#666666',
+    marginBottom: 48,
+    fontFamily: 'PlusJakartaSans-Regular',
+    lineHeight: 24,
+  },
+  sectionLead: {
+    fontSize: 24,
+    color: '#232323',
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 8,
+    letterSpacing: 0.25,
+  },
+  analysisText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'PlusJakartaSans-Regular',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  walletIconContainer: {
+    position: 'absolute',
+    top: 24,
+    right: 24,
+    opacity: 0.7,
+  },
+  verticalSeparator: {
+    width: 1,
+    height: '100%',
+    backgroundColor: '#E0E0E0',
   },
 });
 

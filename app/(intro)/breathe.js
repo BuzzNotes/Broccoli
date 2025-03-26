@@ -13,6 +13,7 @@ const BreatheScreen = () => {
   const fadeOutText = useRef(new Animated.Value(0)).current;
   const fadeIcon = useRef(new Animated.Value(1)).current;
   const [navigating, setNavigating] = useState(false);
+  const animationRef = useRef(null);
   
   const { changeDensity } = useLeafAnimation();
   
@@ -28,7 +29,7 @@ const BreatheScreen = () => {
       }),
       Animated.timing(fadeInText, {
         toValue: 1,
-        duration: 500,
+        duration: 1000,
         useNativeDriver: true,
       })
     ]);
@@ -41,12 +42,12 @@ const BreatheScreen = () => {
       }),
       Animated.timing(fadeInText, {
         toValue: 0,
-        duration: 500,
+        duration: 1000,
         useNativeDriver: true,
       }),
       Animated.timing(fadeOutText, {
         toValue: 1,
-        duration: 500,
+        duration: 1000,
         useNativeDriver: true,
       })
     ]);
@@ -54,35 +55,37 @@ const BreatheScreen = () => {
     const fadeAway = Animated.parallel([
       Animated.timing(fadeOutText, {
         toValue: 0,
-        duration: 500,
+        duration: 1000,
         useNativeDriver: true,
       }),
       Animated.timing(fadeIcon, {
         toValue: 0,
-        duration: 500,
+        duration: 1000,
         useNativeDriver: true,
       })
     ]);
 
     // Chain the animations
-    const sequence = Animated.sequence([
+    animationRef.current = Animated.sequence([
       breatheIn,
-      Animated.delay(1000),
+      Animated.delay(1500),
       breatheOut,
-      Animated.delay(1000),
+      Animated.delay(1500),
       fadeAway,
       Animated.delay(500)
     ]);
 
-    sequence.start(() => {
+    animationRef.current.start(() => {
       if (!navigating) {
         setNavigating(true);
-        router.push('/(intro)/welcome');
+        router.replace('/(intro)/welcome');
       }
     });
     
     return () => {
-      sequence.stop();
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
       scaleAnim.setValue(1);
       fadeInText.setValue(0);
       fadeOutText.setValue(0);

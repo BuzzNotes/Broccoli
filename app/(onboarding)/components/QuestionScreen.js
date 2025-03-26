@@ -131,9 +131,8 @@ const QuestionScreen = ({
       }
     });
     
-    // Animate the selected option
+    // Animate the selected option and question fade out
     Animated.sequence([
-      Animated.delay(200),
       Animated.parallel([
         Animated.timing(scaleAnims[index], {
           toValue: 1.05,
@@ -152,6 +151,7 @@ const QuestionScreen = ({
         duration: 200,
         useNativeDriver: true,
       }),
+      Animated.delay(100), // Add a small delay before navigation
     ]).start(() => {
       try {
         // Navigate to next screen with params if provided

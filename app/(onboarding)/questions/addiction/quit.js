@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import QuestionScreen from '../../components/QuestionScreen';
 import { useOnboarding } from '../../context/OnboardingContext';
 
-const OtherSubstancesQuestion = () => {
+const QuitQuestion = () => {
   const { saveAnswer, clearAnswer } = useOnboarding();
 
   useEffect(() => {
-    clearAnswer('addiction_other_substances');
+    clearAnswer('addiction_quit');
   }, []);
 
   const handleAnswer = (option) => {
@@ -20,7 +20,7 @@ const OtherSubstancesQuestion = () => {
     }
     
     // Save both the answer and the score
-    saveAnswer('addiction_other_substances', {
+    saveAnswer('addiction_quit', {
       answer: option.text,
       score: score
     });
@@ -28,18 +28,18 @@ const OtherSubstancesQuestion = () => {
 
   return (
     <QuestionScreen
-      question="Do you use other substances (alcohol, tobacco, etc.) along with cannabis?"
+      question="Have you ever tried to quit before?"
       options={[
         { text: "Yes" },
         { text: "No" }
       ]}
       onSelect={handleAnswer}
-      currentStep={9}
+      currentStep={10}
       totalSteps={10}
-      nextScreen="/(onboarding)/questions/addiction/quit"
-      questionId="addiction_other_substances"
+      nextScreen="/(onboarding)/questions/addiction/money_savings_info"
+      questionId="addiction_quit"
     />
   );
 };
 
-export default OtherSubstancesQuestion; 
+export default QuitQuestion; 

@@ -23,6 +23,8 @@ export default function OnboardingLayout() {
         <Stack.Screen name="questions/addiction/memory" options={{ animation: 'none' }} />
         <Stack.Screen name="questions/addiction/fail" options={{ animation: 'none' }} />
         <Stack.Screen name="questions/addiction/quit" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/money_savings_info" options={{ animation: 'none' }} />
+        <Stack.Screen name="questions/addiction/weed_cost" options={{ animation: 'none' }} />
         <Stack.Screen name="questions/personal/index" options={{ animation: 'none' }} />
         <Stack.Screen name="questions/personal/sleep" options={{ animation: 'none' }} />
         <Stack.Screen name="questions/personal/anxiety" options={{ animation: 'none' }} />

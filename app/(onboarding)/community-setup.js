@@ -122,13 +122,20 @@ export default function CommunitySetupScreen() {
       
       // Convert image to blob
       fetch(uri)
-        .then(response => response.blob())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status}`);
+          }
+          return response.blob();
+        })
         .then(blob => {
+          // Create upload task
           const uploadTask = uploadBytesResumable(storageRef, blob);
           
           // Set timeout to cancel upload if it takes too long
           const timeout = setTimeout(() => {
-            reject(new Error('Upload timed out'));
+            uploadTask.cancel();
+            reject(new Error('Upload timed out after 60 seconds'));
           }, 60000); // 1 minute timeout
           
           // Listen for state changes, errors, and completion
@@ -143,7 +150,17 @@ export default function CommunitySetupScreen() {
               // Handle errors
               clearTimeout(timeout);
               console.error('Error uploading image:', error);
-              reject(error);
+              let errorMessage = 'Failed to upload image. ';
+              if (error.code === 'storage/unauthorized') {
+                errorMessage += 'You are not authorized to upload images.';
+              } else if (error.code === 'storage/canceled') {
+                errorMessage += 'Upload was canceled.';
+              } else if (error.code === 'storage/unknown') {
+                errorMessage += 'An unknown error occurred. Please try again.';
+              } else {
+                errorMessage += error.message;
+              }
+              reject(new Error(errorMessage));
             },
             async () => {
               // Upload completed successfully, get download URL
@@ -152,14 +169,15 @@ export default function CommunitySetupScreen() {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                 resolve(downloadURL);
               } catch (error) {
-                reject(error);
+                console.error('Error getting download URL:', error);
+                reject(new Error('Failed to get download URL for uploaded image'));
               }
             }
           );
         })
         .catch(error => {
           console.error('Error preparing image for upload:', error);
-          reject(error);
+          reject(new Error(`Failed to prepare image for upload: ${error.message}`));
         });
     });
   };

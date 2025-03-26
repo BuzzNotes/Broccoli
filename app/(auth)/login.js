@@ -11,6 +11,9 @@ import { StatusBar } from 'expo-status-bar';
 import { TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { typography } from '../styles/typography';
+import { auth, db } from '../../src/config/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 // Use require for static assets
 const appleIcon = require('../../assets/icons/apple.png');
@@ -103,9 +106,36 @@ const LoginScreen = () => {
     return null;
   }
 
-  const handleSkip = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(onboarding)/good-news');
+  const handleSkip = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Try anonymous sign in, but don't block progression if it fails
+      try {
+        const { user } = await signInAnonymously(auth);
+        
+        // Create/update user profile in Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          email: '',
+          displayName: 'Anonymous User',
+          lastLogin: new Date().toISOString(),
+          onboarding_state: 'pending',
+          questions_completed: false,
+          payment_completed: false,
+          onboarding_completed: false,
+          is_anonymous: true
+        }, { merge: true });
+      } catch (authError) {
+        console.warn('Anonymous auth failed, proceeding anyway:', authError);
+      }
+
+      // Always navigate to good news page, even if auth fails
+      router.push('/(onboarding)/good-news');
+    } catch (error) {
+      console.error('Error in skip handler:', error);
+      // Still navigate even if there's an error
+      router.push('/(onboarding)/good-news');
+    }
   };
 
   const handleGoToMain = () => {
@@ -168,7 +198,7 @@ const LoginScreen = () => {
   const handleEmailSignIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setError(null);
-    router.push('/(auth)/email-login');
+    router.push('/(auth)/signup');
   };
 
   // Determine if any authentication method is in progress
