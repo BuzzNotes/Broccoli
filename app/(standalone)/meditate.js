@@ -4,6 +4,11 @@ import { router } from 'expo-router';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
+import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../../src/config/firebase';
+import { awardMeditationPoints } from '../../src/utils/achievementUtils';
+import { doc, getDoc } from 'firebase/firestore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -137,6 +142,9 @@ const MeditateScreen = () => {
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [showCongrats, setShowCongrats] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [meditationPoints, setMeditationPoints] = useState(null);
+  const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const quoteAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -236,8 +244,42 @@ const MeditateScreen = () => {
     }
   };
 
-  const handleEndMeditation = () => {
+  // Function to show notification
+  const showNotification = (message, type = 'info') => {
+    setNotification({
+      visible: true,
+      message,
+      type
+    });
+    
+    // Auto-hide notification after 3 seconds
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+
+  const handleEndMeditation = async () => {
     setIsTimerRunning(false);
+    
+    // Only award points if meditation is longer than 1 minute and user is logged in
+    if (timer >= 60 && auth.currentUser) {
+      try {
+        const userId = auth.currentUser.uid;
+        const pointsResult = await awardMeditationPoints(userId, timer);
+        
+        setMeditationPoints(pointsResult);
+        
+        // Show notification if points were awarded
+        if (pointsResult && !pointsResult.alreadyAwarded && !pointsResult.insufficientDuration) {
+          showNotification('🌟 You earned 5 points for your meditation session!', 'success');
+        } else if (pointsResult && pointsResult.alreadyAwarded) {
+          showNotification('You\'ve already earned points today. Come back tomorrow!', 'info');
+        }
+      } catch (error) {
+        console.error('Error awarding meditation points:', error);
+      }
+    }
+    
     setShowCongrats(true);
   };
 
@@ -245,8 +287,33 @@ const MeditateScreen = () => {
     router.back();
   };
 
+  const showGuidedComingSoon = () => {
+    // Show notification for coming soon
+    showNotification('Guided meditations will be available in a future update.', 'info');
+    
+    // Flash the coming soon banner
+    setShowComingSoon(true);
+    setTimeout(() => setShowComingSoon(false), 3000);
+  };
+
   const renderSelfGuided = () => {
     if (showCongrats) {
+      let pointsMessage = '';
+      
+      if (meditationPoints) {
+        if (meditationPoints.insufficientDuration) {
+          pointsMessage = 'Meditate for at least 1 minute to earn points.';
+        } else if (meditationPoints.alreadyAwarded) {
+          pointsMessage = 'You\'ve already earned meditation points today. Come back tomorrow!';
+        } else {
+          pointsMessage = 'You earned 5 points for your meditation session!';
+        }
+      } else if (timer < 60) {
+        pointsMessage = 'Meditate for at least 1 minute to earn points.';
+      } else if (!auth.currentUser) {
+        pointsMessage = 'Sign in to earn points for your meditation sessions!';
+      }
+      
       return (
         <View style={styles.congratsContainer}>
           <Ionicons 
@@ -260,6 +327,7 @@ const MeditateScreen = () => {
             You've taken another step towards better mental clarity and self-improvement.
             {'\n\n'}
             Time spent: {formatTime(timer)}
+            {pointsMessage ? '\n\n' + pointsMessage : ''}
           </Text>
           <Pressable 
             style={styles.returnButton}
@@ -342,6 +410,24 @@ const MeditateScreen = () => {
       {/* Floating Clouds Layer */}
       <CloudBackground />
 
+      {/* Coming Soon Modal */}
+      {showComingSoon && (
+        <View style={styles.comingSoonBanner}>
+          <Text style={styles.comingSoonText}>Coming Soon!</Text>
+          <Text style={styles.comingSoonSubtext}>Guided meditations will be available in a future update.</Text>
+        </View>
+      )}
+
+      {/* Notification Banner */}
+      {notification.visible && (
+        <View style={[
+          styles.notificationBanner,
+          notification.type === 'success' ? styles.successBanner : styles.infoBanner
+        ]}>
+          <Text style={styles.notificationText}>{notification.message}</Text>
+        </View>
+      )}
+
       {/* Content Layer */}
       <View style={[styles.contentLayer, { zIndex: 2 }]}>
         {/* Header with Back Button */}
@@ -366,7 +452,7 @@ const MeditateScreen = () => {
 
             <Pressable 
               style={styles.optionButton}
-              onPress={() => setMeditationType('guided')}
+              onPress={() => showGuidedComingSoon()}
             >
               <Ionicons name="headset-outline" size={32} color="#000000" />
               <Text style={styles.optionTitle}>Guided</Text>
@@ -376,32 +462,22 @@ const MeditateScreen = () => {
         ) : meditationType === 'self' ? (
           renderSelfGuided()
         ) : (
-          // Guided Screen
+          // Guided Screen (should never reach here now)
           <View style={styles.meditationContainer}>
-            {!isTimerRunning ? (
-              <View style={styles.durationButtons}>
-                <Text style={styles.durationTitle}>Choose Duration</Text>
-                {[5, 10, 15].map(duration => (
-                  <Pressable
-                    key={duration}
-                    style={styles.durationButton}
-                    onPress={() => handleStartGuided(duration)}
-                  >
-                    <Text style={styles.durationButtonText}>{duration} Minutes</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.timerContainer}>
-                <Text style={styles.timerText}>{formatTime(timer)}</Text>
-                <Pressable 
-                  style={styles.stopButton}
-                  onPress={() => setIsTimerRunning(false)}
-                >
-                  <Text style={styles.stopButtonText}>Stop</Text>
-                </Pressable>
-              </View>
-            )}
+            <View style={styles.comingSoonContainer}>
+              <Ionicons name="construct-outline" size={48} color="#4CAF50" />
+              <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+              <Text style={styles.comingSoonDescription}>
+                We're working hard to bring you guided meditations.
+                Check back in a future update!
+              </Text>
+              <Pressable 
+                style={styles.returnButton}
+                onPress={() => setMeditationType(null)}
+              >
+                <Text style={styles.returnButtonText}>Back to Options</Text>
+              </Pressable>
+            </View>
           </View>
         )}
       </View>
@@ -619,6 +695,81 @@ const styles = StyleSheet.create({
   },
   contentLayer: {
     flex: 1,
+  },
+  comingSoonBanner: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  comingSoonText: {
+    fontSize: 20,
+    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  comingSoonSubtext: {
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans-Regular',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  comingSoonContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  comingSoonTitle: {
+    fontSize: 28,
+    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  comingSoonDescription: {
+    fontSize: 16,
+    fontFamily: 'PlusJakartaSans-Regular',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  notificationBanner: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  successBanner: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+  },
+  infoBanner: {
+    backgroundColor: 'rgba(33, 150, 243, 0.9)',
+  },
+  notificationText: {
+    fontSize: 16,
+    fontFamily: 'PlusJakartaSans-Medium',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
 

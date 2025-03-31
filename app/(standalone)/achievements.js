@@ -355,8 +355,8 @@ const AchievementsScreen = () => {
                 <Ionicons name="journal" size={24} color="#9C27B0" />
               </View>
               <View style={styles.pointSourceInfo}>
-                <Text style={styles.pointSourceName}>Journal Entry</Text>
-                <Text style={styles.pointSourceDescription}>Write in your journal (1-hour cooldown)</Text>
+                <Text style={styles.pointSourceName}>Journal Writing</Text>
+                <Text style={styles.pointSourceDescription}>Write in your journal (12-hour cooldown)</Text>
               </View>
               <Text style={styles.pointSourceValue}>+5</Text>
             </View>
@@ -456,14 +456,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: typography.fonts.bold,
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   levelInfo: {
     flex: 1,
+    justifyContent: 'center',
   },
   levelTitle: {
     fontSize: 18,
     fontFamily: typography.fonts.bold,
     color: '#000000',
+    marginBottom: 2,
   },
   levelSubtitle: {
     fontSize: 14,

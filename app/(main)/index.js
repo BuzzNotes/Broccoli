@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -13,7 +13,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert
+  Alert,
+  AppState
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -48,6 +49,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import BannerNotification from '../../src/components/BannerNotification';
 import { ALL_ACHIEVEMENTS } from '../../src/utils/achievementUtils';
 import * as Notifications from 'expo-notifications';
+import CelebrationAlert from '../components/CelebrationAlert';
 
 const { width, height } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
@@ -63,6 +65,9 @@ const MainScreen = () => {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const logoScale = useSharedValue(1);
+  
+  // Add login check state
+  const [isCheckingLogin, setIsCheckingLogin] = useState(false);
   
   // Add headerStyle animated style based on scrollY
   const headerStyle = useAnimatedStyle(() => {
@@ -84,6 +89,12 @@ const MainScreen = () => {
   const [userName, setUserName] = useState('');
   const [userPoints, setUserPoints] = useState(0);
   const [userLevel, setUserLevel] = useState(1);
+
+  // Point availability states
+  const [meditationPointsAvailable, setMeditationPointsAvailable] = useState(true);
+  const [journalPointsAvailable, setJournalPointsAvailable] = useState(true);
+  const [dailyLoginCooldown, setDailyLoginCooldown] = useState(null);
+  const [meditationCooldown, setMeditationCooldown] = useState(null);
 
   // Timer State
   const [timeElapsed, setTimeElapsed] = useState({
@@ -116,6 +127,13 @@ const MainScreen = () => {
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerType, setBannerType] = useState('info');
   
+  // CelebrationAlert state
+  const [celebrationAlert, setCelebrationAlert] = useState({
+    visible: false,
+    title: '',
+    message: ''
+  });
+  
   // Animation values
   const rainbowAnimation = useSharedValue(0);
   const progressAnimation = useSharedValue(0);
@@ -143,6 +161,9 @@ const MainScreen = () => {
 
   // Add a separate shared value specifically for the seconds progress
   const secondsProgress = useSharedValue(0);
+
+  // Add state for initial sobriety date
+  const [initialSobrietyDate, setInitialSobrietyDate] = useState(null);
 
   // This function manually updates the secondsProgress value
   const updateSecondsProgress = () => {
@@ -684,23 +705,58 @@ const MainScreen = () => {
       // Save to Firestore if user is authenticated
       if (auth.currentUser) {
         const userDocRef = doc(db, 'users', auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          streak_start_time: relapseTime,
-          last_sync_time: relapseTime,
-          relapse_history: arrayUnion({
-            timestamp: relapseTime,
-            previous_streak: timeElapsed
-          })
-        });
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const updateData = {
+            streak_start_time: relapseTime,
+            last_sync_time: relapseTime,
+            relapse_history: arrayUnion({
+              timestamp: relapseTime,
+              previous_streak: timeElapsed
+            })
+          };
+          
+          // If initial_sobriety_date doesn't exist, set it to the earliest known streak start time
+          if (!userData.initial_sobriety_date) {
+            // Try to find the oldest relapse or use current streak start
+            if (userData.relapse_history && userData.relapse_history.length > 0) {
+              // Sort relapses by timestamp (oldest first)
+              const sortedRelapses = [...userData.relapse_history].sort((a, b) => a.timestamp - b.timestamp);
+              const oldestRelapse = sortedRelapses[0];
+              // Use the oldest relapse's previous streak to estimate the initial start date
+              const initialDate = oldestRelapse.timestamp - (oldestRelapse.previous_streak || 0);
+              updateData.initial_sobriety_date = initialDate;
+            } else {
+              // If no relapses, use the previous streak start time
+              updateData.initial_sobriety_date = userData.streak_start_time || relapseTime;
+            }
+          }
+          
+          await updateDoc(userDocRef, updateData);
+        } else {
+          // Document doesn't exist - create it
+          await setDoc(userDocRef, {
+            streak_start_time: relapseTime,
+            initial_sobriety_date: relapseTime, // First relapse is also the initial date
+            last_sync_time: relapseTime,
+            relapse_history: [{
+              timestamp: relapseTime,
+              previous_streak: timeElapsed || 0
+            }]
+          });
+        }
       }
       
       // Navigate to relapse screen
-    router.push('/(standalone)/relapse');
+      router.push('/(standalone)/relapse');
     } catch (error) {
       console.error('Error saving relapse time:', error);
     }
   };
 
+  // Update the handleButtonPress function to handle both 'checkin' and 'emergency' types
   const handleButtonPress = (type) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -709,6 +765,11 @@ const MainScreen = () => {
     if (type === 'meditate') {
       buttonScale = meditateButtonScale;
       router.push('/(standalone)/meditate');
+      
+      // Set a timer to check points availability when returning from meditation
+      setTimeout(() => {
+        checkPointsAvailability();
+      }, 1000);
     } else if (type === 'pledge') {
       buttonScale = pledgeButtonScale;
       router.push('/(standalone)/pledge');
@@ -718,6 +779,17 @@ const MainScreen = () => {
         pathname: '/(main)/recovery',
         params: { initialTab: 'journal' }
       });
+      
+      // Set a timer to check points availability when returning from journaling
+      setTimeout(() => {
+        checkPointsAvailability();
+      }, 1000);
+    } else if (type === 'checkin') {
+      buttonScale = pledgeButtonScale;
+      router.push('/(standalone)/checkin');
+    } else if (type === 'emergency') {
+      buttonScale = pledgeButtonScale;
+      router.push('/(standalone)/panic');
     } else if (type === 'more') {
       buttonScale = moreButtonScale;
       // Handle more options
@@ -833,23 +905,63 @@ const MainScreen = () => {
     
     // Brain fog typically clears significantly in 90 days
     const totalDays = 90;
-    // Use ms to days conversion
+    
+    // Use ms to days conversion for current streak
     const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
     
-    // Calculate remaining fog percentage (considering potential relapses)
-    let relapseCount = 0;
-    if (auth.currentUser) {
-      relapseCount = relapseHistory?.length || 0;
-    }
-    
-    // Apply a recovery penalty based on relapse count (adds 5% fog per relapse)
-    const relapsePenalty = Math.min(40, relapseCount * 5);
-    
-    // Calculate remaining fog (starts at 100%, decreases to 0%)
+    // Base calculation using current streak
     let remainingFog = 100 - ((currentDays / totalDays) * 100);
     
-    // Add relapse penalty
-    remainingFog = Math.min(100, remainingFog + relapsePenalty);
+    // Check if we have relapse history to refine the calculation
+    if (relapseHistory && relapseHistory.length > 0) {
+      const now = new Date().getTime();
+      
+      // Sort relapses by timestamp (newest first)
+      const sortedRelapses = [...relapseHistory].sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Get initial start date - either from state or estimate from relapses
+      let initialStartTime;
+      if (initialSobrietyDate) {
+        initialStartTime = initialSobrietyDate;
+      } else {
+        // Find the oldest relapse to get an approximate initial start date
+        const oldestRelapse = sortedRelapses[sortedRelapses.length - 1];
+        initialStartTime = oldestRelapse.timestamp - (oldestRelapse.previous_streak || 0);
+      }
+      
+      // Calculate total days in recovery (including relapses)
+      const totalRecoveryDays = Math.floor((now - initialStartTime) / (1000 * 60 * 60 * 24));
+      
+      // Use total recovery time as a baseline (with a cap)
+      const baselineRecovery = Math.min(100, (totalRecoveryDays / totalDays) * 100);
+      const baselineRemaining = 100 - baselineRecovery;
+      
+      // Apply penalties for recent relapses (more weight for recent relapses)
+      let relapsePenalty = 0;
+      
+      sortedRelapses.forEach((relapse, index) => {
+        // Calculate days since this relapse
+        const daysSinceRelapse = Math.floor((now - relapse.timestamp) / (1000 * 60 * 60 * 24));
+        
+        // Penalties reduce over time (14 days to fully recover from a relapse for brain fog)
+        const recoveryDays = 14;
+        const remainingPenalty = Math.max(0, (recoveryDays - daysSinceRelapse) / recoveryDays);
+        
+        // Base penalty of 20% (which reduces over the recovery period)
+        const basePenalty = 20 * remainingPenalty;
+        
+        // More recent relapses have higher weight (first/newest has weight 1, decreasing by 0.25)
+        const weight = Math.max(0.25, 1 - (index * 0.25));
+        
+        relapsePenalty += basePenalty * weight;
+      });
+      
+      // Cap total penalty at 75%
+      relapsePenalty = Math.min(75, relapsePenalty);
+      
+      // Use the better of current streak calculation or longer-term calculation with penalties
+      remainingFog = Math.min(remainingFog, baselineRemaining + relapsePenalty);
+    }
     
     // Ensure fog is between 0-100%
     return Math.max(0, Math.floor(remainingFog));
@@ -861,23 +973,63 @@ const MainScreen = () => {
     
     // Lung buildup clears significantly in 30 days
     const totalDays = 30;
-    // Use ms to days conversion
+    
+    // Use ms to days conversion for current streak
     const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
     
-    // Calculate remaining buildup percentage (considering potential relapses)
-    let relapseCount = 0;
-    if (auth.currentUser) {
-      relapseCount = relapseHistory?.length || 0;
-    }
-    
-    // Apply a recovery penalty based on relapse count (adds 7% buildup per relapse)
-    const relapsePenalty = Math.min(50, relapseCount * 7);
-    
-    // Calculate remaining buildup (starts at 100%, decreases to 0%)
+    // Base calculation using current streak
     let remainingBuildup = 100 - ((currentDays / totalDays) * 100);
     
-    // Add relapse penalty
-    remainingBuildup = Math.min(100, remainingBuildup + relapsePenalty);
+    // Check if we have relapse history to refine the calculation
+    if (relapseHistory && relapseHistory.length > 0) {
+      const now = new Date().getTime();
+      
+      // Sort relapses by timestamp (newest first)
+      const sortedRelapses = [...relapseHistory].sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Get initial start date - either from state or estimate from relapses
+      let initialStartTime;
+      if (initialSobrietyDate) {
+        initialStartTime = initialSobrietyDate;
+      } else {
+        // Find the oldest relapse to get an approximate initial start date
+        const oldestRelapse = sortedRelapses[sortedRelapses.length - 1];
+        initialStartTime = oldestRelapse.timestamp - (oldestRelapse.previous_streak || 0);
+      }
+      
+      // Calculate total days in recovery (including relapses)
+      const totalRecoveryDays = Math.floor((now - initialStartTime) / (1000 * 60 * 60 * 24));
+      
+      // Use total recovery time as a baseline (with a cap)
+      const baselineRecovery = Math.min(100, (totalRecoveryDays / totalDays) * 100);
+      const baselineRemaining = 100 - baselineRecovery;
+      
+      // Apply penalties for recent relapses (more weight for recent relapses)
+      let relapsePenalty = 0;
+      
+      sortedRelapses.forEach((relapse, index) => {
+        // Calculate days since this relapse
+        const daysSinceRelapse = Math.floor((now - relapse.timestamp) / (1000 * 60 * 60 * 24));
+        
+        // Penalties reduce over time (7 days to fully recover from a relapse for lung buildup)
+        const recoveryDays = 7;
+        const remainingPenalty = Math.max(0, (recoveryDays - daysSinceRelapse) / recoveryDays);
+        
+        // Base penalty of 30% (which reduces over the recovery period)
+        const basePenalty = 30 * remainingPenalty;
+        
+        // More recent relapses have higher weight (first/newest has weight 1, decreasing by 0.25)
+        const weight = Math.max(0.25, 1 - (index * 0.25));
+        
+        relapsePenalty += basePenalty * weight;
+      });
+      
+      // Cap total penalty at 85%
+      relapsePenalty = Math.min(85, relapsePenalty);
+      
+      // Use the better of current streak calculation or longer-term calculation with penalties
+      remainingBuildup = Math.min(remainingBuildup, baselineRemaining + relapsePenalty);
+    }
     
     // Ensure buildup is between 0-100%
     return Math.max(0, Math.floor(remainingBuildup));
@@ -889,38 +1041,189 @@ const MainScreen = () => {
     
     // Sleep impairment typically reduces in 14 days
     const totalDays = 14;
-    // Use ms to days conversion
+    
+    // Use ms to days conversion for current streak
     const currentDays = timeElapsed.days || Math.floor(timeElapsed / (1000 * 60 * 60 * 24)) || 0;
     
-    // Calculate remaining impairment percentage (considering potential relapses)
-    let relapseCount = 0;
-    if (auth.currentUser) {
-      relapseCount = relapseHistory?.length || 0;
-    }
-    
-    // Apply a recovery penalty based on relapse count (adds 10% impairment per relapse)
-    const relapsePenalty = Math.min(60, relapseCount * 10);
-    
-    // Calculate remaining impairment (starts at 100%, decreases to 0%)
+    // Base calculation using current streak
     let remainingImpairment = 100 - ((currentDays / totalDays) * 100);
     
-    // Add relapse penalty
-    remainingImpairment = Math.min(100, remainingImpairment + relapsePenalty);
+    // Check if we have relapse history to refine the calculation
+    if (relapseHistory && relapseHistory.length > 0) {
+      const now = new Date().getTime();
+      
+      // Sort relapses by timestamp (newest first)
+      const sortedRelapses = [...relapseHistory].sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Get initial start date - either from state or estimate from relapses
+      let initialStartTime;
+      if (initialSobrietyDate) {
+        initialStartTime = initialSobrietyDate;
+      } else {
+        // Find the oldest relapse to get an approximate initial start date
+        const oldestRelapse = sortedRelapses[sortedRelapses.length - 1];
+        initialStartTime = oldestRelapse.timestamp - (oldestRelapse.previous_streak || 0);
+      }
+      
+      // Calculate total days in recovery (including relapses)
+      const totalRecoveryDays = Math.floor((now - initialStartTime) / (1000 * 60 * 60 * 24));
+      
+      // Use total recovery time as a baseline (with a cap)
+      const baselineRecovery = Math.min(100, (totalRecoveryDays / totalDays) * 100);
+      const baselineRemaining = 100 - baselineRecovery;
+      
+      // Apply penalties for recent relapses (more weight for recent relapses)
+      let relapsePenalty = 0;
+      
+      sortedRelapses.forEach((relapse, index) => {
+        // Calculate days since this relapse
+        const daysSinceRelapse = Math.floor((now - relapse.timestamp) / (1000 * 60 * 60 * 24));
+        
+        // Penalties reduce over time (4 days to fully recover from a relapse for sleep)
+        const recoveryDays = 4;
+        const remainingPenalty = Math.max(0, (recoveryDays - daysSinceRelapse) / recoveryDays);
+        
+        // Base penalty of 40% (which reduces over the recovery period)
+        const basePenalty = 40 * remainingPenalty;
+        
+        // More recent relapses have higher weight (first/newest has weight 1, decreasing by 0.25)
+        const weight = Math.max(0.25, 1 - (index * 0.25));
+        
+        relapsePenalty += basePenalty * weight;
+      });
+      
+      // Cap total penalty at 90%
+      relapsePenalty = Math.min(90, relapsePenalty);
+      
+      // Use the better of current streak calculation or longer-term calculation with penalties
+      remainingImpairment = Math.min(remainingImpairment, baselineRemaining + relapsePenalty);
+    }
     
     // Ensure impairment is between 0-100%
     return Math.max(0, Math.floor(remainingImpairment));
   };
 
-  // Calculate money saved based on average daily spend
-  const averageDailySpend = 15; // Default value of $15 per day
+  // Calculate money saved based on user's spending data
+  const [weedCostData, setWeedCostData] = useState(null);
+  const [dailySpend, setDailySpend] = useState(15); // Default value of $15 per day
 
+  useEffect(() => {
+    // Load weed cost data from Firestore when user is authenticated
+    const loadWeedCostData = async () => {
+      try {
+        if (!auth.currentUser) return;
+        
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          // Check if we have the weed cost data from onboarding
+          if (userData.weed_cost) {
+            setWeedCostData(userData.weed_cost);
+            
+            // Calculate daily spend based on frequency
+            let calculatedDailySpend = 15; // Default
+            const { amount, frequency, annual_cost } = userData.weed_cost;
+            
+            if (annual_cost) {
+              // If we have annual cost, simply divide by 365
+              calculatedDailySpend = annual_cost / 365;
+            } else if (amount && frequency) {
+              // Otherwise calculate based on amount and frequency
+              switch (frequency) {
+                case 'daily':
+                  calculatedDailySpend = amount;
+                  break;
+                case 'weekly':
+                  calculatedDailySpend = amount / 7;
+                  break;
+                case 'monthly':
+                  calculatedDailySpend = amount / 30;
+                  break;
+                default:
+                  calculatedDailySpend = 15; // Default
+              }
+            }
+            
+            console.log(`Calculated daily spend: $${calculatedDailySpend.toFixed(2)}`);
+            setDailySpend(calculatedDailySpend);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading weed cost data:', error);
+      }
+    };
+    
+    loadWeedCostData();
+  }, [auth.currentUser]);
+
+  // Cache projected money saved calculations
+  const projectedSavings = useMemo(() => {
+    // Make sure dailySpend is a valid number
+    const spend = typeof dailySpend === 'number' && !isNaN(dailySpend) ? dailySpend : 15;
+    
+    // Calculate all common projections at once
+    return {
+      month: Math.floor(30 * spend).toLocaleString(),
+      sixMonths: Math.floor(180 * spend).toLocaleString(),
+      year: Math.floor(365 * spend).toLocaleString()
+    };
+  }, [dailySpend]);
+  
+  // Helper function to get projected savings using cached results
+  const calculateProjectedMoneySaved = (days) => {
+    if (days === 30) return projectedSavings.month;
+    if (days === 180) return projectedSavings.sixMonths;
+    if (days === 365) return projectedSavings.year;
+    
+    // For any other values, calculate on the fly
+    const spend = typeof dailySpend === 'number' && !isNaN(dailySpend) ? dailySpend : 15;
+    return Math.floor(days * spend).toLocaleString();
+  };
+
+  // Create a state to store the calculated money saved value
+  const [savedMoney, setSavedMoney] = useState("0");
+  
+  // Calculate money saved and update state when dependencies change, not on every render
+  useEffect(() => {
+    // Get the current time
+    const now = new Date().getTime();
+    
+    // Make sure dailySpend is a valid number
+    const spend = typeof dailySpend === 'number' && !isNaN(dailySpend) ? dailySpend : 15;
+    
+    let result = "0";
+    
+    // If initialSobrietyDate is available, use it (this is the profile creation date)
+    if (initialSobrietyDate && !isNaN(initialSobrietyDate)) {
+      const daysPassed = (now - initialSobrietyDate) / (1000 * 60 * 60 * 24);
+      // Make sure daysPassed is a valid positive number
+      const validDays = daysPassed > 0 ? daysPassed : 0;
+      const saved = Math.floor(validDays * spend);
+      result = saved.toLocaleString();
+    } 
+    // Fallback to current streak if initialSobrietyDate is not available
+    else if (timeElapsed) {
+      let daysPassed = 0;
+      if (typeof timeElapsed === 'object' && timeElapsed.days !== undefined) {
+        daysPassed = timeElapsed.days;
+      } else if (typeof timeElapsed === 'number') {
+        daysPassed = timeElapsed / (1000 * 60 * 60 * 24);
+      }
+      // Make sure daysPassed is a valid positive number
+      const validDays = daysPassed > 0 ? daysPassed : 0;
+      const saved = Math.floor(validDays * spend);
+      result = saved.toLocaleString();
+    }
+    
+    setSavedMoney(result);
+    
+  }, [initialSobrietyDate, dailySpend, timeElapsed?.days]);
+  
+  // Keep the calculation function for compatibility, but use the cached value
   const calculateMoneySaved = () => {
-    if (!timeElapsed) return 0;
-    
-    const daysPassed = timeElapsed / (1000 * 60 * 60 * 24);
-    const saved = Math.floor(daysPassed * averageDailySpend);
-    
-    return saved;
+    return savedMoney;
   };
 
   // Sync timer with Firestore
@@ -1208,79 +1511,165 @@ const MainScreen = () => {
   // Add function to award daily login points
   const checkAndAwardDailyLoginPoints = async () => {
     try {
+      // Return early if already checking to prevent multiple popups
+      if (isCheckingLogin) {
+        return;
+      }
+      
+      // Set checking flag to true
+      setIsCheckingLogin(true);
+      
       // Only award points if user is authenticated
       if (!isFirebaseInitialized() || !auth.currentUser) {
+        setIsCheckingLogin(false);
         return;
       }
       
       const userId = auth.currentUser.uid;
       const lastLoginKey = `last_login_${userId}`;
+      const lastPopupKey = `last_popup_${userId}`;
+      const lastLevelUpKey = `last_level_up_${userId}`;
       
-      // Check if we already awarded points today
-      const lastLoginStr = await AsyncStorage.getItem(lastLoginKey);
+      // Get current time and reset to start of day for consistent comparison
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const tomorrow = today + (24 * 60 * 60 * 1000);
       
-      if (lastLoginStr) {
-        const lastLogin = parseInt(lastLoginStr);
-        // If last login was today, don't award again
-        if (lastLogin >= today) {
-          // Still refresh points and level to ensure UI is up to date
-          await loadUserPointsAndLevel();
+      // Set cooldown to end at midnight tomorrow
+      setDailyLoginCooldown(tomorrow);
+      
+      // Check if we already showed a popup today, exit early if so
+      const lastPopupStr = await AsyncStorage.getItem(lastPopupKey);
+      if (lastPopupStr) {
+        const lastPopup = parseInt(lastPopupStr);
+        // If we've already shown a popup today, don't show another one
+        if (lastPopup >= today) {
+          console.log('Already showed a popup today, skipping');
+          setIsCheckingLogin(false);
           return;
         }
       }
       
-      // Award daily login points
-      const pointsResult = await awardDailyLoginPoints(userId);
+      // Check if we already awarded points today
+      const lastLoginStr = await AsyncStorage.getItem(lastLoginKey);
+      let alreadyAwarded = false;
       
-      // If successful, update last login date
-      if (pointsResult) {
-        await AsyncStorage.setItem(lastLoginKey, today.toString());
-        
-        // Update UI with new points
-        setUserPoints(pointsResult.newPoints);
-        
-        // Get updated level
-        if (pointsResult.levelInfo) {
-          setUserLevel(pointsResult.levelInfo.level);
-        }
-        
-        // Refresh the full user data to ensure consistency
-        await loadUserPointsAndLevel();
-        
-        // If user leveled up, show a notification
-        if (pointsResult.leveledUp) {
-          // Show level up notification
-          Alert.alert(
-            '🎉 Level Up!',
-            `Congratulations! You've reached Level ${pointsResult.levelInfo.level}!`,
-            [{ text: 'OK' }]
-          );
-        } else {
-          // Show points notification if no level up
-          Alert.alert(
-            '🌟 Daily Login Bonus',
-            'You earned 5 points for logging in today!',
-            [{ text: 'OK' }]
-          );
+      if (lastLoginStr) {
+        const lastLogin = parseInt(lastLoginStr);
+        if (lastLogin >= today) {
+          alreadyAwarded = true;
+          // Still refresh points and level to ensure UI is up to date
+          await loadUserPointsAndLevel();
         }
       }
+      
+      // Mark that we've shown a popup today, regardless of whether we're awarding points
+      await AsyncStorage.setItem(lastPopupKey, today.toString());
+      
+      // If we already awarded points, don't do it again but we can still show a popup
+      if (!alreadyAwarded) {
+        // Award daily login points
+        const pointsResult = await awardDailyLoginPoints(userId);
+        
+        // If successful, update last login date and popup date
+        if (pointsResult) {
+          await AsyncStorage.setItem(lastLoginKey, today.toString());
+          
+          // Update UI with new points
+          setUserPoints(pointsResult.newPoints);
+          
+          // Get updated level
+          if (pointsResult.levelInfo) {
+            setUserLevel(pointsResult.levelInfo.level);
+          }
+          
+          // Refresh the full user data to ensure consistency
+          await loadUserPointsAndLevel();
+          
+          // If user leveled up, show a notification with level up cooldown
+          if (pointsResult.leveledUp) {
+            // Check if we've shown a level up popup today
+            const lastLevelUpStr = await AsyncStorage.getItem(lastLevelUpKey);
+            let skipLevelUpAlert = false;
+            
+            if (lastLevelUpStr) {
+              const lastLevelUp = parseInt(lastLevelUpStr);
+              skipLevelUpAlert = (lastLevelUp >= today);
+            }
+            
+            if (!skipLevelUpAlert) {
+              // Show level up popup and update last level up date
+              setCelebrationAlert({
+                visible: true,
+                title: '🎉 Level Up!',
+                message: `Congratulations! You've reached Level ${pointsResult.levelInfo.level}!`
+              });
+              await AsyncStorage.setItem(lastLevelUpKey, today.toString());
+            }
+          } else {
+            // Show daily login popup
+            setCelebrationAlert({
+              visible: true,
+              title: '🌟 Daily Login Bonus',
+              message: 'You earned 5 points for logging in today!'
+            });
+          }
+        }
+      }
+      
+      // Finally, reset the checking flag
+      setIsCheckingLogin(false);
     } catch (error) {
       console.error('Error awarding daily login points:', error);
+      setIsCheckingLogin(false);
     }
   };
 
   // Add useEffect to check for daily login
   useEffect(() => {
+    // Track whether we've already run the check in this session
+    const checkTimeKey = `daily_login_check_time_${auth.currentUser?.uid}`;
+    
     const checkLogin = async () => {
-      if (isFirebaseInitialized() && auth.currentUser) {
+      if (!isFirebaseInitialized() || !auth.currentUser) {
+        return;
+      }
+      
+      try {
+        // Check if we've already run this check recently (within last 5 minutes)
+        const lastCheckTimeStr = await AsyncStorage.getItem(checkTimeKey);
+        
+        if (lastCheckTimeStr) {
+          const lastCheckTime = parseInt(lastCheckTimeStr);
+          const now = new Date().getTime();
+          const FIVE_MINUTES = 5 * 60 * 1000;
+          
+          // If we checked within the last 5 minutes, don't check again
+          if (now - lastCheckTime < FIVE_MINUTES) {
+            console.log('Skipping daily login check - already checked recently');
+            return;
+          }
+        }
+        
+        // Set the last check time before running the check
+        await AsyncStorage.setItem(checkTimeKey, new Date().getTime().toString());
+        
+        // Now run the actual check
         await checkAndAwardDailyLoginPoints();
+      } catch (error) {
+        console.error('Error in daily login check:', error);
       }
     };
     
-    checkLogin();
-  }, [auth.currentUser?.uid]); // Add dependency on user ID
+    // Only run this once when the component mounts, not on every auth.currentUser?.uid change
+    const timer = setTimeout(() => {
+      if (auth.currentUser?.uid) {
+        checkLogin();
+      }
+    }, 1000); // Wait 1 second after mount before checking
+    
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array means this only runs once on mount
 
   // Add function to load user points and level
   const loadUserPointsAndLevel = async () => {
@@ -1321,16 +1710,44 @@ const MainScreen = () => {
   const setupNewUserDocument = async () => {
     const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
     const streakStartTime = await AsyncStorage.getItem('streakStartTime');
+    const currentTime = new Date().getTime();
+    
+    // Use the current streak start time as the initial sobriety date
+    const initialStartTime = streakStartTime ? parseInt(streakStartTime, 10) : currentTime;
+    
+    // Try to get weed cost data from local storage if available
+    let weedCostData = null;
+    try {
+      const answers = await AsyncStorage.getItem('onboardingAnswers');
+      if (answers) {
+        const parsedAnswers = JSON.parse(answers);
+        if (parsedAnswers.weed_cost) {
+          weedCostData = parsedAnswers.weed_cost;
+          console.log('Found weed cost data in local storage', weedCostData);
+        }
+      }
+    } catch (error) {
+      console.error('Error getting weed cost data from local storage:', error);
+    }
     
     // Create the user document with onboarding state
-    await setDoc(doc(db, 'users', auth.currentUser.uid), {
-      streak_start_time: streakStartTime ? parseInt(streakStartTime, 10) : null,
-      last_sync_time: new Date().getTime(),
+    const userDocData = {
+      streak_start_time: initialStartTime,
+      initial_sobriety_date: initialStartTime, // Add the initial sobriety date
+      last_sync_time: currentTime,
       onboarding_completed: onboardingCompleted === 'true',
       questions_completed: onboardingCompleted === 'true',
       payment_completed: onboardingCompleted === 'true',
-      onboarding_state: onboardingCompleted === 'true' ? 'completed' : 'pending'
-    });
+      onboarding_state: onboardingCompleted === 'true' ? 'completed' : 'pending',
+      relapse_history: [] // Initialize empty relapse history
+    };
+    
+    // Add weed cost data if available
+    if (weedCostData) {
+      userDocData.weed_cost = weedCostData;
+    }
+    
+    await setDoc(doc(db, 'users', auth.currentUser.uid), userDocData);
   };
 
   // Helper function to handle incomplete onboarding
@@ -1472,7 +1889,7 @@ const MainScreen = () => {
     }
   };
 
-  // Add this to the fetchUserData function in useEffect
+  // Add the function to fetch user data with initialSobrietyDate
   const fetchUserData = async () => {
     try {
       if (isFirebaseInitialized() && auth.currentUser) {
@@ -1485,13 +1902,194 @@ const MainScreen = () => {
             setRelapseHistory(userData.relapse_history);
           }
           
-          // Other user data fetching...
+          // Set initial sobriety date
+          if (userData.initial_sobriety_date) {
+            console.log('Setting initialSobrietyDate from Firestore:', userData.initial_sobriety_date);
+            // Ensure it's a valid number
+            const date = Number(userData.initial_sobriety_date);
+            if (!isNaN(date)) {
+              setInitialSobrietyDate(date);
+            } else {
+              console.error('Invalid initialSobrietyDate from Firestore:', userData.initial_sobriety_date);
+              // Fallback to streak_start_time if available
+              if (userData.streak_start_time && !isNaN(userData.streak_start_time)) {
+                console.log('Falling back to streak_start_time:', userData.streak_start_time);
+                setInitialSobrietyDate(userData.streak_start_time);
+              }
+            }
+          } else if (userData.streak_start_time) {
+            // If no initial sobriety date but there is a streak start time, use that
+            console.log('No initialSobrietyDate found, using streak_start_time:', userData.streak_start_time);
+            setInitialSobrietyDate(userData.streak_start_time);
+          } else {
+            // If neither exists, set to current time
+            console.log('No dates found, using current time');
+            setInitialSobrietyDate(new Date().getTime());
+          }
         }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
   };
+  
+  // Add the checkPointsAvailability function
+  const checkPointsAvailability = async () => {
+    try {
+      if (isFirebaseInitialized() && auth.currentUser) {
+        const userId = auth.currentUser.uid;
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          // Check journal points cooldown
+          if (userData.lastJournalPoints) {
+            const now = Date.now();
+            const twelveHoursInMs = 12 * 60 * 60 * 1000;
+            const journalCooldownEnds = userData.lastJournalPoints + twelveHoursInMs;
+            
+            setJournalPointsAvailable(now > journalCooldownEnds);
+          } else {
+            setJournalPointsAvailable(true);
+          }
+          
+          // Check meditation points cooldown
+          if (userData.lastMeditationPoints) {
+            const now = new Date().getTime();
+            const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+            const meditationCooldownEnds = userData.lastMeditationPoints + twentyFourHoursInMs;
+            
+            setMeditationPointsAvailable(now > meditationCooldownEnds);
+            
+            // Set the cooldown end time for display
+            if (now < meditationCooldownEnds) {
+              setMeditationCooldown(meditationCooldownEnds);
+            } else {
+              setMeditationCooldown(null);
+            }
+          } else {
+            // No previous meditation points awarded, so points are available
+            setMeditationPointsAvailable(true);
+            setMeditationCooldown(null);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking points availability:', error);
+    }
+  };
+
+  // Call checkPointsAvailability on component mount and when user data changes
+  useEffect(() => {
+    if (auth.currentUser) {
+      checkPointsAvailability();
+      
+      // Set up interval to check more frequently (every 10 seconds)
+      const interval = setInterval(() => {
+        checkPointsAvailability();
+      }, 10 * 1000); // Check every 10 seconds instead of every minute
+      
+      return () => clearInterval(interval);
+    }
+  }, [auth.currentUser?.uid]);
+
+  // Add formatCooldownTime helper function
+  const formatCooldownTime = (cooldownEndTime) => {
+    if (!cooldownEndTime) return null;
+    
+    const now = new Date().getTime();
+    const remainingTime = cooldownEndTime - now;
+    
+    if (remainingTime <= 0) return null;
+    
+    // Convert to hours and minutes
+    const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+    const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
+
+  // Add a function to update cooldown timers every minute
+  useEffect(() => {
+    const timerInterval = setInterval(() => {
+      const now = new Date().getTime();
+      
+      // Update UI even when cooldowns haven't changed to reflect accurate time
+      if (dailyLoginCooldown && dailyLoginCooldown > now) {
+        // Force a re-render by setting to the same value
+        setDailyLoginCooldown(dailyLoginCooldown);
+      }
+      
+      if (meditationCooldown && meditationCooldown > now) {
+        // Force a re-render by setting to the same value
+        setMeditationCooldown(meditationCooldown);
+      }
+    }, 60 * 1000); // Update every minute
+    
+    return () => clearInterval(timerInterval);
+  }, [dailyLoginCooldown, meditationCooldown]);
+
+  // Initialize cooldown values on component mount
+  useEffect(() => {
+    const initializeCooldowns = async () => {
+      if (!isFirebaseInitialized() || !auth.currentUser) return;
+      
+      try {
+        const userId = auth.currentUser.uid;
+        const lastLoginKey = `last_login_${userId}`;
+        
+        // Get current time and reset to start of day for consistent comparison
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const tomorrow = today + (24 * 60 * 60 * 1000);
+        
+        // Check if we already awarded points today
+        const lastLoginStr = await AsyncStorage.getItem(lastLoginKey);
+        
+        if (lastLoginStr) {
+          const lastLogin = parseInt(lastLoginStr);
+          if (lastLogin >= today) {
+            // If we've already logged in today, set the cooldown to tomorrow
+            setDailyLoginCooldown(tomorrow);
+          } else {
+            // We haven't logged in today yet
+            setDailyLoginCooldown(null);
+          }
+        } else {
+          // We've never logged in before
+          setDailyLoginCooldown(null);
+        }
+      } catch (error) {
+        console.error('Error initializing cooldowns:', error);
+      }
+    };
+    
+    initializeCooldowns();
+  }, [auth.currentUser?.uid]);
+
+  // Add AppState event listener to update point indicators when app becomes active
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        // The app has come to the foreground
+        checkPointsAvailability();
+      }
+    };
+
+    // Subscribe to AppState changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Clean up the subscription on unmount
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Add the fetchUserData call to useEffect
   useEffect(() => {
@@ -1524,6 +2122,14 @@ const MainScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Add the CelebrationAlert component at the top-level */}
+      <CelebrationAlert
+        visible={celebrationAlert?.visible}
+        title={celebrationAlert?.title}
+        message={celebrationAlert?.message}
+        onClose={() => setCelebrationAlert({visible: false, title: '', message: ''})}
+      />
+      
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
@@ -1677,40 +2283,72 @@ const MainScreen = () => {
               </Animated.View>
             </View>
             
+            {/* Divider Line */}
+            <View style={styles.dividerLine} />
+            
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleButtonPress('meditate')}
-                activeOpacity={0.7}
-              >
-                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: meditateButtonScale }] }]}>
-                  <Ionicons name="leaf-outline" size={22} color="#4CAF50" />
-                  <Text style={styles.actionButtonText}>Meditate</Text>
-                </Animated.View>
-              </TouchableOpacity>
+              <View style={styles.actionButtonWrapper}>
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => handleButtonPress('meditate')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.actionButtonInner}>
+                    <Ionicons name="leaf-outline" size={24} color="#4CAF50" />
+                    <Text style={styles.actionButtonText}>Meditate</Text>
+                    {meditationPointsAvailable && (
+                      <View style={styles.pointsIndicator}>
+                        <Text style={styles.pointsIndicatorText}>+5</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
               
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleButtonPress('journal')}
-                activeOpacity={0.7}
-              >
-                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: journalButtonScale }] }]}>
-                  <Ionicons name="journal-outline" size={22} color="#4CAF50" />
-                  <Text style={styles.actionButtonText}>Journal</Text>
-                </Animated.View>
-              </TouchableOpacity>
+              <View style={styles.actionButtonWrapper}>
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => handleButtonPress('journal')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.actionButtonInner}>
+                    <Ionicons name="journal-outline" size={24} color="#4CAF50" />
+                    <Text style={styles.actionButtonText}>Journal</Text>
+                    {journalPointsAvailable && (
+                      <View style={styles.pointsIndicator}>
+                        <Text style={styles.pointsIndicatorText}>+5</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
               
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleButtonPress('emergency')}
-                activeOpacity={0.7}
-              >
-                <Animated.View style={[styles.actionButtonInner, { transform: [{ scale: pledgeButtonScale }] }]}>
-                  <Ionicons name="alert-circle-outline" size={22} color="#E57373" />
-                  <Text style={[styles.actionButtonText, {color: '#E57373'}]}>S.O.S</Text>
-                </Animated.View>
-              </TouchableOpacity>
+              <View style={styles.actionButtonWrapper}>
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => handleButtonPress('checkin')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.actionButtonInner, styles.checkinButton]}>
+                    <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+                    <Text style={[styles.actionButtonText, {color: '#4CAF50'}]}>Check In</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.actionButtonWrapper}>
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => handleButtonPress('emergency')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.actionButtonInner, styles.sosButton]}>
+                    <Ionicons name="alert-circle-outline" size={24} color="#E57373" />
+                    <Text style={[styles.actionButtonText, {color: '#E57373'}]}>S.O.S</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -1748,16 +2386,49 @@ const MainScreen = () => {
           
           <View style={styles.pointsInfoContainer}>
             <View style={styles.pointsInfoItem}>
-              <Ionicons name="trophy-outline" size={16} color="#4CAF50" />
+              <Ionicons name="trophy" size={18} color="#4CAF50" />
               <Text style={styles.pointsInfoText}>Get points from achievements</Text>
             </View>
+            
             <View style={styles.pointsInfoItem}>
-              <Ionicons name="calendar-outline" size={16} color="#4CAF50" />
-              <Text style={styles.pointsInfoText}>Daily login: +5 points</Text>
+              <Ionicons name="calendar" size={18} color="#4CAF50" />
+              <View style={styles.pointsInfoTextContainer}>
+                <Text style={styles.pointsInfoText}>
+                  Daily login: +5 points
+                  {dailyLoginCooldown && 
+                    <Text style={styles.cooldownText}> (available in {formatCooldownTime(dailyLoginCooldown)})</Text>
+                  }
+                  {!dailyLoginCooldown &&
+                    <Text style={styles.availableText}> (available now)</Text>
+                  }
+                </Text>
+              </View>
             </View>
+            
             <View style={styles.pointsInfoItem}>
-              <Ionicons name="journal-outline" size={16} color="#4CAF50" />
-              <Text style={styles.pointsInfoText}>Journal entry: +15 points</Text>
+              <Ionicons name="journal" size={18} color="#4CAF50" />
+              <Text style={styles.pointsInfoText}>
+                Journal entry: +5 points
+                {!journalPointsAvailable && 
+                  <Text style={styles.cooldownText}> (once per day)</Text>
+                }
+                {journalPointsAvailable &&
+                  <Text style={styles.availableText}> (available now)</Text>
+                }
+              </Text>
+            </View>
+            
+            <View style={styles.pointsInfoItem}>
+              <Ionicons name="leaf" size={18} color="#4CAF50" />
+              <Text style={styles.pointsInfoText}>
+                Meditation: +5 points
+                {meditationCooldown && 
+                  <Text style={styles.cooldownText}> (available in {formatCooldownTime(meditationCooldown)})</Text>
+                }
+                {!meditationCooldown && 
+                  <Text style={styles.availableText}> (available now)</Text>
+                }
+              </Text>
             </View>
           </View>
           
@@ -1950,17 +2621,17 @@ const MainScreen = () => {
           <View style={styles.projectionRow}>
             <View style={styles.projectionItem}>
               <Text style={styles.projectionLabel}>1 Month</Text>
-              <Text style={styles.projectionValue}>${(averageDailySpend * 30).toFixed(0)}</Text>
+              <Text style={styles.projectionValue}>${calculateProjectedMoneySaved(30)}</Text>
             </View>
             
             <View style={styles.projectionItem}>
               <Text style={styles.projectionLabel}>6 Months</Text>
-              <Text style={styles.projectionValue}>${(averageDailySpend * 180).toFixed(0)}</Text>
+              <Text style={styles.projectionValue}>${calculateProjectedMoneySaved(180)}</Text>
             </View>
             
             <View style={styles.projectionItem}>
               <Text style={styles.projectionLabel}>1 Year</Text>
-              <Text style={styles.projectionValue}>${(averageDailySpend * 365).toFixed(0)}</Text>
+              <Text style={styles.projectionValue}>${calculateProjectedMoneySaved(365)}</Text>
             </View>
           </View>
         </View>
@@ -2078,7 +2749,7 @@ const styles = StyleSheet.create({
   timerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 20,
+    padding: 15, // Consistent padding
     shadowColor: 'rgba(0, 0, 0, 0.1)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
@@ -2199,24 +2870,71 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    alignItems: 'center',
+    width: '100%',
+    marginHorizontal: 0,
+    marginBottom: 5,
+  },
+  actionButtonWrapper: {
+    width: '23.5%', // Adjusted width for proper spacing
+    alignItems: 'center',
   },
   actionButton: {
-    flex: 1,
-    marginHorizontal: 6,
+    width: '100%',
   },
   actionButtonInner: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    borderRadius: 12,
-    padding: 12,
+    position: 'relative',
+    backgroundColor: 'rgba(240, 255, 240, 0.95)',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 0, // No horizontal padding
+    minWidth: 75, // Ensure minimum width
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  checkinButton: {
+    backgroundColor: 'rgba(240, 255, 240, 0.95)',
+  },
+  sosButton: {
+    backgroundColor: 'rgba(255, 240, 240, 0.95)',
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: typography.fonts.medium,
     color: '#4CAF50',
-    marginTop: 6,
+    marginTop: 8,
+  },
+  pointsIndicator: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFD700',
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  pointsIndicatorText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#000000',
+    textAlign: 'center',
   },
   levelCard: {
     backgroundColor: '#FFFFFF',
@@ -2291,7 +3009,7 @@ const styles = StyleSheet.create({
   },
   pointsInfoItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   pointsInfoText: {
@@ -2299,6 +3017,20 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.regular,
     color: '#555555',
     marginLeft: 8,
+    flex: 1,
+  },
+  pointsInfoTextContainer: {
+    flex: 1,
+  },
+  cooldownText: {
+    fontSize: 12,
+    fontFamily: typography.fonts.regular,
+    color: '#FF7B9C',
+  },
+  availableText: {
+    fontSize: 12,
+    fontFamily: typography.fonts.regular,
+    color: '#4CAF50',
   },
   viewPointsButton: {
     backgroundColor: '#4CAF50',
@@ -2555,6 +3287,13 @@ const styles = StyleSheet.create({
   },
   emojiIcon: {
     fontSize: 22,
+  },
+  dividerLine: {
+    height: 1,
+    backgroundColor: 'rgba(200, 200, 200, 0.3)',
+    marginVertical: 15,
+    marginHorizontal: -15,
+    borderRadius: 0,
   },
 });
 

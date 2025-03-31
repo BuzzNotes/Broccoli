@@ -277,14 +277,14 @@ export const awardJournalingPoints = async (userId) => {
     const userData = userDoc.data();
     const lastJournalPoints = userData.lastJournalPoints || 0;
     
-    // Check for 24-hour cooldown (updated from 3 hours)
+    // Check for 12-hour cooldown
     const now = new Date().getTime();
-    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
-    const twentyFourHoursAgo = now - twentyFourHoursInMs;
+    const twelveHoursInMs = 12 * 60 * 60 * 1000;
+    const twelveHoursAgo = now - twelveHoursInMs;
     
-    if (lastJournalPoints && lastJournalPoints > twentyFourHoursAgo) {
+    if (lastJournalPoints && lastJournalPoints > twelveHoursAgo) {
       // Calculate when cooldown ends
-      const cooldownEndsTime = lastJournalPoints + twentyFourHoursInMs;
+      const cooldownEndsTime = lastJournalPoints + twelveHoursInMs;
       const timeRemaining = cooldownEndsTime - now;
       
       // Convert to hours, minutes, and seconds
@@ -358,6 +358,8 @@ export const awardAchievement = async (userId, achievementId) => {
  */
 export const checkAndUpdateAchievements = async (userId, sobrietyDays) => {
   try {
+    console.log(`Checking achievements for user ${userId} with ${sobrietyDays} sober days`);
+    
     // Get current user achievements
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
@@ -370,6 +372,8 @@ export const checkAndUpdateAchievements = async (userId, sobrietyDays) => {
     const userData = userDoc.data();
     const currentAchievements = userData.achievements || [];
     
+    console.log(`Current achievements: ${currentAchievements.join(', ') || 'none'}`);
+    
     // Find achievements that should be awarded based on sobriety days
     const eligibleAchievements = ALL_ACHIEVEMENTS
       .filter(achievement => 
@@ -377,18 +381,23 @@ export const checkAndUpdateAchievements = async (userId, sobrietyDays) => {
         !currentAchievements.includes(achievement.id)
       );
     
+    console.log(`Found ${eligibleAchievements.length} eligible new achievements`);
+    
     // If there are new achievements to award
     if (eligibleAchievements.length > 0) {
       const newAchievementIds = eligibleAchievements.map(a => a.id);
       
+      console.log(`Awarding new achievements: ${newAchievementIds.join(', ')}`);
+      
       // Update user document with all new achievements
       await updateDoc(userRef, {
-        achievements: [...currentAchievements, ...newAchievementIds]
+        achievements: arrayUnion(...newAchievementIds)
       });
       
       // Award points for each new achievement
       const awardResults = [];
       for (const achievement of eligibleAchievements) {
+        console.log(`Awarding ${achievement.points} points for achievement: ${achievement.id}`);
         const pointsResult = await addPoints(
           userId, 
           achievement.points, 
@@ -441,5 +450,114 @@ export const resetSobrietyStreak = async (userId) => {
   } catch (error) {
     console.error('Error resetting sobriety streak:', error);
     throw error;
+  }
+};
+
+/**
+ * Award points for meditation sessions longer than 1 minute
+ * @param {string} userId - Firebase user ID
+ * @param {number} meditationSeconds - Duration of meditation in seconds
+ * @returns {Promise<object>} - Updated user stats
+ */
+export const awardMeditationPoints = async (userId, meditationSeconds) => {
+  try {
+    // Only award points for sessions longer than 1 minute
+    if (meditationSeconds < 60) {
+      return { 
+        insufficientDuration: true,
+        message: 'Meditation was too short to earn points (less than 1 minute)'
+      };
+    }
+
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.error('User document not found');
+      return null;
+    }
+    
+    const userData = userDoc.data();
+    const lastMeditationPoints = userData.lastMeditationPoints || 0;
+    
+    // Check for 24-hour cooldown
+    const now = new Date().getTime();
+    const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
+    const twentyFourHoursAgo = now - twentyFourHoursInMs;
+    
+    if (lastMeditationPoints && lastMeditationPoints > twentyFourHoursAgo) {
+      // Calculate when cooldown ends
+      const cooldownEndsTime = lastMeditationPoints + twentyFourHoursInMs;
+      const timeRemaining = cooldownEndsTime - now;
+      
+      // Convert to hours, minutes, and seconds
+      const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+      const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+      const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
+      
+      // Format as HH:MM:SS with padding
+      const formattedTime = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      return { 
+        alreadyAwarded: true, 
+        cooldownEnds: cooldownEndsTime,
+        cooldownEndsFormatted: formattedTime,
+        timeRemainingMs: timeRemaining
+      };
+    }
+    
+    // Update last meditation points timestamp
+    await updateDoc(userRef, {
+      lastMeditationPoints: now,
+      // Also store the duration of the last meditation
+      lastMeditationDuration: meditationSeconds
+    });
+    
+    // Award points
+    return addPoints(userId, 5, 'meditation');
+  } catch (error) {
+    console.error('Error awarding meditation points:', error);
+    return null;
+  }
+};
+
+export const checkJournalPointsEligibility = async (userId) => {
+  try {
+    if (!userId) return null;
+    
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) return null;
+    
+    const userData = userDoc.data();
+    const lastJournalPoints = userData.lastJournalPoints || 0;
+    const now = Date.now();
+    
+    // Check if 12 hours have passed since last journal entry with points
+    const twelveHoursInMs = 12 * 60 * 60 * 1000;
+    const twelveHoursAgo = now - twelveHoursInMs;
+    
+    // If user has never received points or received them more than 12 hours ago
+    if (!lastJournalPoints || lastJournalPoints <= twelveHoursAgo) {
+      return { eligible: true, reason: 'Cooldown complete' };
+    }
+    
+    // Calculate time remaining in cooldown
+    const cooldownEndsTime = lastJournalPoints + twelveHoursInMs;
+    const msRemaining = cooldownEndsTime - now;
+    
+    // Format hours and minutes remaining
+    const hoursRemaining = Math.floor(msRemaining / (60 * 60 * 1000));
+    const minutesRemaining = Math.floor((msRemaining % (60 * 60 * 1000)) / (60 * 1000));
+    
+    return {
+      eligible: false,
+      reason: 'Cooldown active',
+      cooldownEnds: cooldownEndsTime,
+      timeRemainingMs: msRemaining,
+      formattedTimeRemaining: `${hoursRemaining}h ${minutesRemaining}m`
+    };
+  } catch (error) {
+    console.error('Error checking journal points eligibility:', error);
+    return { eligible: false, reason: 'Error checking eligibility' };
   }
 }; 

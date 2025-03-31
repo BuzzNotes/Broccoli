@@ -194,6 +194,160 @@ const RecoveryScreen = () => {
   const [userPoints, setUserPoints] = useState(0);
   const [levelInfo, setLevelInfo] = useState(null);
   
+  // State variables for money saved calculations
+  const [dailySpend, setDailySpend] = useState(17); // Default value of $17 per day
+  const [weedCostData, setWeedCostData] = useState(null);
+  
+  // Move fetchUserData outside the useEffect
+  const fetchUserData = async () => {
+    try {
+      if (!isFirebaseInitialized() || !auth.currentUser) {
+        return;
+      }
+      
+      const userId = auth.currentUser.uid;
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Calculate sobriety days using streak_start_time for consistency
+        let sobrietyDays = 0;
+        if (userData.streak_start_time) {
+          const streakStartTime = userData.streak_start_time;
+          const currentTime = Date.now();
+          const diffTime = Math.abs(currentTime - streakStartTime);
+          sobrietyDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          console.log(`Calculated ${sobrietyDays} days from streak_start_time`);
+        } else if (userData.sobrietyDate) {
+          // Fallback to sobrietyDate if streak_start_time doesn't exist
+          const sobrietyDate = userData.sobrietyDate.toDate();
+          const today = new Date();
+          const diffTime = Math.abs(today - sobrietyDate);
+          sobrietyDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          console.log(`Calculated ${sobrietyDays} days from sobrietyDate`);
+          
+          // Update streak_start_time for consistency
+          await updateDoc(doc(db, 'users', userId), {
+            streak_start_time: sobrietyDate.getTime()
+          });
+        }
+        
+        setUserSobrietyDays(sobrietyDays);
+        
+        // Check and update achievements based on sobriety days
+        if (sobrietyDays > 0) {
+          console.log(`Checking achievements for ${sobrietyDays} days of sobriety`);
+          const newAchievements = await checkAndUpdateAchievements(userId, sobrietyDays);
+          
+          // If new achievements were awarded, show a notification
+          if (newAchievements && newAchievements.length > 0) {
+            console.log(`${newAchievements.length} new achievements unlocked`);
+            for (const result of newAchievements) {
+              const achievementDetails = result.achievement;
+              if (achievementDetails) {
+                showBanner(`🎉 Achievement Unlocked: ${achievementDetails.title}`, 'success');
+                console.log(`Unlocked: ${achievementDetails.title}`);
+              }
+            }
+          }
+        }
+        
+        // Set user achievements
+        if (userData.achievements) {
+          setUserAchievements(userData.achievements);
+        }
+        
+        // Set user points and level info for the achievements tab
+        const points = userData.points || 0;
+        setUserPoints(points);
+        
+        // Calculate and set level information
+        const calculatedLevelInfo = calculateLevel(points);
+        setLevelInfo(calculatedLevelInfo);
+        
+        // Check journal cooldown
+        if (userData.lastJournalPoints) {
+          const now = Date.now();
+          const twelveHoursInMs = 12 * 60 * 60 * 1000;
+          const cooldownEndsTime = userData.lastJournalPoints + twelveHoursInMs;
+          const timeRemaining = Math.max(0, cooldownEndsTime - now);
+          
+          if (now < cooldownEndsTime) {
+            // Calculate formatted time remaining
+            const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+            const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+            
+            setJournalCooldown({
+              cooldownEnds: cooldownEndsTime,
+              cooldownEndsFormatted: `${hours}h ${minutes}m`,
+              timeRemainingMs: timeRemaining
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      showBanner("Error fetching user data", "error");
+    }
+  };
+
+  // Load weed cost data along with other user data
+  const loadWeedCostData = async () => {
+    try {
+      if (!isFirebaseInitialized() || !auth.currentUser) {
+        return;
+      }
+      
+      const userId = auth.currentUser.uid;
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Check if we have the weed cost data from onboarding
+        if (userData.weed_cost) {
+          setWeedCostData(userData.weed_cost);
+          
+          // Calculate daily spend based on frequency
+          let calculatedDailySpend = 17; // Default
+          const { amount, frequency, annual_cost } = userData.weed_cost;
+          
+          if (annual_cost) {
+            // If we have annual cost, simply divide by 365
+            calculatedDailySpend = annual_cost / 365;
+          } else if (amount && frequency) {
+            // Otherwise calculate based on amount and frequency
+            switch (frequency) {
+              case 'daily':
+                calculatedDailySpend = amount;
+                break;
+              case 'weekly':
+                calculatedDailySpend = amount / 7;
+                break;
+              case 'monthly':
+                calculatedDailySpend = amount / 30;
+                break;
+              default:
+                calculatedDailySpend = 17; // Default
+            }
+          }
+          
+          console.log(`Calculated daily spend: $${calculatedDailySpend.toFixed(2)}`);
+          setDailySpend(calculatedDailySpend);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading weed cost data:', error);
+    }
+  };
+  
+  // Use fetchUserData in useEffect
+  useEffect(() => {
+    fetchUserData();
+    loadWeedCostData();
+  }, []);
+
   // Auto-hide banner after a duration
   useEffect(() => {
     if (bannerVisible) {
@@ -230,85 +384,6 @@ const RecoveryScreen = () => {
       loadEntries();
     }
   }, [activeTab]);
-
-  // Fetch user data including achievements and check for new achievements
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        if (!isFirebaseInitialized() || !auth.currentUser) {
-          return;
-        }
-        
-        const userId = auth.currentUser.uid;
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          
-          // Calculate sobriety days if sobrietyDate exists
-          if (userData.sobrietyDate) {
-            const sobrietyDate = userData.sobrietyDate.toDate();
-            const today = new Date();
-            const diffTime = Math.abs(today - sobrietyDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            setUserSobrietyDays(diffDays);
-            
-            // Check and update achievements based on sobriety days
-            const newAchievements = await checkAndUpdateAchievements(userId, diffDays);
-            
-            // If new achievements were awarded, show a notification
-            if (newAchievements.length > 0) {
-              // Get the achievement details
-              const achievementDetails = ALL_ACHIEVEMENTS.find(a => a.id === newAchievements[0]);
-              if (achievementDetails) {
-                showBanner(`🎉 Achievement Unlocked: ${achievementDetails.title}`, 'success');
-              }
-            }
-          }
-          
-          // Set user achievements
-          if (userData.achievements) {
-            setUserAchievements(userData.achievements);
-          }
-          
-          // Set user points and level info for the achievements tab
-          const points = userData.points || 0;
-          setUserPoints(points);
-          
-          // Calculate and set level information
-          const calculatedLevelInfo = calculateLevel(points);
-          setLevelInfo(calculatedLevelInfo);
-          
-          // Check journal cooldown
-          if (userData.lastJournalPoints) {
-            const now = new Date().getTime();
-            const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
-            const cooldownEndsTime = userData.lastJournalPoints + twentyFourHoursInMs;
-            
-            if (cooldownEndsTime > now) {
-              const timeRemaining = cooldownEndsTime - now;
-              const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
-              const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
-              const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
-              
-              const formattedTime = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-              
-              setJournalCooldown({
-                cooldownEnds: cooldownEndsTime,
-                cooldownEndsFormatted: formattedTime,
-                timeRemainingMs: timeRemaining
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        showBanner("Error fetching user data", "error");
-      }
-    };
-    
-    fetchUserData();
-  }, []);
 
   // Add a useEffect to update the cooldown timer every second
   useEffect(() => {
@@ -476,47 +551,34 @@ const RecoveryScreen = () => {
   };
 
   const handleSaveJournalEntry = async () => {
-    if (!auth.currentUser) {
-      showBanner('You must be signed in to save journal entries.', 'error');
-      return;
-    }
-
+    // Validations
     if (!journalTitle.trim()) {
-      showBanner('Please add a title to your journal entry.', 'error');
+      showBanner('Please provide a title for your journal entry', 'error');
       return;
     }
-
+    
     if (!journalContent.trim()) {
-      showBanner('Please write something in your journal entry.', 'error');
+      showBanner('Please write something in your journal entry', 'error');
       return;
     }
-
-    if (selectedMoods.length === 0) {
-      showBanner('Please select at least one mood for your journal entry.', 'error');
-      return;
-    }
-
+    
     setSavingJournal(true);
-
+    
     try {
       const userId = auth.currentUser.uid;
-      const timestamp = serverTimestamp();
       const journalData = {
-        title: journalTitle,
-        content: journalContent,
+        title: journalTitle.trim(),
+        content: journalContent.trim(),
         moods: selectedMoods,
-        createdAt: timestamp,
-        updatedAt: timestamp,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
-
-      // If editing, update existing document, else create new one
+      
       if (editingJournalId) {
-        const journalRef = doc(db, 'users', userId, 'journalEntries', editingJournalId);
-        await updateDoc(journalRef, {
-          title: journalTitle,
-          content: journalContent,
-          moods: selectedMoods,
-          updatedAt: timestamp,
+        // Update existing entry
+        await updateDoc(doc(db, 'users', userId, 'journalEntries', editingJournalId), {
+          ...journalData,
+          updatedAt: new Date(),
         });
         
         showBanner('Journal entry updated successfully!', 'success');
@@ -534,22 +596,34 @@ const RecoveryScreen = () => {
             setJournalCooldown(pointsResult);
             showBanner('Journal entry saved! (Points on cooldown)', 'success');
           } else {
-            // Points were awarded
-            setUserPoints(prev => (prev || 0) + 5);
+            // Points were awarded - get the updated points from Firestore instead of manually incrementing
+            // Load the updated points from the database
+            const userRef = doc(db, 'users', userId);
+            const userDoc = await getDoc(userRef);
             
-            // Set cooldown for 24 hours
-            const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
-            const cooldownEnds = Date.now() + twentyFourHoursInMs;
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              // Update the local state with the new points value from the database
+              setUserPoints(userData.points || 0);
+              
+              // Recalculate level based on new points
+              const updatedLevelInfo = calculateLevel(userData.points || 0);
+              setLevelInfo(updatedLevelInfo);
+            }
+            
+            // Update when saving journal entry
+            const twelveHoursInMs = 12 * 60 * 60 * 1000;
+            const cooldownEnds = Date.now() + twelveHoursInMs;
+            
             setJournalCooldown({
-              alreadyAwarded: true,
-              cooldownEnds,
-              cooldownEndsFormatted: '24:00:00',
-              timeRemainingMs: twentyFourHoursInMs
+              cooldownEnds: cooldownEnds,
+              cooldownEndsFormatted: '12h 0m',
+              timeRemainingMs: twelveHoursInMs
             });
             
             // Check if user leveled up
-            if (pointsResult.levelUp) {
-              showBanner(`🎉 Level up! You are now level ${pointsResult.newLevel}!`, 'success');
+            if (pointsResult.leveledUp) {
+              showBanner(`🎉 Level up! You are now level ${pointsResult.levelInfo.level}!`, 'success');
             } else {
               showBanner('Journal entry saved! +5 points awarded!', 'success');
             }
@@ -830,8 +904,8 @@ const RecoveryScreen = () => {
               <View style={styles.statCard}>
                 <Ionicons name="wallet-outline" size={32} color="#4CAF50" style={styles.statIcon} />
                 <Text style={styles.statLabel}>Money Saved</Text>
-                <Text style={styles.statValue}>${userSobrietyDays * 17}</Text>
-                <Text style={styles.statSubtext}>$17/day</Text>
+                <Text style={styles.statValue}>${calculateMoneySaved(userSobrietyDays).toLocaleString()}</Text>
+                <Text style={styles.statSubtext}>${dailySpend.toFixed(2)}/day</Text>
               </View>
             </View>
             
@@ -960,7 +1034,7 @@ const RecoveryScreen = () => {
               <View style={styles.projectionItem}>
                 <View style={styles.projectionInfo}>
                   <Text style={styles.projectionLabel}>1 Month</Text>
-                  <Text style={styles.projectionValue}>$514</Text>
+                  <Text style={styles.projectionValue}>${calculateMoneySaved(30).toLocaleString()}</Text>
                 </View>
                 <View style={styles.projectionBar}>
                   <View style={[styles.projectionFill, { width: '25%', backgroundColor: '#81C784' }]} />
@@ -970,7 +1044,7 @@ const RecoveryScreen = () => {
               <View style={styles.projectionItem}>
                 <View style={styles.projectionInfo}>
                   <Text style={styles.projectionLabel}>3 Months</Text>
-                  <Text style={styles.projectionValue}>$1,542</Text>
+                  <Text style={styles.projectionValue}>${calculateMoneySaved(90).toLocaleString()}</Text>
                 </View>
                 <View style={styles.projectionBar}>
                   <View style={[styles.projectionFill, { width: '45%', backgroundColor: '#66BB6A' }]} />
@@ -980,7 +1054,7 @@ const RecoveryScreen = () => {
               <View style={styles.projectionItem}>
                 <View style={styles.projectionInfo}>
                   <Text style={styles.projectionLabel}>6 Months</Text>
-                  <Text style={styles.projectionValue}>$3,085</Text>
+                  <Text style={styles.projectionValue}>${calculateMoneySaved(180).toLocaleString()}</Text>
                 </View>
                 <View style={styles.projectionBar}>
                   <View style={[styles.projectionFill, { width: '65%', backgroundColor: '#4CAF50' }]} />
@@ -990,7 +1064,7 @@ const RecoveryScreen = () => {
               <View style={styles.projectionItem}>
                 <View style={styles.projectionInfo}>
                   <Text style={styles.projectionLabel}>1 Year</Text>
-                  <Text style={styles.projectionValue}>$6,171</Text>
+                  <Text style={styles.projectionValue}>${calculateMoneySaved(365).toLocaleString()}</Text>
                 </View>
                 <View style={styles.projectionBar}>
                   <View style={[styles.projectionFill, { width: '85%', backgroundColor: '#388E3C' }]} />
@@ -1564,9 +1638,27 @@ const RecoveryScreen = () => {
                   <View style={styles.pointTextContainer}>
                     <Text style={styles.pointRowTitle}>Journal Entry</Text>
                     <Text style={styles.pointRowSubtitle}>
-                      {journalCooldown 
-                        ? `Write in your journal (Cooldown: ${journalCooldown.cooldownEndsFormatted})` 
-                        : 'Write in your journal (24-hour cooldown)'}
+                      {journalCooldown
+                        ? `Write in your journal (Cooldown: ${journalCooldown.cooldownEndsFormatted})`
+                        : 'Write in your journal (12-hour cooldown)'}
+                    </Text>
+                  </View>
+                  <Text style={styles.pointRowValue}>+5</Text>
+                </View>
+                
+                {/* Meditation - Show cooldown status */}
+                <View style={styles.pointsRow}>
+                  <View style={[styles.pointIcon, { backgroundColor: '#4CAF50' }]}>
+                    <Ionicons 
+                      name="leaf" 
+                      size={24} 
+                      color="#FFFFFF" 
+                    />
+                  </View>
+                  <View style={styles.pointTextContainer}>
+                    <Text style={styles.pointRowTitle}>Meditation</Text>
+                    <Text style={styles.pointRowSubtitle}>
+                      Meditate for at least 1 minute (24-hour cooldown)
                     </Text>
                   </View>
                   <Text style={styles.pointRowValue}>+5</Text>
@@ -1666,6 +1758,19 @@ const RecoveryScreen = () => {
       default:
         return null;
     }
+  };
+
+  // Add this useEffect to check achievements when the tab changes to achievements
+  useEffect(() => {
+    if (activeTab === 'achievements') {
+      console.log('Achievements tab selected, checking achievements');
+      fetchUserData();
+    }
+  }, [activeTab]);
+
+  // Function to calculate money saved for various time periods
+  const calculateMoneySaved = (days) => {
+    return Math.floor(days * dailySpend);
   };
 
   return (
@@ -2640,16 +2745,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  levelBadgeText: {
+  levelNumber: {
     fontSize: 28,
-    color: '#FFFFFF',
     fontFamily: typography.fonts.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  levelTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   levelTitle: {
     fontSize: 18,
     fontFamily: typography.fonts.bold,
     color: '#000000',
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  achievementCardTitle: {
+    fontSize: 18,
+    fontFamily: typography.fonts.bold,
+    color: '#000000',
+    marginBottom: 2,
   },
   levelSubtitle: {
     fontSize: 14,
@@ -3044,10 +3160,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: typography.fonts.bold,
     color: '#FFFFFF',
-    marginRight: 8,
+    textAlign: 'center',
   },
   levelTextContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   levelStatsRow: {
     flexDirection: 'row',
@@ -3233,7 +3350,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: typography.fonts.bold,
     color: '#000000',
-    marginBottom: 16,
+    marginBottom: 2,
   },
   achievementCardSubtitle: {
     fontSize: 14,

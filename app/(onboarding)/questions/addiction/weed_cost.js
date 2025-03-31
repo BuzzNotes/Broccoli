@@ -7,6 +7,8 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import * as Haptics from 'expo-haptics';
 import { useFonts, PlusJakartaSans_700Bold, PlusJakartaSans_400Regular } from "@expo-google-fonts/plus-jakarta-sans";
 import LoadingScreen from '../../../../src/components/LoadingScreen';
+import { auth, db } from '../../../../src/config/firebase';
+import { updateDoc, doc } from 'firebase/firestore';
 
 const WeedCostQuestion = () => {
   const { saveAnswer, clearAnswer } = useOnboarding();
@@ -33,7 +35,7 @@ const WeedCostQuestion = () => {
     setFrequency(selectedFrequency);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     // Calculate annual cost
@@ -58,6 +60,22 @@ const WeedCostQuestion = () => {
       frequency: frequency,
       annual_cost: annualCost
     });
+    
+    // Also save to Firestore if authenticated
+    try {
+      if (auth.currentUser) {
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          weed_cost: {
+            amount: numAmount,
+            frequency: frequency,
+            annual_cost: annualCost
+          }
+        });
+        console.log('Saved weed cost to Firestore');
+      }
+    } catch (error) {
+      console.error('Error saving weed cost to Firestore:', error);
+    }
     
     router.push('/(onboarding)/analysis/final');
   };
