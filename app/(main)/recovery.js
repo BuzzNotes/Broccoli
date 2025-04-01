@@ -168,6 +168,13 @@ const moodOptions = [
   },
 ];
 
+// Define the tab configuration
+const TABS = [
+  { id: 'progress', label: 'Progress' },
+  { id: 'journal', label: 'Journal' },
+  { id: 'achievements', label: 'Achievements' }
+];
+
 const RecoveryScreen = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -185,6 +192,8 @@ const RecoveryScreen = () => {
   const [bannerVisible, setBannerVisible] = useState(false);
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerType, setBannerType] = useState('success');
+  const bannerTimeout = useRef(null);
+  
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [journalCooldown, setJournalCooldown] = useState(null);
   
@@ -348,17 +357,6 @@ const RecoveryScreen = () => {
     loadWeedCostData();
   }, []);
 
-  // Auto-hide banner after a duration
-  useEffect(() => {
-    if (bannerVisible) {
-      const timer = setTimeout(() => {
-        setBannerVisible(false);
-      }, 3000); // Hide after 3 seconds
-      
-      return () => clearTimeout(timer);
-    }
-  }, [bannerVisible]);
-
   // Set the active tab based on the initialTab parameter
   useEffect(() => {
     if (params?.initialTab && ['progress', 'journal', 'achievements'].includes(params.initialTab)) {
@@ -470,12 +468,10 @@ const RecoveryScreen = () => {
   };
 
   const handleCreateJournalEntry = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setJournalTitle('');
     setJournalContent('');
     setSelectedMoods([]);
     setEditingJournalId(null);
-    setActiveTemplate(null);
     setShowJournalEditor(true);
   };
   
@@ -533,13 +529,19 @@ const RecoveryScreen = () => {
                 return;
               }
 
+              // Hide any existing banner first
+              hideBanner();
+              
               const userId = auth.currentUser.uid;
               await deleteDoc(doc(db, 'users', userId, 'journalEntries', entryId));
               
               // Update local state
               setJournalEntries(prevEntries => prevEntries.filter(entry => entry.id !== entryId));
               
-              showBanner('Journal entry deleted', 'success');
+              // Show success banner with delay
+              setTimeout(() => {
+                showBanner('Journal entry deleted', 'success');
+              }, 500);
             } catch (error) {
               console.error('Error deleting journal entry:', error);
               showBanner('Failed to delete journal entry', 'error');
@@ -562,6 +564,9 @@ const RecoveryScreen = () => {
       return;
     }
     
+    // Hide any existing banner before starting save process
+    hideBanner();
+    
     setSavingJournal(true);
     
     try {
@@ -574,6 +579,14 @@ const RecoveryScreen = () => {
         updatedAt: new Date()
       };
       
+      // Reset journal editor state first
+      setJournalTitle('');
+      setJournalContent('');
+      setSelectedMoods([]);
+      setShowJournalEditor(false);
+      setEditingJournalId(null);
+      
+      // Process based on whether editing or creating
       if (editingJournalId) {
         // Update existing entry
         await updateDoc(doc(db, 'users', userId, 'journalEntries', editingJournalId), {
@@ -581,67 +594,69 @@ const RecoveryScreen = () => {
           updatedAt: new Date(),
         });
         
-        showBanner('Journal entry updated successfully!', 'success');
+        // Update UI first, wait a moment, then show the banner
+        await loadJournalEntries();
+        
+        // Use setTimeout to ensure UI is updated first
+        setTimeout(() => {
+          showBanner('Journal entry updated successfully!', 'success');
+        }, 500);
       } else {
         // Create new journal entry
         await addDoc(collection(db, 'users', userId, 'journalEntries'), journalData);
         
+        // Update local entries
+        await loadJournalEntries();
+        
         // Award points for new journal entry
         const pointsResult = await awardJournalingPoints(userId);
         
-        // Update local state with cooldown info
         if (pointsResult) {
           if (pointsResult.alreadyAwarded) {
             // Points were not awarded due to cooldown
             setJournalCooldown(pointsResult);
-            showBanner('Journal entry saved! (Points on cooldown)', 'success');
+            
+            // Show banner with delay
+            setTimeout(() => {
+              showBanner('Journal entry saved! (Points on cooldown)', 'success');
+            }, 500);
           } else {
-            // Points were awarded - get the updated points from Firestore instead of manually incrementing
-            // Load the updated points from the database
+            // Points were awarded
             const userRef = doc(db, 'users', userId);
             const userDoc = await getDoc(userRef);
             
             if (userDoc.exists()) {
               const userData = userDoc.data();
-              // Update the local state with the new points value from the database
               setUserPoints(userData.points || 0);
-              
-              // Recalculate level based on new points
               const updatedLevelInfo = calculateLevel(userData.points || 0);
               setLevelInfo(updatedLevelInfo);
             }
             
-            // Update when saving journal entry
+            // Set cooldown
             const twelveHoursInMs = 12 * 60 * 60 * 1000;
             const cooldownEnds = Date.now() + twelveHoursInMs;
-            
             setJournalCooldown({
               cooldownEnds: cooldownEnds,
               cooldownEndsFormatted: '12h 0m',
               timeRemainingMs: twelveHoursInMs
             });
             
-            // Check if user leveled up
-            if (pointsResult.leveledUp) {
-              showBanner(`🎉 Level up! You are now level ${pointsResult.levelInfo.level}!`, 'success');
-            } else {
-              showBanner('Journal entry saved! +5 points awarded!', 'success');
-            }
+            // Show appropriate banner with delay
+            setTimeout(() => {
+              if (pointsResult.leveledUp) {
+                showBanner(`🎉 Level up! You are now level ${pointsResult.levelInfo.level}!`, 'success');
+              } else {
+                showBanner('Journal entry saved! +5 points awarded!', 'success');
+              }
+            }, 500);
           }
         } else {
-          showBanner('Journal entry saved!', 'success');
+          // No points info, just show basic success message
+          setTimeout(() => {
+            showBanner('Journal entry saved!', 'success');
+          }, 500);
         }
       }
-
-      // Reset journal editor
-      setJournalTitle('');
-      setJournalContent('');
-      setSelectedMoods([]);
-      setShowJournalEditor(false);
-      setEditingJournalId(null);
-      
-      // Reload journal entries
-      loadJournalEntries();
     } catch (error) {
       console.error('Error saving journal entry:', error);
       showBanner(`Error saving journal entry: ${error.message}`, 'error');
@@ -709,16 +724,51 @@ const RecoveryScreen = () => {
     }
   };
   
+  // Completely rewritten showBanner function for simplicity and reliability
   const showBanner = (message, type = 'success') => {
-    setBannerMessage(message);
+    console.log('Showing banner with message:', message);
+    
+    // Don't show empty banners
+    if (!message || message.trim() === '') {
+      console.log('Empty message, not showing banner');
+      return;
+    }
+    
+    // Clear any existing timeout to prevent race conditions
+    if (bannerTimeout.current) {
+      clearTimeout(bannerTimeout.current);
+      bannerTimeout.current = null;
+    }
+    
+    // Update banner state
     setBannerType(type);
+    setBannerMessage(message);
     setBannerVisible(true);
+    
+    // Auto-hide after timeout
+    bannerTimeout.current = setTimeout(() => {
+      console.log('Auto-hiding banner for message:', message);
+      hideBanner();
+    }, 5000);
   };
   
+  // Simplified hide banner function
   const hideBanner = () => {
+    console.log('Hiding banner');
     setBannerVisible(false);
+    setBannerMessage('');
   };
   
+  // Clear timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (bannerTimeout.current) {
+        clearTimeout(bannerTimeout.current);
+        bannerTimeout.current = null;
+      }
+    };
+  }, []);
+
   const formatJournalDate = (date) => {
     if (!date) return '';
     
@@ -943,8 +993,8 @@ const RecoveryScreen = () => {
                   <Text style={styles.benefitTitle}>Mood Stabilization</Text>
                   <Text style={styles.benefitText}>Less anxiety and more balanced emotions</Text>
               </View>
-              </View>
             </View>
+          </View>
             
             {/* Milestone Timeline */}
             <View style={styles.milestoneCard}>
@@ -997,7 +1047,7 @@ const RecoveryScreen = () => {
                       Sleep quality improving, dreams returning, increased mental clarity.
                     </Text>
                   </View>
-                </TouchableOpacity>
+              </TouchableOpacity>
                 
                 {/* Day 15-30 */}
                 <View style={styles.timelineItem}>
@@ -1010,19 +1060,19 @@ const RecoveryScreen = () => {
                       Significant reduction in cravings, improved focus and mental clarity.
                     </Text>
                   </View>
-                </View>
-                
+            </View>
+            
                 {/* Month 1+ */}
                 <View style={styles.timelineItem}>
                   <View style={[styles.timelineIcon, { backgroundColor: '#E0E0E0' }]}>
                     <Text style={styles.timelineFuture}>30+</Text>
-                  </View>
+            </View>
                   <View style={styles.timelineContent}>
                     <Text style={styles.timelineTitle}>1+ Month</Text>
                     <Text style={styles.timelineText}>
                       Return to normal sleep patterns, improved cognitive function, reduced anxiety.
                     </Text>
-                  </View>
+          </View>
                 </View>
               </View>
             </View>
@@ -1092,7 +1142,7 @@ const RecoveryScreen = () => {
               >
                 {ALL_ACHIEVEMENTS.map((achievement) => {
                   const unlocked = isAchievementUnlocked(achievement.id);
-                  return (
+        return (
                     <View key={achievement.id} style={styles.achievementCarouselItem}>
                       <View style={[
                         styles.achievementCarouselIcon, 
@@ -1171,16 +1221,6 @@ const RecoveryScreen = () => {
       case 'journal':
         return (
           <View style={styles.tabContent}>
-            {/* Only render banner when visible is true */}
-            {bannerVisible && (
-              <BannerNotification
-                visible={bannerVisible}
-                message={bannerMessage}
-                type={bannerType}
-                onHide={hideBanner}
-              />
-            )}
-            
             {showJournalEditor ? (
               // Journal Editor View
               <View style={styles.journalEditorContainer}>
@@ -1310,12 +1350,12 @@ const RecoveryScreen = () => {
                     style={styles.addButton}
                     onPress={handleCreateJournalEntry}
                   >
-                    <LinearGradient
+      <LinearGradient
                       colors={['#4CAF50', '#388E3C']}
-                      style={StyleSheet.absoluteFill}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    />
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
                     <Ionicons name="add" size={24} color="white" />
                   </TouchableOpacity>
                 </View>
@@ -1387,7 +1427,7 @@ const RecoveryScreen = () => {
                       <ActivityIndicator size="small" color="#4CAF50" />
                     </View>
                   ) : journalEntries.length > 0 ? (
-                    <ScrollView 
+      <ScrollView
                       horizontal 
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.journalCarouselContent}
@@ -1415,18 +1455,18 @@ const RecoveryScreen = () => {
                           </Text>
                           
                           {/* Delete button */}
-                          <TouchableOpacity
+          <TouchableOpacity 
                             style={styles.deleteButton}
                             onPress={() => handleDeleteJournalEntry(entry.id)}
                             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                          >
+          >
                             <Ionicons name="trash-outline" size={18} color="#666666" />
-                          </TouchableOpacity>
+          </TouchableOpacity>
                         </TouchableOpacity>
                       ))}
-                      
+          
                       {/* Add New Entry Card */}
-                      <TouchableOpacity
+          <TouchableOpacity 
                         style={styles.addJournalCard}
                         onPress={handleCreateJournalEntry}
                         activeOpacity={0.7}
@@ -1437,7 +1477,7 @@ const RecoveryScreen = () => {
                           </View>
                           <Text style={styles.addJournalText}>Add New Entry</Text>
                         </View>
-                      </TouchableOpacity>
+          </TouchableOpacity>
                     </ScrollView>
                   ) : (
                     <View style={styles.emptyJournalContainer}>
@@ -1486,7 +1526,7 @@ const RecoveryScreen = () => {
                     contentContainerStyle={styles.templatesContainer}
                   >
                     {moodOptions.map((mood) => (
-                      <TouchableOpacity 
+          <TouchableOpacity 
                         key={mood.id}
                         style={styles.templateItem}
                         onPress={() => {
@@ -1501,7 +1541,7 @@ const RecoveryScreen = () => {
                           <Ionicons name={mood.icon} size={24} color="#FFFFFF" />
                         </View>
                         <Text style={styles.templateName}>{mood.label}</Text>
-                      </TouchableOpacity>
+          </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
@@ -1773,56 +1813,62 @@ const RecoveryScreen = () => {
     return Math.floor(days * dailySpend);
   };
 
+  const handleTabPress = (tabId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tabId);
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+      <StatusBar />
       
-      {/* Green gradient background */}
-      <View style={StyleSheet.absoluteFill}>
-        <View style={{flex: 1, backgroundColor: '#FCFCFC'}} />
+      {/* Global Banner Notification - Moved to top */}
+      <View style={styles.bannerContainer}>
+        <BannerNotification
+          visible={bannerVisible}
+          message={bannerMessage}
+          type={bannerType}
+          onHide={hideBanner}
+        />
       </View>
       
-      {/* Header with title */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-        <View style={styles.headerContent}>
-          <Text style={styles.screenTitle}>Recovery</Text>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Recovery</Text>
       </View>
       
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 70 }
-        ]}
-        showsVerticalScrollIndicator={false}
-        style={{ width: '100%' }}
-      >
+      <View style={styles.contentContainer}>
         {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          {['progress', 'journal', 'achievements'].map((tab) => (
-          <TouchableOpacity 
-              key={tab}
+        <View style={styles.tabBar}>
+          {TABS.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
               style={[
                 styles.tabButton,
-                activeTab === tab && styles.activeTabButton
+                activeTab === tab.id && styles.activeTabButton
               ]}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => handleTabPress(tab.id)}
             >
               <Text
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText
+                  styles.tabButtonText,
+                  activeTab === tab.id && styles.activeTabButtonText
                 ]}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab.label}
               </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           ))}
         </View>
         
         {/* Tab Content */}
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
         {renderTabContent()}
       </ScrollView>
+      </View>
     </View>
   );
 };
@@ -1831,35 +1877,49 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
+    backgroundColor: '#F5F5F5',
+  },
+  bannerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999, // Increased z-index to ensure it's above everything
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: typography.fonts.bold,
+    color: '#000000',
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    padding: 4,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 150,
     width: '100%',
-  },
-  headerContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    zIndex: 10,
-    backgroundColor: 'transparent',
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  screenTitle: {
-    fontSize: 24,
-    color: '#000000',
-    fontFamily: typography.fonts.bold,
-    letterSpacing: 0.5,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -3532,6 +3592,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'white',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    padding: 4,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  activeTabButton: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.2)',
+  },
+  tabButtonText: {
+    fontSize: 15,
+    color: '#666666',
+    fontFamily: typography.fonts.medium,
+  },
+  activeTabButtonText: {
+    color: '#4CAF50',
+    fontFamily: typography.fonts.bold,
   },
 });
 

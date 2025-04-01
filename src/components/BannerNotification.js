@@ -10,41 +10,76 @@ const BannerNotification = ({
   visible, 
   message, 
   type = 'success', 
-  duration = 3000,
+  duration = 5000,  // Changed default to 5000ms (5 seconds)
   onHide
 }) => {
+  // Use translateY animation from top instead of bottom
   const translateY = useRef(new Animated.Value(-100)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const timerRef = useRef(null);
   
   useEffect(() => {
-    if (visible) {
-      // Show the banner
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 50,
-      }).start();
+    console.log('BannerNotification useEffect - visible:', visible, 'message:', message);
+    
+    // Clear any existing timer to prevent conflicts
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (visible && message) {
+      console.log('Showing banner with message:', message);
+      
+      // Show the banner (from top) with opacity fade
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 50,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start();
       
       // Hide after duration
-      const timer = setTimeout(() => {
+      timerRef.current = setTimeout(() => {
+        console.log('Auto-hiding banner after timeout');
         hideNotification();
       }, duration);
-      
-      return () => clearTimeout(timer);
     } else {
       // Ensure banner is hidden when visible prop is false
       hideNotification();
     }
-  }, [visible]);
+    
+    // Cleanup timer on unmount or when visible changes
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [visible, message, duration]);
   
   const hideNotification = () => {
-    // Hide the banner
-    Animated.timing(translateY, {
-      toValue: -150,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
+    console.log('Hiding notification banner');
+    // Hide the banner (to top) with opacity fade
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
       if (onHide) onHide();
     });
   };
@@ -81,16 +116,20 @@ const BannerNotification = ({
   
   const { icon, backgroundColor, color } = getNotificationStyles();
   
+  // Don't render anything if message is empty
+  if (!message) {
+    return null;
+  }
+  
   return (
     <Animated.View 
       style={[
         styles.container, 
         { 
-          transform: [{ translateY }], 
-          backgroundColor, 
+          transform: [{ translateY }],
+          opacity,
+          backgroundColor,
           marginTop: insets.top,
-          width: width, // Ensure full width
-          left: 0, // Ensure no left spacing
         }
       ]}
     >
